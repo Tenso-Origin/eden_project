@@ -66,7 +66,9 @@ public static class Thermodynamics
                 }
 
                 // Troca térmica com a atmosfera ambiente (resfriamento/aquecimento convectivo de topo)
-                heatFluxSum += (ambientTemp - currentTemp) * AmbientAirCoupling;
+                // Gradiente altimétrico adiabático: -6.5°C por 1000m (-0.0065°C / m)
+                float localAmbient = ambientTemp - (chunk.Elevation[idx] * 0.0065f);
+                heatFluxSum += (localAmbient - currentTemp) * AmbientAirCoupling;
 
                 // Atualização da temperatura resultante
                 float deltaT = (heatFluxSum / thermalMass) * dt;

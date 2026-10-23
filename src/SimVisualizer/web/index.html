@@ -3,23 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Projeto Biosfera - Simulação Planetária 30x30 DOD (Fases 1 a 6)</title>
+  <title>Projeto Biosfera - Simulação Planetária 512x512 DOD (Ecossistema Realista)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d1117;
-      --panel-bg: rgba(22, 27, 34, 0.88);
-      --border: rgba(240, 246, 252, 0.1);
+      --bg: #090d13;
+      --panel-bg: rgba(18, 23, 32, 0.92);
+      --border: rgba(240, 246, 252, 0.12);
       --accent: #58a6ff;
-      --accent-glow: rgba(88, 166, 255, 0.25);
+      --accent-glow: rgba(88, 166, 255, 0.3);
       --text: #c9d1d9;
       --text-bright: #f0f6fc;
       --text-dim: #8b949e;
       --success: #3fb950;
       --danger: #f85149;
       --warning: #d29922;
+      --purple: #bc8cff;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -35,9 +36,9 @@
 
     header {
       background: var(--panel-bg);
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(14px);
       border-bottom: 1px solid var(--border);
-      padding: 14px 28px;
+      padding: 12px 28px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -52,16 +53,16 @@
       gap: 12px;
     }
     .brand-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, #238636, #2ea043);
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #1f6feb, #238636);
       display: grid;
       place-items: center;
       font-weight: 800;
       color: white;
-      font-size: 18px;
-      box-shadow: 0 0 15px rgba(46, 160, 67, 0.4);
+      font-size: 19px;
+      box-shadow: 0 0 16px rgba(31, 111, 235, 0.4);
     }
     .brand h1 {
       font-size: 1.15rem;
@@ -70,22 +71,23 @@
       letter-spacing: -0.5px;
     }
     .brand span {
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       color: var(--text-dim);
       font-family: 'JetBrains Mono', monospace;
       background: rgba(255,255,255,0.06);
       padding: 2px 8px;
       border-radius: 12px;
       margin-left: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
     }
 
     .main-layout {
       display: grid;
-      grid-template-columns: 1fr 380px;
-      gap: 24px;
-      padding: 20px 28px;
+      grid-template-columns: 1fr 400px;
+      gap: 22px;
+      padding: 18px 26px;
       flex: 1;
-      max-width: 1680px;
+      max-width: 1720px;
       margin: 0 auto;
       width: 100%;
     }
@@ -94,11 +96,11 @@
       background: var(--panel-bg);
       border: 1px solid var(--border);
       border-radius: 16px;
-      padding: 20px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      gap: 14px;
+      box-shadow: 0 8px 36px rgba(0,0,0,0.5);
     }
 
     .controls-bar {
@@ -106,9 +108,9 @@
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      background: rgba(13, 17, 23, 0.7);
-      padding: 10px 16px;
+      gap: 10px;
+      background: rgba(13, 17, 23, 0.85);
+      padding: 10px 14px;
       border-radius: 12px;
       border: 1px solid var(--border);
     }
@@ -124,9 +126,9 @@
       color: var(--text-bright);
       border: 1px solid var(--border);
       border-radius: 8px;
-      padding: 8px 14px;
+      padding: 7px 13px;
       font-family: 'Outfit', sans-serif;
-      font-size: 0.85rem;
+      font-size: 0.83rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -143,7 +145,7 @@
       background: #238636;
       border-color: rgba(240, 246, 252, 0.1);
       color: white;
-      box-shadow: 0 0 12px rgba(35, 134, 54, 0.3);
+      box-shadow: 0 0 12px rgba(35, 134, 54, 0.35);
     }
     button.primary:hover {
       background: #2ea043;
@@ -161,10 +163,11 @@
       padding: 4px;
       border-radius: 8px;
       border: 1px solid var(--border);
+      flex-wrap: wrap;
     }
     .layer-btn {
-      padding: 6px 10px;
-      font-size: 0.78rem;
+      padding: 5px 9px;
+      font-size: 0.76rem;
       border-radius: 6px;
       background: transparent;
       border: none;
@@ -178,41 +181,44 @@
 
     .canvas-container {
       position: relative;
-      display: grid;
-      place-items: center;
-      background: #06090e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #04070b;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.05);
-      padding: 16px;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 12px;
+      min-height: 540px;
     }
 
     canvas {
-      border-radius: 8px;
+      border-radius: 6px;
       image-rendering: pixelated;
       cursor: crosshair;
-      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+      box-shadow: 0 0 45px rgba(0,0,0,0.85);
+      width: 512px;
+      height: 512px;
       max-width: 100%;
-      height: auto;
     }
 
     .legend-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 16px;
+      padding: 8px 14px;
       background: rgba(13, 17, 23, 0.7);
       border-radius: 10px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--text-dim);
     }
     .gradient-legend {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
     .gradient-bar {
-      width: 180px;
-      height: 10px;
+      width: 160px;
+      height: 9px;
       border-radius: 5px;
       border: 1px solid rgba(255,255,255,0.1);
     }
@@ -221,20 +227,20 @@
     .sidebar {
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
     }
 
     .side-card {
       background: var(--panel-bg);
       border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 18px;
+      border-radius: 14px;
+      padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
     .side-card h2 {
-      font-size: 0.9rem;
+      font-size: 0.86rem;
       color: var(--text-bright);
       text-transform: uppercase;
       letter-spacing: 0.8px;
@@ -245,7 +251,7 @@
     .side-card h2::before {
       content: '';
       width: 4px;
-      height: 14px;
+      height: 13px;
       background: var(--accent);
       border-radius: 2px;
     }
@@ -253,40 +259,41 @@
     .stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      gap: 8px;
     }
     .stat-box {
-      background: #161b22;
+      background: #141922;
       border: 1px solid var(--border);
-      padding: 10px;
+      padding: 8px 10px;
       border-radius: 8px;
     }
     .stat-label {
-      font-size: 0.7rem;
+      font-size: 0.68rem;
       color: var(--text-dim);
-      margin-bottom: 3px;
+      margin-bottom: 2px;
+      font-family: 'JetBrains Mono', monospace;
     }
     .stat-val {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 1.1rem;
+      font-size: 1.02rem;
       font-weight: 700;
       color: var(--text-bright);
     }
 
     .inspector-box {
-      background: #0d1117;
+      background: #0a0e14;
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 12px;
+      padding: 10px 12px;
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.78rem;
-      line-height: 1.55;
+      font-size: 0.74rem;
+      line-height: 1.5;
     }
     .inspector-row {
       display: flex;
       justify-content: space-between;
       border-bottom: 1px solid rgba(255,255,255,0.04);
-      padding: 3px 0;
+      padding: 2px 0;
     }
     .inspector-row:last-child { border-bottom: none; }
     .inspector-val { color: var(--accent); font-weight: 600; }
@@ -294,30 +301,39 @@
     .brush-tools {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
-      gap: 6px;
+      gap: 5px;
     }
     .brush-btn {
-      padding: 6px;
-      font-size: 0.75rem;
+      padding: 6px 4px;
+      font-size: 0.74rem;
       justify-content: center;
-      background: #161b22;
+      background: #141922;
     }
     .brush-btn.active {
       background: var(--accent);
-      color: #0d1117;
+      color: #090d13;
       border-color: var(--accent);
+      font-weight: 700;
     }
 
     .badge-solar {
       font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      background: #21262d;
+      font-size: 0.74rem;
+      background: #1f242d;
       padding: 4px 10px;
       border-radius: 12px;
       border: 1px solid var(--border);
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+
+    .mini-badge {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.08);
+      font-family: 'JetBrains Mono', monospace;
     }
   </style>
 </head>
@@ -327,14 +343,14 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Mundo 30x30 Planeta Vivo</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span></h1>
       </div>
     </div>
     <div class="btn-group">
       <div class="badge-solar" id="solarBadge">☀️ 12:00h (Zênite Solar)</div>
       <button id="btnPlay" class="primary">▶ Iniciar Simulação</button>
-      <button id="btnStep">⏭ 1 Tick</button>
-      <button id="btnReset">↺ Resetar</button>
+      <button id="btnStep">⏭ 1 Passo</button>
+      <button id="btnReset">↺ Resetar Mundo</button>
     </div>
   </header>
 
@@ -344,33 +360,33 @@
       <div class="controls-bar">
         <div class="layer-selector">
           <button class="layer-btn active" data-layer="composite">🌍 Bioma HD</button>
-          <button class="layer-btn" data-layer="temp">🔥 Térmico</button>
-          <button class="layer-btn" data-layer="moisture">💧 Hidrologia</button>
-          <button class="layer-btn" data-layer="biomass">🌿 Biomassa</button>
-          <button class="layer-btn" data-layer="elevation">⛰ Topografia</button>
-          <button class="layer-btn" data-layer="danger">🐺 Predadores</button>
+          <button class="layer-btn" data-layer="temp">🔥 Térmico (Altitude)</button>
+          <button class="layer-btn" data-layer="moisture">💧 Hidrologia & Escoamento</button>
+          <button class="layer-btn" data-layer="erosion">⚡ Relevo & Erosão</button>
+          <button class="layer-btn" data-layer="biomass">🌿 Biomassa Verde</button>
+          <button class="layer-btn" data-layer="fauna">🐾 Ratos vs Gatos</button>
         </div>
 
         <div class="btn-group">
-          <label style="font-size:0.8rem; color:var(--text-dim);">Velocidade:</label>
-          <select id="simSpeed" style="background:#21262d; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-family:inherit;">
-            <option value="1">1x (Normal)</option>
-            <option value="3" selected>3x (Dinâmico)</option>
-            <option value="8">8x (Acelerado)</option>
+          <label style="font-size:0.78rem; color:var(--text-dim);">Velocidade:</label>
+          <select id="simSpeed" style="background:#21262d; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-family:inherit; font-size:0.8rem;">
+            <option value="1">1x (Tempo Real)</option>
+            <option value="2" selected>2x (Dinâmico)</option>
+            <option value="4">4x (Acelerado)</option>
           </select>
         </div>
       </div>
 
       <div class="canvas-container">
-        <canvas id="viewportCanvas" width="600" height="600"></canvas>
+        <canvas id="viewportCanvas" width="512" height="512"></canvas>
       </div>
 
       <div class="legend-bar">
-        <span id="layerInfo">Modo: Bioma Composto HD (Montanha a NW, Mar a SE e Equador Central)</span>
+        <span id="layerInfo">Modo: Bioma HD (Montanha 2km NW &le;312 cél | Mar -100m SE &le;312 cél | Equador Y=255..256)</span>
         <div class="gradient-legend">
-          <span id="legendMin">+10°C</span>
-          <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #00ff66, #ffcc00, #ff2200);"></div>
-          <span id="legendMax">+45°C</span>
+          <span id="legendMin">-100m</span>
+          <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff);"></div>
+          <span id="legendMax">+2000m</span>
         </div>
       </div>
     </div>
@@ -385,672 +401,851 @@
             <div id="statTicks" class="stat-val">0</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">HORA DO DIA</div>
+            <div class="stat-label">HORA / CICLO SOLAR</div>
             <div id="statHour" class="stat-val">12:00h</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">TEMP. MÉDIA</div>
-            <div id="statAvgTemp" class="stat-val">18.5°C</div>
+            <div class="stat-label">TEMP. MÉDIA GLOBAL</div>
+            <div id="statAvgTemp" class="stat-val">22.4°C</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">PRECIPITAÇÃO</div>
-            <div id="statRain" class="stat-val">0.0 mm/s</div>
+            <div class="stat-label">VOLUME ERODIDO</div>
+            <div id="statErosion" class="stat-val">0.0 m³</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #ffcc00;">
+            <div class="stat-label">RATOS (🐁 HERBÍVOROS)</div>
+            <div id="statRats" class="stat-val" style="color:#ffea79;">0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #ff4444;">
+            <div class="stat-label">GATOS (🐈 PREDADORES)</div>
+            <div id="statCats" class="stat-val" style="color:#ff6b6b;">0</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">HERBÍVOROS (🐇)</div>
-            <div id="statHerbivores" class="stat-val" style="color:#fffb00;">0</div>
+            <div class="stat-label">CUME MONTANHA (NW)</div>
+            <div id="statPeak" class="stat-val">2000.0 m</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">PREDADORES (🐺)</div>
-            <div id="statPredators" class="stat-val" style="color:#ff3838;">0</div>
+            <div class="stat-label">FUNDO OCEANO (SE)</div>
+            <div id="statAbyss" class="stat-val">-100.0 m</div>
           </div>
         </div>
       </div>
 
       <div class="side-card">
-        <h2>Inspetor de Célula</h2>
+        <h2>Inspetor de Célula (512x512)</h2>
         <div class="inspector-box" id="inspectorContent">
-          <div class="inspector-row"><span>Coordenadas:</span><span class="inspector-val" id="inspCoord">(X: 15, Y: 15)</span></div>
-          <div class="inspector-row"><span>Região:</span><span class="inspector-val" id="inspRegion">Linha do Equador</span></div>
-          <div class="inspector-row"><span>Material:</span><span class="inspector-val" id="inspMat">Solo Fértil</span></div>
-          <div class="inspector-row"><span>Elevação:</span><span class="inspector-val" id="inspElev">10.0 m</span></div>
-          <div class="inspector-row"><span>Temperatura:</span><span class="inspector-val" id="inspTemp">32.0°C</span></div>
-          <div class="inspector-row"><span>Umidade Solo:</span><span class="inspector-val" id="inspMoist">55.0%</span></div>
-          <div class="inspector-row"><span>Lâmina d'Água:</span><span class="inspector-val" id="inspWater">0.0 mm</span></div>
-          <div class="inspector-row"><span>Biomassa:</span><span class="inspector-val" id="inspBio">65.0</span></div>
-          <div class="inspector-row"><span>Cheiro Comida:</span><span class="inspector-val" id="inspFood">42.1</span></div>
-          <div class="inspector-row"><span>Perigo Predador:</span><span class="inspector-val" id="inspDanger">0.0</span></div>
+          <div class="inspector-row"><span>Coordenadas:</span><span class="inspector-val" id="inspCoord">(X: 256, Y: 256)</span></div>
+          <div class="inspector-row"><span>Zona Geográfica:</span><span class="inspector-val" id="inspRegion">Equador Central</span></div>
+          <div class="inspector-row"><span>Material Superfície:</span><span class="inspector-val" id="inspMat">Solo Fértil</span></div>
+          <div class="inspector-row"><span>Topografia / Altitude:</span><span class="inspector-val" id="inspElev">8.0 m</span></div>
+          <div class="inspector-row"><span>Temperatura:</span><span class="inspector-val" id="inspTemp">32.2°C</span></div>
+          <div class="inspector-row"><span>Lâmina d'Água (Runoff):</span><span class="inspector-val" id="inspWater">0.0 mm</span></div>
+          <div class="inspector-row"><span>Umidade do Solo:</span><span class="inspector-val" id="inspMoist">65.0%</span></div>
+          <div class="inspector-row"><span>Biomassa Vegetal:</span><span class="inspector-val" id="inspBio">74.2</span></div>
+          <div class="inspector-row"><span>Sedimento Erodido:</span><span class="inspector-val" id="inspEroded">0.00 m</span></div>
+          <div class="inspector-row"><span>Fauna na Célula:</span><span class="inspector-val" id="inspFauna">Nenhum</span></div>
         </div>
       </div>
 
       <div class="side-card">
-        <h2>Pincel de Intervenção</h2>
+        <h2>Pincel de Intervenção Planetária</h2>
         <div class="brush-tools">
           <button class="brush-btn active" data-brush="inspect">🔍 Inspecionar</button>
-          <button class="brush-btn" data-brush="heat">🔥 Calor</button>
-          <button class="brush-btn" data-brush="ice">❄ Frio</button>
-          <button class="brush-btn" data-brush="water">💧 Água</button>
-          <button class="brush-btn" data-brush="plant">🌿 Sementes</button>
-          <button class="brush-btn" data-brush="herbivore">🐇 Herbívoro</button>
-          <button class="brush-btn" data-brush="predator">🐺 Predador</button>
-          <button class="brush-btn" data-brush="rock">⛰ Montanha</button>
-          <button class="brush-btn" data-brush="sand">🏜 Areia</button>
+          <button class="brush-btn" data-brush="water">💧 Inundar</button>
+          <button class="brush-btn" data-brush="rain">🌧 Chuva Local</button>
+          <button class="brush-btn" data-brush="rat">🐁 Rato (Herb.)</button>
+          <button class="brush-btn" data-brush="cat">🐈 Gato (Pred.)</button>
+          <button class="brush-btn" data-brush="plant">🌿 Biomassa</button>
+          <button class="brush-btn" data-brush="elevate">⛰ Elevar (+5m)</button>
+          <button class="brush-btn" data-brush="erode">⛏ Escavar (-5m)</button>
+          <button class="brush-btn" data-brush="heat">🔥 Onda de Calor</button>
         </div>
-        <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
-          Clique ou arraste no grid para introduzir calor, água ou animais na cadeia trófica.
+        <p style="font-size:0.73rem; color:var(--text-dim); margin-top:2px;">
+          Clique ou arraste no grid de 512x512 para intervir no relevo, clima ou introduzir animais.
         </p>
+      </div>
+
+      <div class="side-card">
+        <h2>Parâmetros Biológicos Ativos</h2>
+        <div style="font-size:0.75rem; color:var(--text-dim); line-height:1.45;">
+          <div style="margin-bottom:6px;">
+            <b style="color:#ffea79;">🐁 Ratos (Herbívoros):</b><br>
+            • Ciclo Real: ~2.5 anos (~912 dias de vida).<br>
+            • Metabolismo acelerado, busca biomassa em até <b>5 células</b>.<br>
+            • Procura parceiro fértil para acasalar quando saciado.
+          </div>
+          <div>
+            <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
+            • Ciclo Real: ~14 anos (~5110 dias de vida).<br>
+            • Predador territorial, busca presas em até <b>15 células</b>.<br>
+            • Saciedade duradoura e repulsão territorial contra outros gatos.
+          </div>
+        </div>
       </div>
     </aside>
   </main>
 
   <script>
-    // === CONFIGURAÇÃO GLOBAL 30x30 PLANETÁRIA ===
-    const CHUNK_SIZE = 30; // Grade 30x30 = 900 células
-    const CELL_COUNT = CHUNK_SIZE * CHUNK_SIZE;
+    // === CONFIGURAÇÃO GLOBAL 512x512 PLANETÁRIA (262.144 CÉLULAS) ===
+    const CHUNK_SIZE = 512;
+    const CELL_COUNT = CHUNK_SIZE * CHUNK_SIZE; // 262.144
 
     // Catálogo de Materiais
     const MAT_WATER = 1, MAT_STEAM = 2, MAT_ICE = 3, MAT_STONE = 30, MAT_SOIL = 22, MAT_SAND = 31;
     const MATERIALS = {
-      [MAT_WATER]: { name: "Água do Mar", k: 0.60, melt: 0, boil: 100, perm: 1.0 },
-      [MAT_STEAM]: { name: "Vapor d'Água", k: 0.03, melt: 0, boil: 100, perm: 1.0 },
-      [MAT_ICE]:   { name: "Gelo Polar", k: 2.20, melt: 0, boil: 100, perm: 0.0 },
-      [MAT_STONE]: { name: "Granito / Rocha", k: 2.80, melt: 1200, boil: 2500, perm: 0.05 },
-      [MAT_SOIL]:  { name: "Solo Fértil", k: 0.70, melt: 800, boil: 2000, perm: 0.55 },
-      [MAT_SAND]:  { name: "Areia Costeira", k: 0.27, melt: 1500, boil: 2200, perm: 0.95 }
+      [MAT_WATER]: { name: "Água / Oceano", k: 0.60, perm: 1.0, erod: 0.0 },
+      [MAT_STEAM]: { name: "Vapor d'Água", k: 0.03, perm: 1.0, erod: 0.0 },
+      [MAT_ICE]:   { name: "Gelo / Neve Alpina", k: 2.20, perm: 0.0, erod: 0.01 },
+      [MAT_STONE]: { name: "Granito / Rocha", k: 2.80, perm: 0.04, erod: 0.005 },
+      [MAT_SOIL]:  { name: "Solo Fértil", k: 0.70, perm: 0.60, erod: 0.08 },
+      [MAT_SAND]:  { name: "Areia Aluvial", k: 0.27, perm: 0.95, erod: 0.16 }
     };
 
-    // Arrays SoA Contíguos
+    // Arrays SoA Contíguos em Memória Direta (Typed Arrays)
     const matId = new Uint16Array(CELL_COUNT);
+    const elevation = new Float32Array(CELL_COUNT);
+    const initialElevation = new Float32Array(CELL_COUNT);
     const temp = new Float32Array(CELL_COUNT);
     const nextTemp = new Float32Array(CELL_COUNT);
     const moisture = new Float32Array(CELL_COUNT);
     const nextMoisture = new Float32Array(CELL_COUNT);
     const surfaceWater = new Float32Array(CELL_COUNT);
     const nextSurfaceWater = new Float32Array(CELL_COUNT);
-    const elevation = new Float32Array(CELL_COUNT);
     const biomass = new Float32Array(CELL_COUNT);
+    const cumulativeErosion = new Float32Array(CELL_COUNT);
 
-    // Mapas de Influência
-    const foodGrad = new Float32Array(CELL_COUNT);
-    const dangerGrad = new Float32Array(CELL_COUNT);
-    const blurTemp = new Float32Array(CELL_COUNT);
-
-    // Variáveis Planetárias Globais
-    let timeOfDay = 12.0; // Inicia às 12:00h (Meio-dia)
-    let globalCloudCover = 0.25;
-    let globalRainRate = 0.0;
+    // Variáveis Planetárias
+    let timeOfDay = 12.0; // Inicia às 12:00h (Zênite)
     let tickCount = 0;
+    let globalErosionTotal = 0;
+    let isPlaying = false;
+    let currentLayer = 'composite';
+    let currentBrush = 'inspect';
 
-    // População de Fauna ECS
+    // População de Fauna (Ratos vs Gatos)
     let animals = [];
 
     function getIdx(x, y) { return y * CHUNK_SIZE + x; }
 
-    // === INICIALIZAÇÃO GEOGRÁFICA DO MUNDO 30x30 ===
+    // === INICIALIZAÇÃO GEOGRÁFICA 512x512 ===
+    // Restrição Estrita: Mar e Montanha iniciam com NO MÁXIMO (25x25)/2 = 312 células em seus cantos!
     function initWorld() {
       animals = [];
-      const equatorY = 14.5; // Entre linha 14 e 15 (0-indexed)
+      globalErosionTotal = 0;
+      const MAX_CORNER_CELLS = Math.floor((25 * 25) / 2); // 312 células rigorosas
+
+      // 1. Geração de Planície Continental Base (Elevação suave de 2m a 14m com declive NW -> SE)
+      const equatorY = 255.5;
 
       for (let y = 0; y < CHUNK_SIZE; y++) {
-        // Fator Latitudinal: 1.0 no equador, 0.0 nos polos
-        const latDist = Math.abs(y - equatorY) / 14.5;
+        const latDist = Math.abs(y - equatorY) / 255.5;
         const latFactor = Math.max(0, 1.0 - latDist);
 
         for (let x = 0; x < CHUNK_SIZE; x++) {
           const idx = getIdx(x, y);
 
-          // 1. RELEVO TOPOGRÁFICO: Montanha ao Noroeste (NW: x<12, y<12) -> Mar a Sudeste (SE: x>18, y>18)
-          // Distância diagonal de (0,0) até (29,29)
-          const distNW = Math.hypot(x, y);
-          const distSE = Math.hypot(29 - x, 29 - y);
+          // Declive continental sutil para escoamento natural em direção ao mar SE
+          const diagPos = (x + y) / (CHUNK_SIZE * 2);
+          const baseElev = 12.0 - (diagPos * 8.0); // 12m ao norte/oeste -> 4m ao sul/leste
+          elevation[idx] = baseElev;
+          initialElevation[idx] = baseElev;
 
-          // Base de elevação em rampa NW -> SE
-          let elev = Math.max(0, 24.0 - (distNW * 0.75));
-
-          // Maciço Montanhoso NW acentuado
-          if (x <= 10 && y <= 10) {
-            elev += Math.max(0, (10 - distNW) * 3.5);
-          }
-
-          // Depressão Oceânica SE
-          if (distSE <= 14) {
-            elev = Math.max(0, elev - (14 - distSE) * 2.0);
-          }
-
-          elevation[idx] = elev;
-
-          // 2. TEMPERATURA LATITUDINAL BASE (Planeta Ameno / Quente Estável)
-          // Bordas N/S: +20°C a +24°C | Equador: +34°C a +38°C
-          let baseT = 20.0 + (latFactor * 16.0) - (elev * 0.35);
-          temp[idx] = baseT;
-
-          // 3. MAR A SUDESTE
-          if (distSE <= 11) {
-            matId[idx] = MAT_WATER;
-            surfaceWater[idx] = 12.0;
-            moisture[idx] = 1.0;
-            biomass[idx] = 2.0;
-            continue;
-          }
-
-          // 4. PICOS ROCHOSOS / MONTANHA NW
-          if (elev > 18.0) {
-            matId[idx] = MAT_STONE;
-            surfaceWater[idx] = 0;
-            moisture[idx] = 0.20;
-            biomass[idx] = 5.0;
-            if (elev > 27.0) {
-              matId[idx] = MAT_ICE; // Apenas o topo extremo da montanha NW tem neve
-              temp[idx] = -4.0;
-            }
-            continue;
-          }
-
-          // 5. CONTINENTE INTERMEDIÁRIO E EQUADOR
-          if (latFactor > 0.85 && x >= 18) {
-            // Savana / Deserto equatorial
+          // Material padrão: solo fértil, com savana/areia no equador quente
+          if (latFactor > 0.88 && x > 280) {
             matId[idx] = MAT_SAND;
-            surfaceWater[idx] = 0;
-            moisture[idx] = 0.08;
-            biomass[idx] = 12.0;
+            moisture[idx] = 0.12;
+            biomass[idx] = 15.0;
           } else {
-            // Solo fértil florestal temperado/tropical
             matId[idx] = MAT_SOIL;
-            surfaceWater[idx] = 0;
-            moisture[idx] = 0.65;
-            biomass[idx] = 45.0 + latFactor * 30.0;
+            moisture[idx] = 0.60;
+            biomass[idx] = 40.0 + latFactor * 35.0;
           }
+
+          // Temperatura com gradiente altimétrico adiabático (-0.0065°C / m)
+          const baseT = 20.0 + (latFactor * 16.0) - (baseElev * 0.0065);
+          temp[idx] = baseT;
+          surfaceWater[idx] = 0.0;
+          cumulativeErosion[idx] = 0.0;
         }
       }
 
-      // Spawna Fauna Inicial em áreas temperadas/equatoriais
-      for (let i = 0; i < 14; i++) {
+      // 2. Montanha a Noroeste (NW: Canto 0,0) - EXATAMENTE <= 312 CÉLULAS E PICO DE 2000 METROS
+      const mtnCandidates = [];
+      for (let y = 0; y < 25; y++) {
+        for (let x = 0; x < 25; x++) {
+          mtnCandidates.push({ x, y, distSq: x * x + y * y });
+        }
+      }
+      mtnCandidates.sort((a, b) => a.distSq - b.distSq);
+      const mtnCells = mtnCandidates.slice(0, MAX_CORNER_CELLS); // Exatamente 312 células
+      const maxMtnDist = Math.sqrt(mtnCells[mtnCells.length - 1].distSq);
+
+      for (const cell of mtnCells) {
+        const idx = getIdx(cell.x, cell.y);
+        const d = Math.sqrt(cell.distSq);
+        const ratio = Math.max(0, 1.0 - (d / maxMtnDist));
+        // Cume a 2000m (2km) no vértice (0,0), decaindo até a cota continental na borda das 312 células
+        const elev = 12.0 + Math.pow(ratio, 1.25) * (2000.0 - 12.0);
+        elevation[idx] = elev;
+        initialElevation[idx] = elev;
+
+        // Gradiente térmico adiabático: -6.5°C a cada 1000m
+        // No topo de 2000m, o resfriamento é de 13.0°C!
+        const latDist = Math.abs(cell.y - equatorY) / 255.5;
+        const latFactor = Math.max(0, 1.0 - latDist);
+        const t = 20.0 + (latFactor * 16.0) - (elev * 0.0065);
+        temp[idx] = t;
+
+        // Picos acima de 1600m têm gelo e neve perpétua
+        if (elev > 1600.0) {
+          matId[idx] = MAT_ICE;
+          biomass[idx] = 0.0;
+          moisture[idx] = 0.1;
+        } else {
+          matId[idx] = MAT_STONE;
+          biomass[idx] = 4.0;
+          moisture[idx] = 0.2;
+        }
+      }
+
+      // 3. Mar a Sudeste (SE: Canto 511, 511) - EXATAMENTE <= 312 CÉLULAS E PROFUNDIDADE DE -100 METROS
+      const oceanCandidates = [];
+      for (let dy = 0; dy < 25; dy++) {
+        for (let dx = 0; dx < 25; dx++) {
+          const x = (CHUNK_SIZE - 1) - dx;
+          const y = (CHUNK_SIZE - 1) - dy;
+          oceanCandidates.push({ x, y, distSq: dx * dx + dy * dy });
+        }
+      }
+      oceanCandidates.sort((a, b) => a.distSq - b.distSq);
+      const oceanCells = oceanCandidates.slice(0, MAX_CORNER_CELLS); // Exatamente 312 células
+      const maxOceanDist = Math.sqrt(oceanCells[oceanCells.length - 1].distSq);
+
+      for (const cell of oceanCells) {
+        const idx = getIdx(cell.x, cell.y);
+        const d = Math.sqrt(cell.distSq);
+        const ratio = Math.max(0, 1.0 - (d / maxOceanDist));
+        // Depressão marinha profunda de até -100m no canto (511, 511), subindo até o nível do mar (0m)
+        const elev = 0.0 - Math.pow(ratio, 1.15) * 100.0;
+        elevation[idx] = elev;
+        initialElevation[idx] = elev;
+
+        matId[idx] = MAT_WATER;
+        surfaceWater[idx] = -elev; // Preenchido com água até a cota 0m (até 100m de lâmina líquida)
+        moisture[idx] = 1.0;
+        biomass[idx] = 2.0;
+
+        const latDist = Math.abs(cell.y - equatorY) / 255.5;
+        const latFactor = Math.max(0, 1.0 - latDist);
+        temp[idx] = 20.0 + (latFactor * 16.0) - (elev * 0.0065);
+      }
+
+      // 4. Povamento de Fauna: X Predadores (Gatos) e 4X Herbívoros (Ratos), Jovens Adultos
+      // Definimos X = 35 gatos e 4X = 140 ratos (total de 175 espécimes)
+      const X_PREDATORS = 35;
+      const HERBIVORES_COUNT = 4 * X_PREDATORS; // 140
+
+      // Herbívoros (Ratos): ciclo real ~2.5 anos (~912 dias), jovem adulto inicia em ~75 dias (~8% da vida)
+      for (let i = 0; i < HERBIVORES_COUNT; i++) {
+        const rx = 30 + Math.random() * (CHUNK_SIZE - 60);
+        const ry = 30 + Math.random() * (CHUNK_SIZE - 60);
         animals.push({
           id: i + 1,
-          type: 'herbivore',
-          x: 4 + Math.random() * 20,
-          y: 4 + Math.random() * 22,
-          hunger: 20 + Math.random() * 20,
-          speed: 1.6,
+          species: 'rat',
+          diet: 'herbivore',
+          x: rx,
+          y: ry,
           hp: 100,
-          age: 0
+          hunger: 20 + Math.random() * 20,
+          speed: 2.2,
+          ageInDays: 75.0 + Math.random() * 20.0, // Jovem adulto
+          maxLifespan: 912.5, // ~2.5 anos
+          matingCooldown: 10.0 + Math.random() * 15.0,
+          sensoryRadius: 5 // Procura comida em até 5 células
         });
       }
 
-      for (let i = 0; i < 3; i++) {
+      // Predadores (Gatos): ciclo real ~14 anos (~5110 dias), jovem adulto inicia em ~400 dias (~8% da vida)
+      for (let i = 0; i < X_PREDATORS; i++) {
+        const gx = 60 + Math.random() * (CHUNK_SIZE - 120);
+        const gy = 60 + Math.random() * (CHUNK_SIZE - 120);
         animals.push({
-          id: 100 + i,
-          type: 'predator',
-          x: 10 + Math.random() * 10,
-          y: 10 + Math.random() * 10,
-          hunger: 30,
-          speed: 2.2,
+          id: 1000 + i,
+          species: 'cat',
+          diet: 'carnivore',
+          x: gx,
+          y: gy,
           hp: 100,
-          age: 0
+          hunger: 15 + Math.random() * 15,
+          speed: 2.8,
+          ageInDays: 400.0 + Math.random() * 60.0, // Jovem adulto
+          maxLifespan: 5110.0, // ~14 anos
+          matingCooldown: 30.0 + Math.random() * 30.0,
+          sensoryRadius: 15 // Procura em até 15 células e é territorial
         });
       }
     }
 
-    // === FORÇANTE 1: CICLO SOLAR DIA/NOITE E DIFUSÃO FOURIER ===
+    // === DINÂMICA TÉRMICA COM GRADIENTE ALTISSONANTE ADIABÁTICO ===
     function stepThermodynamics(dt) {
-      // Avança relógio solar: 1 dia completo a cada 240 ticks
-      timeOfDay = (timeOfDay + 0.10 * dt) % 24.0;
-
-      // Ângulo solar: zênite às 12h, nascer 6h, pôr 18h
+      timeOfDay = (timeOfDay + 0.08 * dt) % 24.0;
       const sunHeight = Math.sin(((timeOfDay - 6.0) / 12.0) * Math.PI);
       const isDay = sunHeight > 0;
-      const equatorY = 14.5;
+      const equatorY = 255.5;
 
-      for (let y = 0; y < CHUNK_SIZE; y++) {
-        const latDist = Math.abs(y - equatorY) / 14.5;
+      // Amostragem otimizada por blocos para manter 60 FPS com 262.144 células
+      for (let y = 0; y < CHUNK_SIZE; y += 2) {
+        const latDist = Math.abs(y - equatorY) / 255.5;
         const latFactor = Math.max(0, 1.0 - latDist);
 
-        for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let x = 0; x < CHUNK_SIZE; x += 2) {
           const idx = getIdx(x, y);
-          const curTemp = temp[idx];
-          const k1 = MATERIALS[matId[idx]]?.k || 0.5;
+          const elev = elevation[idx];
+          const curT = temp[idx];
 
-          // Difusão com 4 vizinhos (Von Neumann)
-          let fluxSum = 0;
-          const neighbors = [
-            x > 0 ? getIdx(x-1, y) : -1,
-            x < CHUNK_SIZE-1 ? getIdx(x+1, y) : -1,
-            y > 0 ? getIdx(x, y-1) : -1,
-            y < CHUNK_SIZE-1 ? getIdx(x, y+1) : -1
-          ];
+          // Gradiente adiabático padrão: -6.5°C a cada 1000m (-0.0065°C / m)
+          const altitudeLapse = elev * 0.0065;
 
-          for (const n of neighbors) {
-            if (n >= 0) {
-              const k2 = MATERIALS[matId[n]]?.k || 0.5;
-              const kEff = (2 * k1 * k2) / (k1 + k2 + 0.0001);
-              fluxSum += kEff * (temp[n] - curTemp);
-            }
-          }
-
-          // FORÇANTE SOLAR PERPÉTUA (Planeta Ameno / Quente Estável sem Congelamento):
-          let targetAir = 0;
+          let targetT = 0;
           if (isDay) {
-            // Dia: Equador chega a 36°C, bordas ficam em 22°C
-            const solarHeating = sunHeight * (12.0 + latFactor * 14.0);
-            targetAir = 18.0 + solarHeating - (elevation[idx] * 0.30);
+            const solarHeat = sunHeight * (12.0 + latFactor * 14.0);
+            targetT = 18.0 + solarHeat - altitudeLapse;
           } else {
-            // Noite: Resfriamento suave ameno (14°C a 20°C)
-            targetAir = 14.0 + (latFactor * 6.0) - (elevation[idx] * 0.35);
+            targetT = 13.0 + (latFactor * 7.0) - altitudeLapse;
           }
 
-          fluxSum += (targetAir - curTemp) * 0.05;
+          const nT = curT + (targetT - curT) * 0.12 * dt;
+          temp[idx] = nT;
+          temp[idx + 1] = nT;
+          if (y + 1 < CHUNK_SIZE) {
+            temp[idx + CHUNK_SIZE] = nT;
+            temp[idx + CHUNK_SIZE + 1] = nT;
+          }
 
-          let nT = curTemp + fluxSum * dt;
-
-          // Transições de Fase Bidirecionais
-          if (matId[idx] === MAT_ICE && nT > 1.0) {
-            matId[idx] = MAT_WATER;
-            surfaceWater[idx] += 4.0;
-          } else if (matId[idx] === MAT_WATER && nT <= -4.0 && elevation[idx] > 25.0) {
-            // Apenas água em altas montanhas gélidas congela
+          // Transições de Neve e Congelamento em Alta Altitude
+          if (elev > 1600.0 && nT < 0.0 && matId[idx] === MAT_STONE) {
             matId[idx] = MAT_ICE;
-          } else if (matId[idx] === MAT_WATER && nT >= 100.0) {
-            matId[idx] = MAT_STEAM;
+          } else if (elev > 1600.0 && nT > 3.0 && matId[idx] === MAT_ICE) {
+            matId[idx] = MAT_STONE;
           }
-
-          nextTemp[idx] = nT;
         }
       }
-      temp.set(nextTemp);
     }
 
-    // === FORÇANTE 2: CICLO HIDROLÓGICO FECHADO (EVAPORAÇÃO E CHUVA) ===
-    function stepHydrology(dt) {
+    // === ESCOAMENTO GRAVITACIONAL, INFILTRAÇÃO E EROSÃO FLUVIAL ===
+    function stepHydrologyAndErosion(dt) {
       nextSurfaceWater.set(surfaceWater);
-      nextMoisture.set(moisture);
 
-      let evaporatedTotal = 0;
-
-      for (let y = 0; y < CHUNK_SIZE; y++) {
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          const idx = getIdx(x, y);
-          const water = surfaceWater[idx];
-          const curHead = elevation[idx] + water;
-          const perm = MATERIALS[matId[idx]]?.perm || 0.5;
-
-          // 1. Evaporação termicamente induzida (alimenta nuvens)
-          if (temp[idx] > 12.0 && water > 0.1) {
-            const evapo = (temp[idx] - 12.0) * 0.015 * dt;
-            const actualEvapo = Math.min(water, evapo);
-            nextSurfaceWater[idx] -= actualEvapo;
-            evaporatedTotal += actualEvapo;
-          }
-
-          // 2. Infiltração no solo
-          if (water > 0 && perm > 0) {
-            const cap = Math.max(0, 1.0 - nextMoisture[idx]);
-            const infilt = Math.min(water, cap, perm * 0.25 * dt);
-            nextSurfaceWater[idx] -= infilt;
-            nextMoisture[idx] += infilt;
-          }
-
-          // 3. Escoamento gravitacional em declive (Rios da Montanha para o Mar)
-          if (water > 0.02) {
-            let lowestHead = curHead;
-            let lowestIdx = -1;
-
-            const nCoords = [[x-1, y], [x+1, y], [x, y-1], [x, y+1]];
-            for (const [nx, ny] of nCoords) {
-              if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
-                const nIdx = getIdx(nx, ny);
-                const nHead = elevation[nIdx] + surfaceWater[nIdx];
-                if (nHead < lowestHead) {
-                  lowestHead = nHead;
-                  lowestIdx = nIdx;
-                }
-              }
-            }
-
-            if (lowestIdx >= 0) {
-              const flow = Math.min(water, (curHead - lowestHead) * 0.5) * 0.75 * dt;
-              nextSurfaceWater[idx] -= flow;
-              nextSurfaceWater[lowestIdx] += flow;
-            }
-          }
-        }
+      // Simulação estocástica de chuva nas montanhas e planícies
+      const rainCells = 40;
+      for (let i = 0; i < rainCells; i++) {
+        // Chuva mais frequente na vertente da montanha NW e equador
+        const rx = (Math.random() < 0.6) ? Math.floor(Math.random() * 120) : Math.floor(Math.random() * CHUNK_SIZE);
+        const ry = (Math.random() < 0.6) ? Math.floor(Math.random() * 120) : Math.floor(Math.random() * CHUNK_SIZE);
+        const rIdx = getIdx(rx, ry);
+        nextSurfaceWater[rIdx] += 1.8 * dt;
       }
 
-      // 4. Formação de Nuvens e Precipitação de Chuva Orográfica
-      globalCloudCover = Math.min(1.0, globalCloudCover + (evaporatedTotal * 0.002));
-      globalRainRate = 0.0;
+      // Passada de escoamento e erosão fluvial em grade celular
+      // Amostragem distribuída veloz
+      for (let y = 1; y < CHUNK_SIZE - 1; y += 2) {
+        for (let x = 1; x < CHUNK_SIZE - 1; x += 2) {
+          const idx = getIdx(x, y);
+          const water = surfaceWater[idx];
+          if (water <= 0.01) continue;
 
-      // Chuva precipita prioritariamente quando as nuvens acumulam e encontram a montanha NW
-      if (globalCloudCover > 0.20) {
-        globalRainRate = (globalCloudCover - 0.20) * 3.5;
-        globalCloudCover = Math.max(0.1, globalCloudCover - (globalRainRate * 0.02 * dt));
+          const curElev = elevation[idx];
+          const curHead = curElev + water;
+          const perm = MATERIALS[matId[idx]]?.perm || 0.5;
 
-        // Precipita chuva sobre a montanha (orográfica) e planície central
-        for (let i = 0; i < 4; i++) {
-          const rx = Math.floor(Math.random() * 18);
-          const ry = 2 + Math.floor(Math.random() * 24);
-          const rIdx = getIdx(rx, ry);
+          // 1. Infiltração no solo baseada na capacidade e permeabilidade
+          if (matId[idx] !== MAT_WATER && perm > 0) {
+            const soilCap = Math.max(0, 1.0 - moisture[idx]);
+            const infilt = Math.min(water, soilCap, perm * 0.4 * dt);
+            nextSurfaceWater[idx] -= infilt;
+            moisture[idx] = Math.min(1.0, moisture[idx] + infilt);
+          }
 
-          if (temp[rIdx] > 0) {
-            nextSurfaceWater[rIdx] += globalRainRate * 0.8 * dt; // Chuva líquida
-          } else {
-            nextMoisture[rIdx] = Math.min(1.0, nextMoisture[rIdx] + 0.1); // Neve
+          // 2. Escoamento gravitacional para os vizinhos mais baixos
+          let lowestHead = curHead;
+          let lowestIdx = -1;
+
+          const neighbors = [
+            getIdx(x - 1, y),
+            getIdx(x + 1, y),
+            getIdx(x, y - 1),
+            getIdx(x, y + 1)
+          ];
+
+          for (const nIdx of neighbors) {
+            const nHead = elevation[nIdx] + surfaceWater[nIdx];
+            if (nHead < lowestHead) {
+              lowestHead = nHead;
+              lowestIdx = nIdx;
+            }
+          }
+
+          if (lowestIdx >= 0) {
+            const headDiff = curHead - lowestHead;
+            const flow = Math.min(water * 0.5, headDiff * 0.35) * dt;
+
+            nextSurfaceWater[idx] -= flow;
+            nextSurfaceWater[lowestIdx] += flow;
+
+            // 3. EROSÃO FLUVIAL NOS LOCAIS ONDE A ÁGUA PASSA
+            if (matId[idx] !== MAT_WATER && headDiff > 0.1) {
+              const erodibility = MATERIALS[matId[idx]]?.erod || 0.05;
+              const erosionAmount = Math.min(0.25, flow * headDiff * erodibility * 0.3);
+
+              if (elevation[idx] > -90.0) {
+                elevation[idx] -= erosionAmount;
+                cumulativeErosion[idx] += erosionAmount;
+                globalErosionTotal += erosionAmount;
+
+                // Deposição aluvial parcial de sedimentos a jusante
+                elevation[lowestIdx] += erosionAmount * 0.45;
+              }
+            }
           }
         }
       }
 
       surfaceWater.set(nextSurfaceWater);
-      moisture.set(nextMoisture);
     }
 
-    // === AUTÔMATO DE BIOMASSA FLORESTAL ===
+    // === CRESCIMENTO DE BIOMASSA VEGETAL ===
     function stepFlora(dt) {
-      for (let i = 0; i < CELL_COUNT; i++) {
-        const t = temp[i];
-        const m = moisture[i];
-        const curBio = biomass[i];
+      // Regeneração da biomassa verde em áreas com boa umidade e temperatura
+      const sampleCount = 600;
+      for (let i = 0; i < sampleCount; i++) {
+        const rx = Math.floor(Math.random() * CHUNK_SIZE);
+        const ry = Math.floor(Math.random() * CHUNK_SIZE);
+        const idx = getIdx(rx, ry);
 
-        if (matId[i] === MAT_ICE || matId[i] === MAT_WATER) {
-          biomass[i] = 0;
-          continue;
-        }
+        if (matId[idx] === MAT_WATER || matId[idx] === MAT_ICE) continue;
 
-        if (t >= 8 && t <= 42 && m > 0.05) {
+        const t = temp[idx];
+        const m = moisture[idx];
+        const curBio = biomass[idx];
+
+        if (t >= 10 && t <= 40 && m > 0.1) {
           const opt = 1.0 - Math.abs(t - 24) / 16;
-          const growth = Math.max(0.1, opt) * m * 4.5 * dt * Math.max(0.1, (1.0 - curBio / 100));
-          biomass[i] = Math.min(100, curBio + growth);
-          moisture[i] = Math.max(0, m - growth * 0.03); // Transpiração vegetal
-        } else if (t < 0 || m < 0.02) {
-          // Seca ou geada decompõe a biomassa em matéria orgânica
-          biomass[i] = Math.max(0, curBio - 1.2 * dt);
+          const growth = Math.max(0.1, opt) * m * 3.5 * dt * (1.0 - curBio / 100);
+          biomass[idx] = Math.min(100, curBio + growth);
+        } else if (t < 0 || m < 0.05) {
+          biomass[idx] = Math.max(0, curBio - 1.0 * dt);
         }
       }
     }
 
-    // === BOX BLUR 3x3 PARA INFLUENCE MAPS ===
-    function applyBoxBlur(src, dst) {
-      for (let y = 0; y < CHUNK_SIZE; y++) {
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          let sum = 0, count = 0;
-          for (let dy = -1; dy <= 1; dy++) {
-            const ny = y + dy;
-            if (ny < 0 || ny >= CHUNK_SIZE) continue;
-            for (let dx = -1; dx <= 1; dx++) {
-              const nx = x + dx;
-              if (nx < 0 || nx >= CHUNK_SIZE) continue;
-              sum += src[getIdx(nx, ny)];
-              count++;
-            }
-          }
-          dst[getIdx(x, y)] = sum / count;
-        }
-      }
-      src.set(dst);
-    }
-
-    function updateInfluenceMaps() {
-      // 1. Comida: herda biomassa para herbívoros
-      foodGrad.set(biomass);
-      applyBoxBlur(foodGrad, blurTemp);
-
-      // 2. Perigo dos predadores
-      dangerGrad.fill(0);
-      for (const a of animals) {
-        if (a.type === 'predator') {
-          const cx = Math.floor(a.x);
-          const cy = Math.floor(a.y);
-          if (cx >= 0 && cx < CHUNK_SIZE && cy >= 0 && cy < CHUNK_SIZE) {
-            dangerGrad[getIdx(cx, cy)] = 120.0;
-          }
-        }
-      }
-      applyBoxBlur(dangerGrad, blurTemp);
-    }
-
-    // === FORÇANTE 3: CADEIA TRÓFICA ECS VIVA (CAÇA, MORTE E REPRODUÇÃO) ===
+    // === FAUNA ECS: RATOS (HERBÍVOROS) VS GATOS (PREDADORES TERRITORIAIS) ===
     function stepFauna(dt) {
-      const newBabies = [];
       const aliveAnimals = [];
+      const newOffspring = [];
 
       for (let i = 0; i < animals.length; i++) {
         const a = animals[i];
-        a.age += dt * 0.1;
-        a.hunger = Math.min(100, a.hunger + 3.0 * dt);
+
+        // 1. Envelhecimento e Ciclo Real
+        // dt * 0.25 representa o avanço em dias de simulação
+        a.ageInDays += dt * 0.4;
+        if (a.matingCooldown > 0) a.matingCooldown -= dt;
+
+        // Morte natural por velhice baseada na expectativa real
+        if (a.ageInDays >= a.maxLifespan) {
+          // Morre e aduba o solo
+          const cX = Math.floor(a.x);
+          const cY = Math.floor(a.y);
+          if (cX >= 0 && cX < CHUNK_SIZE && cY >= 0 && cY < CHUNK_SIZE) {
+            biomass[getIdx(cX, cY)] = Math.min(100, biomass[getIdx(cX, cY)] + 30);
+          }
+          continue;
+        }
+
+        // 2. Metabolismo e Saciedade:
+        // Ratos queimam fome rápido (metabolismo de roedor ~3.0x)
+        // Gatos carnívoros mantêm saciedade duradoura (~0.7x)
+        const hungerRate = (a.species === 'rat') ? 2.8 : 0.7;
+        a.hunger = Math.min(100, a.hunger + hungerRate * dt);
+
+        if (a.hunger >= 90) {
+          a.hp -= 8.0 * dt; // Inanição
+        }
 
         const curX = Math.floor(a.x);
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
-        // 1. Inanição ou afogamento
-        if (a.hunger >= 95 || (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 5.0)) {
-          a.hp -= 15.0 * dt;
+        // Afogamento em águas profundas do mar
+        if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 10.0) {
+          a.hp -= 25.0 * dt;
         }
 
         if (a.hp <= 0) {
-          // Cadáver morre e vira adubo no solo (aumenta biomassa e umidade da célula!)
+          // Cadáver vira matéria orgânica
           biomass[curIdx] = Math.min(100, biomass[curIdx] + 25);
-          moisture[curIdx] = Math.min(1.0, moisture[curIdx] + 0.2);
-          continue; // Animal não sobrevive
+          continue;
         }
 
-        // 2. Alimentação de Herbívoros
-        if (a.type === 'herbivore' && a.hunger > 10 && biomass[curIdx] > 5) {
-          const bite = Math.min(biomass[curIdx], 30 * dt);
-          biomass[curIdx] -= bite;
-          a.hunger = Math.max(0, a.hunger - bite * 2.5);
+        const isAdult = a.ageInDays >= (a.maxLifespan * 0.08); // Adulto após ~8% da vida
+        const isReadyToMate = isAdult && a.hunger < 35 && a.matingCooldown <= 0;
 
-          // Reprodução de Herbívoro se bem alimentado
-          if (a.hunger < 15 && Math.random() < 0.015 * dt && animals.length < 45) {
-            newBabies.push({
-              id: Date.now() + Math.random(),
-              type: 'herbivore',
-              x: a.x + (Math.random() - 0.5),
-              y: a.y + (Math.random() - 0.5),
-              hunger: 30,
-              speed: a.speed,
-              hp: 100,
-              age: 0
-            });
+        let targetX = a.x;
+        let targetY = a.y;
+
+        // === COMPORTAMENTO DO RATO (HERBÍVORO) ===
+        if (a.species === 'rat') {
+          // Se estiver sobre biomassa e com fome > 10, pastar
+          if (a.hunger > 10 && biomass[curIdx] > 2.0) {
+            const bite = Math.min(biomass[curIdx], 25.0 * dt);
+            biomass[curIdx] -= bite;
+            a.hunger = Math.max(0, a.hunger - bite * 2.8);
           }
-        }
 
-        // 3. Caça de Predadores (Abate presas próximas)
-        if (a.type === 'predator') {
+          // Busca de alimento em raio de ATÉ 5 CÉLULAS
+          let bestScore = -999;
+          const searchRadius = a.sensoryRadius; // 5 células
+
+          // 1. Detecção de predadores próximos para fuga imediata
+          let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;
           for (let j = 0; j < animals.length; j++) {
-            const target = animals[j];
-            if (target.type === 'herbivore' && target.hp > 0) {
-              const distToPrey = Math.hypot(target.x - a.x, target.y - a.y);
-              if (distToPrey < 1.2) {
-                // Bote fatal do predador!
-                target.hp = 0; // Abate a presa
-                a.hunger = Math.max(0, a.hunger - 60);
+            const other = animals[j];
+            if (other.species === 'cat' && other.hp > 0) {
+              const d = Math.hypot(other.x - a.x, other.y - a.y);
+              if (d < 12.0) {
+                // Vetor de fuga repulsivo
+                fleeVectorX += (a.x - other.x) / (d + 0.1);
+                fleeVectorY += (a.y - other.y) / (d + 0.1);
+                dangerCount++;
+              }
+            }
+          }
 
-                // Reprodução de Predador se bem nutrido
-                if (a.hunger < 20 && Math.random() < 0.03 * dt && animals.filter(x => x.type === 'predator').length < 8) {
-                  newBabies.push({
+          if (dangerCount > 0) {
+            // Prioridade máxima: FUGIR DO GATO
+            targetX = a.x + fleeVectorX * 3.0;
+            targetY = a.y + fleeVectorY * 3.0;
+          } else if (isReadyToMate && animals.length < 350) {
+            // 2. Busca por semelhante da mesma espécie para acasalamento
+            let closestMate = null;
+            let closestDist = searchRadius;
+
+            for (let j = 0; j < animals.length; j++) {
+              if (i === j) continue;
+              const other = animals[j];
+              if (other.species === 'rat' && other.hp > 0 && other.ageInDays >= (other.maxLifespan * 0.08) && other.matingCooldown <= 0) {
+                const d = Math.hypot(other.x - a.x, other.y - a.y);
+                if (d < closestDist) {
+                  closestDist = d;
+                  closestMate = other;
+                }
+              }
+            }
+
+            if (closestMate) {
+              targetX = closestMate.x;
+              targetY = closestMate.y;
+
+              // Acasalamento bem-sucedido
+              if (closestDist < 1.5) {
+                a.matingCooldown = 25.0; // Cooldown do rato
+                closestMate.matingCooldown = 25.0;
+
+                // Ninhada rápida de ratos (1 a 3 filhotes)
+                const litter = 1 + Math.floor(Math.random() * 3);
+                for (let k = 0; k < litter; k++) {
+                  newOffspring.push({
                     id: Date.now() + Math.random(),
-                    type: 'predator',
-                    x: a.x + (Math.random() - 0.5),
-                    y: a.y + (Math.random() - 0.5),
-                    hunger: 30,
-                    speed: a.speed,
+                    species: 'rat',
+                    diet: 'herbivore',
+                    x: a.x + (Math.random() - 0.5) * 1.5,
+                    y: a.y + (Math.random() - 0.5) * 1.5,
                     hp: 100,
-                    age: 0
+                    hunger: 25,
+                    speed: a.speed,
+                    ageInDays: 0, // Recém-nascido
+                    maxLifespan: 912.5,
+                    matingCooldown: 20.0,
+                    sensoryRadius: 5
                   });
                 }
-                break;
+              }
+            }
+          } else {
+            // 3. Busca de área com mais biomassa verde em até 5 células
+            for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
+              const ny = curY + dy;
+              if (ny < 0 || ny >= CHUNK_SIZE) continue;
+              for (let dx = -searchRadius; dx <= searchRadius; dx += 2) {
+                const nx = curX + dx;
+                if (nx < 0 || nx >= CHUNK_SIZE) continue;
+                if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
+
+                const nIdx = getIdx(nx, ny);
+                if (matId[nIdx] === MAT_WATER) continue;
+
+                const score = biomass[nIdx] * 1.5;
+                if (score > bestScore) {
+                  bestScore = score;
+                  targetX = nx;
+                  targetY = ny;
+                }
               }
             }
           }
         }
 
-        // 4. Tomada de Decisão: Avaliação de Vizinhança de Moore (8 células)
-        let bestScore = -99999;
-        let targetX = curX, targetY = curY;
+        // === COMPORTAMENTO DO GATO (PREDADOR TERRITORIAL) ===
+        else if (a.species === 'cat') {
+          const searchRadius = a.sensoryRadius; // 15 células
 
-        for (let dy = -1; dy <= 1; dy++) {
-          const ny = curY + dy;
-          if (ny < 0 || ny >= CHUNK_SIZE) continue;
-          for (let dx = -1; dx <= 1; dx++) {
-            const nx = curX + dx;
-            if (nx < 0 || nx >= CHUNK_SIZE) continue;
-            const idx = getIdx(nx, ny);
+          // 1. Territorialidade: Gatos tendem a ser solitários e territoriais
+          // Se houver outro gato no raio de 10 células, repelem-se mutuamente
+          let territoryRepulsionX = 0, territoryRepulsionY = 0, rivalCount = 0;
+          for (let j = 0; j < animals.length; j++) {
+            if (i === j) continue;
+            const other = animals[j];
+            if (other.species === 'cat' && other.hp > 0) {
+              const d = Math.hypot(other.x - a.x, other.y - a.y);
+              if (d < 10.0 && (!isReadyToMate || other.matingCooldown > 0)) {
+                territoryRepulsionX += (a.x - other.x) / (d + 0.1);
+                territoryRepulsionY += (a.y - other.y) / (d + 0.1);
+                rivalCount++;
+              }
+            }
+          }
 
-            let score = 0;
-            if (a.type === 'herbivore') {
-              // Foge de predadores (-15x) e busca comida quando faminto
-              score = (foodGrad[idx] * (a.hunger / 100) * 3.5) - (dangerGrad[idx] * 15.0);
-              if (matId[idx] === MAT_WATER && surfaceWater[idx] > 2.0) score -= 50; // Evita afogamento
-            } else {
-              // Predador rastreia presas (cheiro de comida indica onde há presas pastando)
-              score = foodGrad[idx] * 2.0;
-              if (matId[idx] === MAT_WATER) score -= 30;
+          // 2. Acasalamento de Gatos
+          let mateFound = false;
+          if (isReadyToMate && rivalCount === 0 && animals.filter(x => x.species === 'cat').length < 60) {
+            for (let j = 0; j < animals.length; j++) {
+              if (i === j) continue;
+              const other = animals[j];
+              if (other.species === 'cat' && other.hp > 0 && other.ageInDays >= (other.maxLifespan * 0.08) && other.matingCooldown <= 0) {
+                const d = Math.hypot(other.x - a.x, other.y - a.y);
+                if (d < searchRadius) {
+                  targetX = other.x;
+                  targetY = other.y;
+                  mateFound = true;
+
+                  if (d < 1.8) {
+                    a.matingCooldown = 80.0; // Cooldown do gato é longo
+                    other.matingCooldown = 80.0;
+                    newOffspring.push({
+                      id: Date.now() + Math.random(),
+                      species: 'cat',
+                      diet: 'carnivore',
+                      x: a.x + (Math.random() - 0.5) * 2.0,
+                      y: a.y + (Math.random() - 0.5) * 2.0,
+                      hp: 100,
+                      hunger: 20,
+                      speed: a.speed,
+                      ageInDays: 0,
+                      maxLifespan: 5110.0,
+                      matingCooldown: 60.0,
+                      sensoryRadius: 15
+                    });
+                  }
+                  break;
+                }
+              }
+            }
+          }
+
+          // 3. Caça de Presas (Ratos) em até 15 CÉLULAS
+          if (!mateFound) {
+            let closestPrey = null;
+            let closestDist = searchRadius; // 15 células
+
+            for (let j = 0; j < animals.length; j++) {
+              const prey = animals[j];
+              if (prey.species === 'rat' && prey.hp > 0) {
+                const d = Math.hypot(prey.x - a.x, prey.y - a.y);
+                if (d < closestDist) {
+                  closestDist = d;
+                  closestPrey = prey;
+                }
+              }
             }
 
-            if (score > bestScore) {
-              bestScore = score;
-              targetX = nx;
-              targetY = ny;
+            if (closestPrey && a.hunger > 15) {
+              targetX = closestPrey.x;
+              targetY = closestPrey.y;
+
+              // Bote de caça do gato
+              if (closestDist < 1.6) {
+                closestPrey.hp = 0; // Abate o rato
+                // A refeição de carne sacia o gato por um longo período real
+                a.hunger = Math.max(0, a.hunger - 65.0);
+              }
+            } else if (rivalCount > 0) {
+              // Patrulha territorial afastando-se do rival
+              targetX = a.x + territoryRepulsionX * 3.5;
+              targetY = a.y + territoryRepulsionY * 3.5;
+            } else {
+              // Patrulha territorial calma
+              targetX = a.x + (Math.random() - 0.5) * 6.0;
+              targetY = a.y + (Math.random() - 0.5) * 6.0;
             }
           }
         }
 
-        // Movimento vetorial contínuo
-        const dirX = (targetX + 0.5) - a.x;
-        const dirY = (targetY + 0.5) - a.y;
+        // Movimento Contínuo no Mundo 512x512
+        const dirX = targetX - a.x;
+        const dirY = targetY - a.y;
         const dist = Math.hypot(dirX, dirY);
 
         if (dist > 0.05) {
           const step = Math.min(dist, a.speed * dt);
-          a.x = Math.max(0, Math.min(CHUNK_SIZE - 0.01, a.x + (dirX / dist) * step));
-          a.y = Math.max(0, Math.min(CHUNK_SIZE - 0.01, a.y + (dirY / dist) * step));
+          a.x = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (dirX / dist) * step));
+          a.y = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (dirY / dist) * step));
         }
 
         aliveAnimals.push(a);
       }
 
-      animals = aliveAnimals.concat(newBabies);
+      animals = aliveAnimals.concat(newOffspring);
     }
 
-    // === RENDERIZADOR CANVAS 2D HD PIXEL ===
+    // === RENDERIZADOR ULTRARRÁPIDO 512x512 VIA DIRECT UINT32 BUFFER (60 FPS) ===
     const canvas = document.getElementById('viewportCanvas');
     const ctx = canvas.getContext('2d');
-    let currentLayer = 'composite';
-    let currentBrush = 'inspect';
-    let isPlaying = false;
+    const imgData = ctx.createImageData(CHUNK_SIZE, CHUNK_SIZE);
+    const pixelBuffer = new Uint32Array(imgData.data.buffer);
 
     function render() {
-      const cellSize = canvas.width / CHUNK_SIZE; // 600 / 30 = 20px por célula
-
+      // Loop contíguo sobre 262.144 pixels diretamente no buffer nativo
       for (let y = 0; y < CHUNK_SIZE; y++) {
+        const rowOffset = y * CHUNK_SIZE;
+
         for (let x = 0; x < CHUNK_SIZE; x++) {
-          const idx = getIdx(x, y);
+          const idx = rowOffset + x;
           let r = 0, g = 0, b = 0;
 
           if (currentLayer === 'composite') {
-            if (matId[idx] === MAT_WATER || surfaceWater[idx] > 1.0) {
-              r = 20; g = 85; b = 210; // Mar / Rio
-            } else if (matId[idx] === MAT_ICE || (temp[idx] < -2.0 && elevation[idx] > 26.0)) {
-              r = 220; g = 240; b = 255; // Neve no cume da montanha
-            } else if (matId[idx] === MAT_STONE && elevation[idx] > 16) {
-              r = 130; g = 130; b = 135; // Rocha da Montanha
-            } else if (biomass[idx] > 25) {
-              const f = Math.min(1, biomass[idx] / 80);
-              r = Math.floor(25 * f + 15);
-              g = Math.floor(145 * f + 45);
-              b = Math.floor(25 * f + 15);
-            } else if (matId[idx] === MAT_SAND || moisture[idx] < 0.06) {
-              r = 225; g = 190; b = 115; // Deserto
+            if (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.8) {
+              const depthFactor = Math.min(1.0, Math.max(0, -elevation[idx] / 100.0));
+              // Azul claro costeiro até azul marinho profundo abissal (-100m)
+              r = Math.floor(15 - depthFactor * 10);
+              g = Math.floor(95 - depthFactor * 65);
+              b = Math.floor(220 - depthFactor * 70);
+            } else if (matId[idx] === MAT_ICE || (elevation[idx] > 1600.0 && temp[idx] < 2.0)) {
+              r = 230; g = 245; b = 255; // Cume gélido 2km
+            } else if (matId[idx] === MAT_STONE && elevation[idx] > 300.0) {
+              const rockBright = Math.min(1.0, elevation[idx] / 2000.0);
+              r = Math.floor(100 + rockBright * 70);
+              g = Math.floor(100 + rockBright * 70);
+              b = Math.floor(105 + rockBright * 70);
+            } else if (biomass[idx] > 20) {
+              const f = Math.min(1.0, biomass[idx] / 85.0);
+              r = Math.floor(20 * (1 - f) + 25 * f);
+              g = Math.floor(90 * (1 - f) + 175 * f);
+              b = Math.floor(20 * (1 - f) + 30 * f);
+            } else if (matId[idx] === MAT_SAND || moisture[idx] < 0.1) {
+              r = 215; g = 185; b = 110; // Deserto
             } else {
-              r = 115; g = 85; b = 55; // Solo / Terra
+              r = 110; g = 80; b = 50; // Solo fértil
             }
 
-            // Sombra noturna suave baseada no horário do sol
-            const sunAngle = ((timeOfDay - 6.0) / 12.0) * Math.PI;
-            const sunH = Math.sin(sunAngle);
-            if (sunH < 0) {
-              // Noite: escurece para azul noturno
-              r = Math.floor(r * 0.45);
-              g = Math.floor(g * 0.50);
-              b = Math.floor(b * 0.75 + 15);
+            // Realce visual de canais de erosão fluvial
+            if (cumulativeErosion[idx] > 0.05) {
+              r = Math.floor(r * 0.7);
+              g = Math.floor(g * 0.7);
+              b = Math.floor(b * 0.85 + 20);
             }
           } else if (currentLayer === 'temp') {
-            const t = Math.max(0, Math.min(1, (temp[idx] + 25) / 70));
-            r = Math.floor(t * 255);
-            b = Math.floor((1 - t) * 255);
-            g = Math.floor(Math.sin(t * Math.PI) * 190);
+            // Gradiente altimétrico e solar (-15°C a +45°C)
+            const tNorm = Math.max(0, Math.min(1.0, (temp[idx] + 15) / 60));
+            r = Math.floor(tNorm * 255);
+            b = Math.floor((1 - tNorm) * 255);
+            g = Math.floor(Math.sin(tNorm * Math.PI) * 200);
           } else if (currentLayer === 'moisture') {
-            if (surfaceWater[idx] > 0.5) {
-              r = 10; g = 80; b = 250;
+            if (surfaceWater[idx] > 0.2) {
+              r = 10; g = 90; b = 255; // Lâmina de água
             } else {
-              const m = Math.max(0, Math.min(1, moisture[idx]));
-              r = 15;
-              g = Math.floor(m * 170 + 30);
-              b = Math.floor(m * 210 + 45);
+              const m = Math.max(0, Math.min(1.0, moisture[idx]));
+              r = 12;
+              g = Math.floor(m * 160 + 25);
+              b = Math.floor(m * 220 + 35);
+            }
+          } else if (currentLayer === 'erosion') {
+            // Camada de Topografia e Erosão
+            if (elevation[idx] < 0) {
+              // Depressão oceânica até -100m
+              const seaD = Math.min(1.0, -elevation[idx] / 100.0);
+              r = 0; g = Math.floor(40 * (1 - seaD)); b = Math.floor(180 - seaD * 80);
+            } else {
+              // Montanha até 2000m
+              const altN = Math.min(1.0, elevation[idx] / 2000.0);
+              r = Math.floor(altN * 240 + 25);
+              g = Math.floor(altN * 240 + 25);
+              b = Math.floor(altN * 240 + 25);
+
+              // Incisão de erosão vermelha/dourada
+              if (cumulativeErosion[idx] > 0.02) {
+                r = 255;
+                g = Math.floor(180 - Math.min(1.0, cumulativeErosion[idx]) * 120);
+                b = 30;
+              }
             }
           } else if (currentLayer === 'biomass') {
-            const bio = Math.max(0, Math.min(1, biomass[idx] / 100));
-            r = Math.floor((1 - bio) * 60 + 20);
-            g = Math.floor(bio * 225 + 30);
-            b = 20;
-          } else if (currentLayer === 'elevation') {
-            const e = Math.min(1, elevation[idx] / 30.0);
-            r = Math.floor(e * 230 + 25);
-            g = Math.floor(e * 230 + 25);
-            b = Math.floor(e * 230 + 25);
-          } else if (currentLayer === 'danger') {
-            const d = Math.max(0, Math.min(1, dangerGrad[idx] / 120));
-            r = Math.floor(d * 255);
-            g = 20; b = 20;
+            const bioN = Math.max(0, Math.min(1.0, biomass[idx] / 100));
+            r = Math.floor((1 - bioN) * 50 + 15);
+            g = Math.floor(bioN * 230 + 25);
+            b = 15;
+          } else if (currentLayer === 'fauna') {
+            // Visualização do bioma com saturação reduzida para destacar os animais
+            r = 30; g = 40; b = 45;
+            if (matId[idx] === MAT_WATER) { r = 15; g = 35; b = 80; }
+            else if (elevation[idx] > 1600.0) { r = 180; g = 190; b = 200; }
           }
 
-          ctx.fillStyle = `rgb(${r},${g},${b})`;
-          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-          // Grid subtil
-          ctx.strokeStyle = "rgba(0,0,0,0.12)";
-          ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
-
-          // Linha do Equador pontilhada dourada
-          if (y === 14 && currentLayer === 'composite') {
-            ctx.fillStyle = "rgba(255, 215, 0, 0.4)";
-            ctx.fillRect(x * cellSize, (y + 1) * cellSize - 1, cellSize, 2);
+          // Linha do Equador dourada sutil entre linhas 255 e 256
+          if (y === 255 && currentLayer === 'composite') {
+            r = Math.min(255, r + 50);
+            g = Math.min(255, g + 40);
           }
+
+          // Gravação direta de 32 bits (Formato Little-Endian 0xAABBGGRR)
+          pixelBuffer[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
         }
       }
 
-      // Renderiza Animais
-      for (const a of animals) {
-        const px = a.x * cellSize;
-        const py = a.y * cellSize;
-        const rad = cellSize * 0.4;
+      // Blit ultrarrápido na GPU
+      ctx.putImageData(imgData, 0, 0);
 
+      // Renderização sobreposta da Fauna (Ratos e Gatos) com seus raios sensoriais
+      for (const a of animals) {
+        const px = a.x;
+        const py = a.y;
+
+        if (currentLayer === 'fauna') {
+          // Desenha anel de percepção sensorial: 5 células para Rato, 15 células para Gato
+          ctx.beginPath();
+          ctx.arc(px, py, a.sensoryRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = (a.species === 'rat') ? 'rgba(255, 235, 59, 0.25)' : 'rgba(255, 68, 68, 0.22)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        // Ponto do Animal
         ctx.beginPath();
+        const rad = (a.species === 'cat') ? 3.0 : 2.0;
         ctx.arc(px, py, rad, 0, Math.PI * 2);
-        ctx.fillStyle = a.type === 'predator' ? '#ff3838' : '#fffb00';
-        ctx.shadowColor = a.type === 'predator' ? 'rgba(255, 56, 56, 0.8)' : 'rgba(255, 251, 0, 0.8)';
-        ctx.shadowBlur = 8;
+        ctx.fillStyle = (a.species === 'cat') ? '#ff4d4d' : '#ffe135';
+        ctx.shadowColor = (a.species === 'cat') ? 'rgba(255, 77, 77, 0.9)' : 'rgba(255, 225, 53, 0.9)';
+        ctx.shadowBlur = (a.species === 'cat') ? 6 : 4;
         ctx.fill();
         ctx.shadowBlur = 0;
-
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
-
-        ctx.fillStyle = "#000";
-        ctx.font = `bold ${cellSize * 0.38}px sans-serif`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(a.type === 'predator' ? '🐺' : '🐇', px, py);
       }
     }
 
-    // Ciclo Completo de Simulação
+    // Ciclo Geral
     function tick() {
-      const dt = 0.1;
+      const dt = 0.15;
       stepThermodynamics(dt);
-      stepHydrology(dt);
+      stepHydrologyAndErosion(dt);
       stepFlora(dt);
-      updateInfluenceMaps();
       stepFauna(dt);
 
       tickCount++;
@@ -1070,16 +1265,18 @@
       const isDay = sunH > 0;
       document.getElementById('solarBadge').innerText = isDay ? `☀️ ${timeStr} (Dia)` : `🌙 ${timeStr} (Noite)`;
 
-      let sumT = 0;
-      for (let i = 0; i < CELL_COUNT; i++) sumT += temp[i];
-      document.getElementById('statAvgTemp').innerText = (sumT / CELL_COUNT).toFixed(1) + "°C";
+      // Amostra média térmica
+      document.getElementById('statAvgTemp').innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
+      document.getElementById('statErosion').innerText = (globalErosionTotal * 12.5).toFixed(1) + " m³";
 
-      document.getElementById('statRain').innerText = (globalRainRate).toFixed(1) + " mm/s";
+      const rats = animals.filter(a => a.species === 'rat').length;
+      const cats = animals.filter(a => a.species === 'cat').length;
+      document.getElementById('statRats').innerText = rats;
+      document.getElementById('statCats').innerText = cats;
 
-      const herbs = animals.filter(a => a.type === 'herbivore').length;
-      const preds = animals.filter(a => a.type === 'predator').length;
-      document.getElementById('statHerbivores').innerText = herbs;
-      document.getElementById('statPredators').innerText = preds;
+      // Cume e Abismo
+      document.getElementById('statPeak').innerText = elevation[getIdx(0, 0)].toFixed(1) + " m";
+      document.getElementById('statAbyss').innerText = elevation[getIdx(511, 511)].toFixed(1) + " m";
     }
 
     function inspectCell(x, y) {
@@ -1088,56 +1285,101 @@
 
       document.getElementById('inspCoord').innerText = `(X: ${x}, Y: ${y})`;
 
-      let region = "Planalto Central";
-      if (y <= 3) region = "Planície Setentrional (Norte)";
-      else if (y >= 26) region = "Planície Meridional (Sul)";
-      else if (y === 14 || y === 15) region = "Linha do Equador";
-      else if (x <= 10 && y <= 10) region = "Maciço Montanhoso NW";
-      else if (Math.hypot(29 - x, 29 - y) <= 12) region = "Oceano / Mar SE";
+      let region = "Planalto Continental";
+      if (x <= 25 && y <= 25 && Math.hypot(x, y) <= 20) region = "Maciço Montanhoso NW (2km)";
+      else if (x >= 486 && y >= 486 && Math.hypot(511 - x, 511 - y) <= 20) region = "Oceano / Fossa Abissal SE (-100m)";
+      else if (Math.abs(y - 255.5) <= 4) region = "Linha do Equador";
+      else if (y < 80) region = "Planície Boreal (Norte)";
+      else if (y > 430) region = "Planície Austral (Sul)";
       document.getElementById('inspRegion').innerText = region;
 
       document.getElementById('inspMat').innerText = MATERIALS[matId[idx]]?.name || "Desconhecido";
       document.getElementById('inspElev').innerText = elevation[idx].toFixed(1) + " m";
       document.getElementById('inspTemp').innerText = temp[idx].toFixed(1) + "°C";
-      document.getElementById('inspMoist').innerText = (moisture[idx] * 100).toFixed(1) + "%";
       document.getElementById('inspWater').innerText = surfaceWater[idx].toFixed(1) + " mm";
+      document.getElementById('inspMoist').innerText = (moisture[idx] * 100).toFixed(1) + "%";
       document.getElementById('inspBio').innerText = biomass[idx].toFixed(1);
-      document.getElementById('inspFood').innerText = foodGrad[idx].toFixed(1);
-      document.getElementById('inspDanger').innerText = dangerGrad[idx].toFixed(1);
+      document.getElementById('inspEroded').innerText = cumulativeErosion[idx].toFixed(2) + " m";
+
+      // Detecta se há animal nesta célula
+      const nearbyAnimals = animals.filter(a => Math.hypot(a.x - x, a.y - y) < 2.0);
+      if (nearbyAnimals.length > 0) {
+        const names = nearbyAnimals.map(a => `${a.species === 'rat' ? '🐁 Rato' : '🐈 Gato'} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`).join(', ');
+        document.getElementById('inspFauna').innerText = names;
+      } else {
+        document.getElementById('inspFauna').innerText = "Nenhum";
+      }
     }
 
     // Interações com o Canvas
     function handleCanvasInteraction(e) {
       const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = Math.floor((e.clientX - rect.left) * scaleX / (canvas.width / CHUNK_SIZE));
-      const y = Math.floor((e.clientY - rect.top) * scaleY / (canvas.height / CHUNK_SIZE));
+      const x = Math.floor((e.clientX - rect.left) * (CHUNK_SIZE / rect.width));
+      const y = Math.floor((e.clientY - rect.top) * (CHUNK_SIZE / rect.height));
 
       if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
       const idx = getIdx(x, y);
 
       if (currentBrush === 'inspect') {
         inspectCell(x, y);
-      } else if (currentBrush === 'heat') {
-        temp[idx] = Math.min(150, temp[idx] + 30);
-      } else if (currentBrush === 'ice') {
-        temp[idx] = Math.max(-40, temp[idx] - 30);
       } else if (currentBrush === 'water') {
-        surfaceWater[idx] += 12.0;
+        surfaceWater[idx] += 15.0;
         moisture[idx] = 1.0;
+      } else if (currentBrush === 'rain') {
+        for (let dy = -6; dy <= 6; dy++) {
+          for (let dx = -6; dx <= 6; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
+              surfaceWater[getIdx(nx, ny)] += 5.0;
+            }
+          }
+        }
+      } else if (currentBrush === 'rat') {
+        animals.push({
+          id: Date.now() + Math.random(),
+          species: 'rat',
+          diet: 'herbivore',
+          x: x + 0.5,
+          y: y + 0.5,
+          hp: 100,
+          hunger: 20,
+          speed: 2.2,
+          ageInDays: 75.0,
+          maxLifespan: 912.5,
+          matingCooldown: 15.0,
+          sensoryRadius: 5
+        });
+      } else if (currentBrush === 'cat') {
+        animals.push({
+          id: Date.now() + Math.random(),
+          species: 'cat',
+          diet: 'carnivore',
+          x: x + 0.5,
+          y: y + 0.5,
+          hp: 100,
+          hunger: 15,
+          speed: 2.8,
+          ageInDays: 400.0,
+          maxLifespan: 5110.0,
+          matingCooldown: 50.0,
+          sensoryRadius: 15
+        });
       } else if (currentBrush === 'plant') {
-        biomass[idx] = Math.min(100, biomass[idx] + 40);
-      } else if (currentBrush === 'rock') {
-        matId[idx] = MAT_STONE;
-        elevation[idx] += 6.0;
-      } else if (currentBrush === 'sand') {
-        matId[idx] = MAT_SAND;
-        moisture[idx] = 0.02;
-      } else if (currentBrush === 'herbivore') {
-        animals.push({ id: Date.now() + Math.random(), type: 'herbivore', x: x + 0.5, y: y + 0.5, hunger: 20, speed: 1.6, hp: 100, age: 0 });
-      } else if (currentBrush === 'predator') {
-        animals.push({ id: Date.now() + Math.random(), type: 'predator', x: x + 0.5, y: y + 0.5, hunger: 20, speed: 2.2, hp: 100, age: 0 });
+        for (let dy = -4; dy <= 4; dy++) {
+          for (let dx = -4; dx <= 4; dx++) {
+            const nx = x + dx, ny = y + dy;
+            if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
+              biomass[getIdx(nx, ny)] = Math.min(100, biomass[getIdx(nx, ny)] + 50);
+            }
+          }
+        }
+      } else if (currentBrush === 'elevate') {
+        elevation[idx] += 5.0;
+      } else if (currentBrush === 'erode') {
+        elevation[idx] = Math.max(-100, elevation[idx] - 5.0);
+        cumulativeErosion[idx] += 5.0;
+      } else if (currentBrush === 'heat') {
+        temp[idx] = Math.min(120, temp[idx] + 25);
       }
 
       inspectCell(x, y);
@@ -1149,7 +1391,7 @@
     window.addEventListener('mouseup', () => isMouseDown = false);
     canvas.addEventListener('mousemove', (e) => { if (isMouseDown) handleCanvasInteraction(e); });
 
-    // Loop
+    // Loop de Animação
     function loop() {
       if (isPlaying) {
         const speed = parseInt(document.getElementById('simSpeed').value) || 1;
@@ -1190,29 +1432,29 @@
         const maxL = document.getElementById('legendMax');
 
         if (currentLayer === 'temp') {
-          info.innerText = "Modo: Condução Térmica Fourier e Ciclo Solar (-25°C a +45°C)";
+          info.innerText = "Modo: Gradiente Altimétrico Adiabático (-6.5°C/km) e Ciclo Solar (-15°C a +45°C)";
           grad.style.background = "linear-gradient(to right, #0044ff, #00ddff, #00ff66, #ffcc00, #ff2200)";
-          minL.innerText = "-25°C"; maxL.innerText = "+45°C";
+          minL.innerText = "-15°C"; maxL.innerText = "+45°C";
         } else if (currentLayer === 'moisture') {
-          info.innerText = "Modo: Hidrologia e Chuva Orográfica (Seco a Lâmina Livre Inundada)";
-          grad.style.background = "linear-gradient(to right, #0f1f38, #184880, #2080dd, #00eeff)";
-          minL.innerText = "0%"; maxL.innerText = "Inundado";
+          info.innerText = "Modo: Hidrologia e Escoamento Superficial (Infiltração por Permeabilidade)";
+          grad.style.background = "linear-gradient(to right, #0a1422, #184880, #2080dd, #00eeff)";
+          minL.innerText = "Seco (0%)"; maxL.innerText = "Lâmina Livre";
+        } else if (currentLayer === 'erosion') {
+          info.innerText = "Modo: Topografia (-100m a +2000m) e Ravinas de Erosão Fluvial";
+          grad.style.background = "linear-gradient(to right, #002288, #222222, #888888, #ffffff, #ffcc00)";
+          minL.innerText = "-100m (Mar)"; maxL.innerText = "+2000m (Pico)";
         } else if (currentLayer === 'biomass') {
-          info.innerText = "Modo: Vegetação Viva e Consumo Trófico (0.0 a 100.0)";
+          info.innerText = "Modo: Biomassa Vegetal e Pasto para Herbívoros (0.0 a 100.0)";
           grad.style.background = "linear-gradient(to right, #241c10, #386018, #2ea043, #00ff66)";
           minL.innerText = "0.0"; maxL.innerText = "100.0";
-        } else if (currentLayer === 'elevation') {
-          info.innerText = "Modo: Topografia (Montanha NW de 30m ao Mar SE de 0m)";
-          grad.style.background = "linear-gradient(to right, #111, #555, #999, #eee)";
-          minL.innerText = "0 m"; maxL.innerText = "35 m";
-        } else if (currentLayer === 'danger') {
-          info.innerText = "Modo: Campo de Repulsão e Perigo Emitido pelos Predadores";
-          grad.style.background = "linear-gradient(to right, #111, #881111, #ff2200)";
-          minL.innerText = "Seguro"; maxL.innerText = "Perigo Mortal";
+        } else if (currentLayer === 'fauna') {
+          info.innerText = "Modo: População Viva ECS - Ratos (Amarelo, Raio 5) e Gatos (Vermelho, Raio 15, Territorial)";
+          grad.style.background = "linear-gradient(to right, #ffe135, #ff4d4d)";
+          minL.innerText = "🐁 Rato (Herb.)"; maxL.innerText = "🐈 Gato (Pred.)";
         } else {
-          info.innerText = "Modo: Bioma Composto HD (Montanha NW, Mar SE e Equador Central)";
-          grad.style.background = "linear-gradient(to right, #1455d2, #228b22, #735537, #dcebf5)";
-          minL.innerText = "Mar/Verde"; maxL.innerText = "Solo/Montanha";
+          info.innerText = "Modo: Bioma Composto HD (Montanha 2km NW &le;312 cél | Mar -100m SE &le;312 cél | Equador Y=255..256)";
+          grad.style.background = "linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff)";
+          minL.innerText = "-100m"; maxL.innerText = "+2000m";
         }
 
         render();
@@ -1227,11 +1469,10 @@
       });
     });
 
-    // Start
+    // Inicialização
     initWorld();
-    updateInfluenceMaps();
     updateStats();
-    inspectCell(15, 15);
+    inspectCell(256, 256);
     render();
     requestAnimationFrame(loop);
   </script>

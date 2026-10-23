@@ -5,23 +5,24 @@ using SimCore.Matter;
 namespace SimCore.SpatialGrid;
 
 /// <summary>
-/// FASE 2: Hidrologia Local - Escoamento Superficial Gravitacional, Infiltração e Evaporação.
-/// Utiliza a carga hidráulica total (Elevação + Lâmina d'água) para direcionar o fluxo hídrico
-/// sem turbulências instáveis ou alocações no heap.
+/// FASE 2: Hidrologia Avançada - Escoamento Gravitacional, Infiltração e Erosão Fluvial do Solo.
+/// A água líquida superficial escorre orientada pela carga hidráulica (Elevação + Lâmina d'água),
+/// infiltra-se conforme a permeabilidade do solo e provoca desgaste erosivo nas calhas de escoamento.
 /// </summary>
 public static class Hydrology
 {
-    public const float GravityFlowRate = 0.50f;      // Coeficiente de escoamento livre
-    public const float InfiltrationRate = 0.10f;     // Coeficiente de permeação no solo
+    public const float GravityFlowRate = 0.50f;          // Coeficiente de escoamento livre
+    public const float InfiltrationRate = 0.10f;         // Coeficiente de permeação no solo
     public const float ThermalEvaporationCoeff = 0.0005f;
+    public const float SoilErosionRate = 0.0025f;        // Taxa de desgaste erosivo por fluxo de água
 
     /// <summary>
-    /// Executa um passo hidrológico sobre o Chunk.
+    /// Executa um passo hidrológico com infiltração, evaporação, escoamento e erosão topográfica.
     /// </summary>
     public static void StepHydrology(Chunk chunk, ReadOnlySpan<MaterialDef> catalog, float dt)
     {
         ReadOnlySpan<ushort> matIds = chunk.MaterialId;
-        ReadOnlySpan<float> elevations = chunk.Elevation;
+        Span<float> elevations = chunk.Elevation;
         ReadOnlySpan<float> waters = chunk.SurfaceWater;
         ReadOnlySpan<float> moistures = chunk.Moisture;
         ReadOnlySpan<float> temps = chunk.Temperature;
@@ -44,7 +45,7 @@ public static class Hydrology
                 ushort matId = matIds[idx];
                 ref readonly var mat = ref catalog[matId];
 
-                // 1. Infiltração da água superficial no substrato (solo)
+                // 1. Infiltração da água superficial no solo baseada na permeabilidade
                 if (curWater > 0f && mat.Permeability > 0f)
                 {
                     float availMoistureCapacity = MathF.Max(0f, 1.0f - nextMoistures[idx]);
@@ -70,8 +71,7 @@ public static class Hydrology
                     }
                 }
 
-                // 3. Escoamento Superficial (Downhill Flow)
-                // Encontra o vizinho com menor carga hidráulica
+                // 3. Escoamento Gravitacional para regiões mais baixas e EROSÃO FLUVIAL
                 if (curWater > 0.001f)
                 {
                     int lowestNeighborIdx = -1;
@@ -85,12 +85,23 @@ public static class Hydrology
                     if (lowestNeighborIdx >= 0)
                     {
                         float headDiff = curHead - lowestNeighborHead;
-                        // O fluxo máximo transferível é a metade da diferença de nível para evitar oscilações numéricas
+                        // Fluxo máximo transferível limitado a 50% da diferença de nível para estabilidade
                         float maxFlow = headDiff * 0.5f;
                         float flow = MathF.Min(curWater, maxFlow) * GravityFlowRate * dt;
 
                         nextWaters[idx] -= flow;
                         nextWaters[lowestNeighborIdx] += flow;
+
+                        // EROSÃO: Água corrente desgasta a elevação proporcionalmente à velocidade e fragilidade do material
+                        if (flow > 0.05f)
+                        {
+                            float erodibility = Math.Clamp(1.0f - (mat.Hardness / 10.0f), 0.1f, 1.0f);
+                            float erosionAmount = flow * headDiff * SoilErosionRate * erodibility * dt;
+                            elevations[idx] -= erosionAmount;
+
+                            // Deposição sedimentar parcial na depressão receptora
+                            elevations[lowestNeighborIdx] += erosionAmount * 0.4f;
+                        }
                     }
                 }
             }

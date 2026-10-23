@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projeto Biosfera - Visualizador de Simulação DOD (Fases 1 a 6)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel-bg: rgba(22, 27, 34, 0.85);
+      --border: rgba(240, 246, 252, 0.1);
+      --accent: #58a6ff;
+      --accent-glow: rgba(88, 166, 255, 0.25);
+      --text: #c9d1d9;
+      --text-bright: #f0f6fc;
+      --text-dim: #8b949e;
+      --success: #3fb950;
+      --danger: #f85149;
+      --warning: #d29922;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    header {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #238636, #2ea043);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: white;
+      font-size: 18px;
+      box-shadow: 0 0 15px rgba(46, 160, 67, 0.4);
+    }
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: -0.5px;
+    }
+    .brand span {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255,255,255,0.06);
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-left: 8px;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 24px;
+      padding: 24px 28px;
+      flex: 1;
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .viewport-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .controls-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(13, 17, 23, 0.7);
+      padding: 12px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: #21262d;
+      color: var(--text-bright);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    button:hover {
+      background: #30363d;
+      border-color: #8b949e;
+      transform: translateY(-1px);
+    }
+    button.primary {
+      background: #238636;
+      border-color: rgba(240, 246, 252, 0.1);
+      color: white;
+      box-shadow: 0 0 12px rgba(35, 134, 54, 0.3);
+    }
+    button.primary:hover {
+      background: #2ea043;
+    }
+    button.active {
+      background: #388bfd;
+      color: white;
+      border-color: #58a6ff;
+    }
+
+    .layer-selector {
+      display: flex;
+      gap: 6px;
+      background: #161b22;
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .layer-btn {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+      border-radius: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+    }
+    .layer-btn.active {
+      background: #21262d;
+      color: var(--text-bright);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+
+    .canvas-container {
+      position: relative;
+      display: grid;
+      place-items: center;
+      background: #06090e;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.05);
+      padding: 16px;
+      min-height: 540px;
+    }
+
+    canvas {
+      border-radius: 8px;
+      image-rendering: pixelated;
+      cursor: crosshair;
+      box-shadow: 0 0 40px rgba(0,0,0,0.8);
+      max-width: 100%;
+      height: auto;
+    }
+
+    .legend-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(13, 17, 23, 0.7);
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+    .gradient-legend {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .gradient-bar {
+      width: 180px;
+      height: 10px;
+      border-radius: 5px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Painel Lateral */
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .side-card {
+      background: var(--panel-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .side-card h2 {
+      font-size: 0.95rem;
+      color: var(--text-bright);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .side-card h2::before {
+      content: '';
+      width: 4px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .stat-box {
+      background: #161b22;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+    .stat-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-bright);
+    }
+
+    .inspector-box {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+    }
+    .inspector-row {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      padding: 4px 0;
+    }
+    .inspector-row:last-child { border-bottom: none; }
+    .inspector-val { color: var(--accent); font-weight: 600; }
+
+    .brush-tools {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .brush-btn {
+      padding: 8px;
+      font-size: 0.78rem;
+      justify-content: center;
+      background: #161b22;
+    }
+    .brush-btn.active {
+      background: var(--accent);
+      color: #0d1117;
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">E</div>
+      <div>
+        <h1>Eden Project <span>v1.0.0 Live Visualizer</span></h1>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button id="btnPlay" class="primary">▶ Iniciar Simulação</button>
+      <button id="btnStep">⏭ 1 Tick</button>
+      <button id="btnReset">↺ Resetar</button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <!-- Viewport Central -->
+    <div class="viewport-card">
+      <div class="controls-bar">
+        <div class="layer-selector">
+          <button class="layer-btn active" data-layer="composite">🌍 Bioma</button>
+          <button class="layer-btn" data-layer="temp">🔥 Térmico</button>
+          <button class="layer-btn" data-layer="moisture">💧 Água</button>
+          <button class="layer-btn" data-layer="biomass">🌿 Biomassa</button>
+          <button class="layer-btn" data-layer="danger">🐺 Predadores</button>
+        </div>
+
+        <div class="btn-group">
+          <label style="font-size:0.8rem; color:var(--text-dim);">Velocidade:</label>
+          <select id="simSpeed" style="background:#21262d; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:4px 8px; font-family:inherit;">
+            <option value="1">1x (30 TPS)</option>
+            <option value="2">2x (60 TPS)</option>
+            <option value="5" selected>5x (Rápido)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="canvas-container">
+        <canvas id="viewportCanvas" width="512" height="512"></canvas>
+      </div>
+
+      <div class="legend-bar">
+        <span id="layerInfo">Modo: Bioma Composto HD (Água, Vegetação, Solo, Gelo e Animais)</span>
+        <div class="gradient-legend">
+          <span id="legendMin">-20°C</span>
+          <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #00ff66, #ffcc00, #ff2200);"></div>
+          <span id="legendMax">+60°C</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar Analítica -->
+    <aside class="sidebar">
+      <div class="side-card">
+        <h2>Métricas Globais</h2>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">TICKS DISCRETOS</div>
+            <div id="statTicks" class="stat-val">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">TEMP. MÉDIA</div>
+            <div id="statAvgTemp" class="stat-val">22.4°C</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">BIOMASSA TOTAL</div>
+            <div id="statTotalBio" class="stat-val">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">FAUNA ATIVA</div>
+            <div id="statAnimals" class="stat-val">4</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h2>Inspetor de Célula</h2>
+        <div class="inspector-box" id="inspectorContent">
+          <div class="inspector-row"><span>Coordenadas:</span><span class="inspector-val" id="inspCoord">(X: 8, Y: 8)</span></div>
+          <div class="inspector-row"><span>Material:</span><span class="inspector-val" id="inspMat">Terra / Solo</span></div>
+          <div class="inspector-row"><span>Temperatura:</span><span class="inspector-val" id="inspTemp">22.0°C</span></div>
+          <div class="inspector-row"><span>Umidade Solo:</span><span class="inspector-val" id="inspMoist">45.0%</span></div>
+          <div class="inspector-row"><span>Lâmina d'Água:</span><span class="inspector-val" id="inspWater">0.0 mm</span></div>
+          <div class="inspector-row"><span>Biomassa:</span><span class="inspector-val" id="inspBio">58.2</span></div>
+          <div class="inspector-row"><span>Cheiro Comida:</span><span class="inspector-val" id="inspFood">34.1</span></div>
+          <div class="inspector-row"><span>Perigo Predador:</span><span class="inspector-val" id="inspDanger">0.0</span></div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <h2>Pincel de Intervenção</h2>
+        <div class="brush-tools">
+          <button class="brush-btn active" data-brush="inspect">🔍 Inspecionar</button>
+          <button class="brush-btn" data-brush="heat">🔥 Calor</button>
+          <button class="brush-btn" data-brush="ice">❄ Frio</button>
+          <button class="brush-btn" data-brush="water">💧 Água</button>
+          <button class="brush-btn" data-brush="plant">🌿 Sementes</button>
+          <button class="brush-btn" data-brush="herbivore">🐇 Herbívoro</button>
+          <button class="brush-btn" data-brush="predator">🐺 Predador</button>
+          <button class="brush-btn" data-brush="rock">⛰ Pedra</button>
+          <button class="brush-btn" data-brush="sand">🏜 Areia</button>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-dim); margin-top:6px;">
+          Selecione uma ferramenta e clique ou arraste sobre o grid para alterar o ecossistema.
+        </p>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    // === REPRODUÇÃO EXATA DOS ALGORITMOS DOD DAS FASES 1 A 6 ===
+    const CHUNK_SIZE = 16;
+    const CELL_COUNT = CHUNK_SIZE * CHUNK_SIZE;
+
+    // Catálogo de Materiais (Fase 1)
+    const MAT_WATER = 1, MAT_STEAM = 2, MAT_ICE = 3, MAT_STONE = 30, MAT_SOIL = 22, MAT_SAND = 31;
+    const MATERIALS = {
+      [MAT_WATER]: { name: "Água Líquida", k: 0.60, melt: 0, boil: 100, perm: 1.0 },
+      [MAT_STEAM]: { name: "Vapor d'Água", k: 0.03, melt: 0, boil: 100, perm: 1.0 },
+      [MAT_ICE]:   { name: "Gelo", k: 2.20, melt: 0, boil: 100, perm: 0.0 },
+      [MAT_STONE]: { name: "Granito", k: 2.80, melt: 1200, boil: 2500, perm: 0.05 },
+      [MAT_SOIL]:  { name: "Solo Fértil", k: 0.70, melt: 800, boil: 2000, perm: 0.55 },
+      [MAT_SAND]:  { name: "Areia", k: 0.27, melt: 1500, boil: 2200, perm: 0.95 }
+    };
+
+    // Arrays SoA Contíguos (Fase 2)
+    const matId = new Uint16Array(CELL_COUNT);
+    const temp = new Float32Array(CELL_COUNT);
+    const nextTemp = new Float32Array(CELL_COUNT);
+    const moisture = new Float32Array(CELL_COUNT);
+    const nextMoisture = new Float32Array(CELL_COUNT);
+    const surfaceWater = new Float32Array(CELL_COUNT);
+    const nextSurfaceWater = new Float32Array(CELL_COUNT);
+    const elevation = new Float32Array(CELL_COUNT);
+    const biomass = new Float32Array(CELL_COUNT);
+
+    // Mapas de Influência (Fase 5)
+    const foodGrad = new Float32Array(CELL_COUNT);
+    const dangerGrad = new Float32Array(CELL_COUNT);
+    const blurTemp = new Float32Array(CELL_COUNT);
+
+    // Agentes Animais ECS (Fase 5)
+    let animals = [
+      { id: 1, type: 'herbivore', x: 5.5, y: 5.5, hunger: 40, speed: 1.5, hp: 100 },
+      { id: 2, type: 'herbivore', x: 7.0, y: 11.0, hunger: 20, speed: 1.5, hp: 100 },
+      { id: 3, type: 'herbivore', x: 12.0, y: 4.0, hunger: 70, speed: 1.5, hp: 100 },
+      { id: 4, type: 'predator',  x: 13.0, y: 13.0, hunger: 30, speed: 2.0, hp: 100 }
+    ];
+
+    function getIdx(x, y) { return (y << 4) | x; }
+
+    // Inicialização do Mundo
+    function initWorld() {
+      for (let y = 0; y < CHUNK_SIZE; y++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          const idx = getIdx(x, y);
+          elevation[idx] = (15 - y) * 0.5 + (x > 10 ? 3 : 0);
+
+          if (x <= 4 && y <= 5) {
+            matId[idx] = MAT_WATER;
+            surfaceWater[idx] = 8.0;
+            moisture[idx] = 1.0;
+            temp[idx] = 16.0;
+            biomass[idx] = 5.0;
+          } else if (x >= 11 && y >= 10) {
+            matId[idx] = MAT_SAND;
+            surfaceWater[idx] = 0;
+            moisture[idx] = 0.04;
+            temp[idx] = 38.0;
+            biomass[idx] = 3.0;
+          } else if (y <= 2 && x >= 12) {
+            matId[idx] = MAT_ICE;
+            surfaceWater[idx] = 0;
+            moisture[idx] = 0.2;
+            temp[idx] = -8.0;
+            biomass[idx] = 0;
+          } else {
+            matId[idx] = MAT_SOIL;
+            surfaceWater[idx] = 0;
+            moisture[idx] = 0.65;
+            temp[idx] = 22.0;
+            biomass[idx] = 55.0;
+          }
+        }
+      }
+    }
+
+    // Algoritmo de Difusão Térmica Fourier (Fase 2)
+    function stepThermodynamics(dt) {
+      for (let y = 0; y < CHUNK_SIZE; y++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          const idx = getIdx(x, y);
+          const curTemp = temp[idx];
+          const k1 = MATERIALS[matId[idx]]?.k || 0.5;
+
+          let fluxSum = 0;
+          const neighbors = [
+            x > 0 ? getIdx(x-1, y) : -1,
+            x < CHUNK_SIZE-1 ? getIdx(x+1, y) : -1,
+            y > 0 ? getIdx(x, y-1) : -1,
+            y < CHUNK_SIZE-1 ? getIdx(x, y+1) : -1
+          ];
+
+          for (const n of neighbors) {
+            if (n >= 0) {
+              const k2 = MATERIALS[matId[n]]?.k || 0.5;
+              const kEff = (2 * k1 * k2) / (k1 + k2 + 0.0001);
+              fluxSum += kEff * (temp[n] - curTemp);
+            }
+          }
+
+          // Troca com ar ambiente (20°C)
+          fluxSum += (20.0 - curTemp) * 0.03;
+
+          let nT = curTemp + fluxSum * dt;
+
+          // Transições de Fase
+          if (matId[idx] === MAT_ICE && nT > 0) {
+            matId[idx] = MAT_WATER;
+            surfaceWater[idx] += 5.0;
+          } else if (matId[idx] === MAT_WATER && nT <= 0) {
+            matId[idx] = MAT_ICE;
+          } else if (matId[idx] === MAT_WATER && nT >= 100) {
+            matId[idx] = MAT_STEAM;
+          }
+
+          nextTemp[idx] = nT;
+        }
+      }
+      temp.set(nextTemp);
+    }
+
+    // Algoritmo Hidrológico (Fase 2)
+    function stepHydrology(dt) {
+      nextSurfaceWater.set(surfaceWater);
+      nextMoisture.set(moisture);
+
+      for (let y = 0; y < CHUNK_SIZE; y++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          const idx = getIdx(x, y);
+          const water = surfaceWater[idx];
+          const curHead = elevation[idx] + water;
+          const perm = MATERIALS[matId[idx]]?.perm || 0.5;
+
+          // Infiltração
+          if (water > 0 && perm > 0) {
+            const cap = Math.max(0, 1.0 - nextMoisture[idx]);
+            const infilt = Math.min(water, cap, perm * 0.2 * dt);
+            nextSurfaceWater[idx] -= infilt;
+            nextMoisture[idx] += infilt;
+          }
+
+          // Escoamento gravitacional
+          if (water > 0.01) {
+            let lowestHead = curHead;
+            let lowestIdx = -1;
+
+            const nCoords = [[x-1, y], [x+1, y], [x, y-1], [x, y+1]];
+            for (const [nx, ny] of nCoords) {
+              if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
+                const nIdx = getIdx(nx, ny);
+                const nHead = elevation[nIdx] + surfaceWater[nIdx];
+                if (nHead < lowestHead) {
+                  lowestHead = nHead;
+                  lowestIdx = nIdx;
+                }
+              }
+            }
+
+            if (lowestIdx >= 0) {
+              const flow = Math.min(water, (curHead - lowestHead) * 0.5) * 0.6 * dt;
+              nextSurfaceWater[idx] -= flow;
+              nextSurfaceWater[lowestIdx] += flow;
+            }
+          }
+        }
+      }
+      surfaceWater.set(nextSurfaceWater);
+      moisture.set(nextMoisture);
+    }
+
+    // Crescimento de Flora (Fase 4)
+    function stepFlora(dt) {
+      for (let i = 0; i < CELL_COUNT; i++) {
+        const t = temp[i];
+        const m = moisture[i];
+        const curBio = biomass[i];
+
+        if (t >= 10 && t <= 38 && m > 0.08) {
+          const opt = 1.0 - Math.abs(t - 24) / 14;
+          const growth = opt * m * 4.0 * dt * Math.max(0.2, (1 - curBio / 100));
+          biomass[i] = Math.min(100, curBio + growth);
+          moisture[i] = Math.max(0, m - growth * 0.04);
+        } else if (t < 0 || m < 0.03) {
+          biomass[i] = Math.max(0, curBio - 1.5 * dt);
+        }
+      }
+    }
+
+    // Box Blur 3x3 para Mapas de Influência (Fase 5)
+    function applyBoxBlur(src, dst) {
+      for (let y = 0; y < CHUNK_SIZE; y++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          let sum = 0, count = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            const ny = y + dy;
+            if (ny < 0 || ny >= CHUNK_SIZE) continue;
+            for (let dx = -1; dx <= 1; dx++) {
+              const nx = x + dx;
+              if (nx < 0 || nx >= CHUNK_SIZE) continue;
+              sum += src[getIdx(nx, ny)];
+              count++;
+            }
+          }
+          dst[getIdx(x, y)] = sum / count;
+        }
+      }
+      src.set(dst);
+    }
+
+    function updateInfluenceMaps() {
+      // Comida herda biomassa
+      foodGrad.set(biomass);
+      applyBoxBlur(foodGrad, blurTemp);
+
+      // Perigo dos predadores
+      dangerGrad.fill(0);
+      for (const a of animals) {
+        if (a.type === 'predator') {
+          const cx = Math.floor(a.x);
+          const cy = Math.floor(a.y);
+          if (cx >= 0 && cx < CHUNK_SIZE && cy >= 0 && cy < CHUNK_SIZE) {
+            dangerGrad[getIdx(cx, cy)] = 100.0;
+          }
+        }
+      }
+      applyBoxBlur(dangerGrad, blurTemp);
+    }
+
+    // Fauna ECS por Gradiente sem A* (Fase 5)
+    function stepFauna(dt) {
+      for (const a of animals) {
+        a.hunger = Math.min(100, a.hunger + 2.0 * dt);
+        const curX = Math.floor(a.x);
+        const curY = Math.floor(a.y);
+        const curIdx = getIdx(curX, curY);
+
+        // Alimentação
+        if (a.type === 'herbivore' && a.hunger > 10 && biomass[curIdx] > 5) {
+          const bite = Math.min(biomass[curIdx], 25 * dt);
+          biomass[curIdx] -= bite;
+          a.hunger = Math.max(0, a.hunger - bite * 2);
+        }
+
+        // Avaliação de 8 vizinhos
+        let bestScore = -9999;
+        let targetX = curX, targetY = curY;
+
+        for (let dy = -1; dy <= 1; dy++) {
+          const ny = curY + dy;
+          if (ny < 0 || ny >= CHUNK_SIZE) continue;
+          for (let dx = -1; dx <= 1; dx++) {
+            const nx = curX + dx;
+            if (nx < 0 || nx >= CHUNK_SIZE) continue;
+            const idx = getIdx(nx, ny);
+
+            let score = 0;
+            if (a.type === 'herbivore') {
+              score = (foodGrad[idx] * (a.hunger / 100) * 3) - (dangerGrad[idx] * 12);
+            } else {
+              // Predador caça comida/presas
+              score = foodGrad[idx] * 1.5;
+            }
+
+            if (score > bestScore) {
+              bestScore = score;
+              targetX = nx;
+              targetY = ny;
+            }
+          }
+        }
+
+        // Movimento vetorial direto
+        const dx = (targetX + 0.5) - a.x;
+        const dy = (targetY + 0.5) - a.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist > 0.05) {
+          const step = Math.min(dist, a.speed * dt);
+          a.x = Math.max(0, Math.min(CHUNK_SIZE - 0.01, a.x + (dx / dist) * step));
+          a.y = Math.max(0, Math.min(CHUNK_SIZE - 0.01, a.y + (dy / dist) * step));
+        }
+      }
+    }
+
+    // === RENDERIZADOR CANVAS 2D ===
+    const canvas = document.getElementById('viewportCanvas');
+    const ctx = canvas.getContext('2d');
+    let currentLayer = 'composite';
+    let currentBrush = 'inspect';
+    let isPlaying = false;
+    let tickCount = 0;
+
+    function render() {
+      const cellSize = canvas.width / CHUNK_SIZE;
+
+      for (let y = 0; y < CHUNK_SIZE; y++) {
+        for (let x = 0; x < CHUNK_SIZE; x++) {
+          const idx = getIdx(x, y);
+          let r = 0, g = 0, b = 0;
+
+          if (currentLayer === 'composite') {
+            if (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.8) {
+              r = 25; g = 105; b = 225;
+            } else if (matId[idx] === MAT_ICE || temp[idx] < -2) {
+              r = 215; g = 235; b = 250;
+            } else if (biomass[idx] > 25) {
+              const factor = Math.min(1, biomass[idx] / 80);
+              r = Math.floor(34 * factor + 10);
+              g = Math.floor(139 * factor + 40);
+              b = Math.floor(34 * factor + 10);
+            } else if (matId[idx] === MAT_SAND || moisture[idx] < 0.05) {
+              r = 225; g = 195; b = 125;
+            } else {
+              r = 115; g = 85; b = 55;
+            }
+          } else if (currentLayer === 'temp') {
+            const t = Math.max(0, Math.min(1, (temp[idx] + 20) / 80));
+            r = Math.floor(t * 255);
+            b = Math.floor((1 - t) * 255);
+            g = Math.floor(Math.sin(t * Math.PI) * 190);
+          } else if (currentLayer === 'moisture') {
+            if (surfaceWater[idx] > 0.5) {
+              r = 10; g = 80; b = 250;
+            } else {
+              const m = Math.max(0, Math.min(1, moisture[idx]));
+              r = 15;
+              g = Math.floor(m * 170 + 30);
+              b = Math.floor(m * 210 + 45);
+            }
+          } else if (currentLayer === 'biomass') {
+            const bio = Math.max(0, Math.min(1, biomass[idx] / 100));
+            r = Math.floor((1 - bio) * 60 + 20);
+            g = Math.floor(bio * 225 + 30);
+            b = 20;
+          } else if (currentLayer === 'danger') {
+            const d = Math.max(0, Math.min(1, dangerGrad[idx] / 100));
+            r = Math.floor(d * 255);
+            g = 20; b = 20;
+          }
+
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+          ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+
+          // Grid subtle border
+          ctx.strokeStyle = "rgba(0,0,0,0.15)";
+          ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        }
+      }
+
+      // Renderiza Animais
+      for (const a of animals) {
+        const px = a.x * cellSize;
+        const py = a.y * cellSize;
+        const rad = cellSize * 0.35;
+
+        ctx.beginPath();
+        ctx.arc(px, py, rad, 0, Math.PI * 2);
+        ctx.fillStyle = a.type === 'predator' ? '#ff3838' : '#fffb00';
+        ctx.shadowColor = a.type === 'predator' ? 'rgba(255, 56, 56, 0.7)' : 'rgba(255, 251, 0, 0.7)';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Label
+        ctx.fillStyle = "#000";
+        ctx.font = `bold ${cellSize * 0.3}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(a.type === 'predator' ? '🐺' : '🐇', px, py);
+      }
+    }
+
+    // Ciclo de Simulação
+    function tick() {
+      const dt = 0.1;
+      stepThermodynamics(dt);
+      stepHydrology(dt);
+      stepFlora(dt);
+      updateInfluenceMaps();
+      stepFauna(dt);
+
+      tickCount++;
+      updateStats();
+      render();
+    }
+
+    function updateStats() {
+      document.getElementById('statTicks').innerText = tickCount;
+
+      let sumT = 0, sumBio = 0;
+      for (let i = 0; i < CELL_COUNT; i++) {
+        sumT += temp[i];
+        sumBio += biomass[i];
+      }
+      document.getElementById('statAvgTemp').innerText = (sumT / CELL_COUNT).toFixed(1) + "°C";
+      document.getElementById('statTotalBio').innerText = Math.round(sumBio);
+      document.getElementById('statAnimals').innerText = animals.length;
+    }
+
+    function inspectCell(x, y) {
+      if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
+      const idx = getIdx(x, y);
+
+      document.getElementById('inspCoord').innerText = `(X: ${x}, Y: ${y})`;
+      document.getElementById('inspMat').innerText = MATERIALS[matId[idx]]?.name || "Desconhecido";
+      document.getElementById('inspTemp').innerText = temp[idx].toFixed(1) + "°C";
+      document.getElementById('inspMoist').innerText = (moisture[idx] * 100).toFixed(1) + "%";
+      document.getElementById('inspWater').innerText = surfaceWater[idx].toFixed(1) + " mm";
+      document.getElementById('inspBio').innerText = biomass[idx].toFixed(1);
+      document.getElementById('inspFood').innerText = foodGrad[idx].toFixed(1);
+      document.getElementById('inspDanger').innerText = dangerGrad[idx].toFixed(1);
+    }
+
+    // Interações com o Canvas
+    function handleCanvasInteraction(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = Math.floor((e.clientX - rect.left) * scaleX / (canvas.width / CHUNK_SIZE));
+      const y = Math.floor((e.clientY - rect.top) * scaleY / (canvas.height / CHUNK_SIZE));
+
+      if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
+      const idx = getIdx(x, y);
+
+      if (currentBrush === 'inspect') {
+        inspectCell(x, y);
+      } else if (currentBrush === 'heat') {
+        temp[idx] = Math.min(150, temp[idx] + 35);
+      } else if (currentBrush === 'ice') {
+        temp[idx] = Math.max(-30, temp[idx] - 35);
+      } else if (currentBrush === 'water') {
+        surfaceWater[idx] += 15.0;
+        moisture[idx] = 1.0;
+      } else if (currentBrush === 'plant') {
+        biomass[idx] = Math.min(100, biomass[idx] + 40);
+      } else if (currentBrush === 'rock') {
+        matId[idx] = MAT_STONE;
+        elevation[idx] += 5.0;
+      } else if (currentBrush === 'sand') {
+        matId[idx] = MAT_SAND;
+        moisture[idx] = 0.02;
+      } else if (currentBrush === 'herbivore') {
+        animals.push({ id: Date.now(), type: 'herbivore', x: x + 0.5, y: y + 0.5, hunger: 20, speed: 1.5, hp: 100 });
+      } else if (currentBrush === 'predator') {
+        animals.push({ id: Date.now(), type: 'predator', x: x + 0.5, y: y + 0.5, hunger: 10, speed: 2.0, hp: 100 });
+      }
+
+      inspectCell(x, y);
+      render();
+    }
+
+    let isMouseDown = false;
+    canvas.addEventListener('mousedown', (e) => { isMouseDown = true; handleCanvasInteraction(e); });
+    window.addEventListener('mouseup', () => isMouseDown = false);
+    canvas.addEventListener('mousemove', (e) => { if (isMouseDown) handleCanvasInteraction(e); });
+
+    // Loop de Animação
+    let loopId = null;
+    function loop() {
+      if (isPlaying) {
+        const speed = parseInt(document.getElementById('simSpeed').value) || 1;
+        for (let i = 0; i < speed; i++) tick();
+      }
+      requestAnimationFrame(loop);
+    }
+
+    // Controles de Botão
+    document.getElementById('btnPlay').addEventListener('click', function() {
+      isPlaying = !isPlaying;
+      this.innerText = isPlaying ? "⏸ Pausar" : "▶ Iniciar Simulação";
+      this.classList.toggle('active', isPlaying);
+    });
+
+    document.getElementById('btnStep').addEventListener('click', () => {
+      isPlaying = false;
+      document.getElementById('btnPlay').innerText = "▶ Iniciar Simulação";
+      tick();
+    });
+
+    document.getElementById('btnReset').addEventListener('click', () => {
+      initWorld();
+      tickCount = 0;
+      updateStats();
+      render();
+    });
+
+    // Seletor de Camadas
+    document.querySelectorAll('.layer-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentLayer = this.dataset.layer;
+
+        const info = document.getElementById('layerInfo');
+        const grad = document.getElementById('legendGradient');
+        const minL = document.getElementById('legendMin');
+        const maxL = document.getElementById('legendMax');
+
+        if (currentLayer === 'temp') {
+          info.innerText = "Modo: Condução Térmica Fourier (-20°C a +60°C)";
+          grad.style.background = "linear-gradient(to right, #0044ff, #00ddff, #00ff66, #ffcc00, #ff2200)";
+          minL.innerText = "-20°C"; maxL.innerText = "+60°C";
+        } else if (currentLayer === 'moisture') {
+          info.innerText = "Modo: Hidrologia (Solo Seco a Água Livre Superficial)";
+          grad.style.background = "linear-gradient(to right, #0f1f38, #184880, #2080dd, #00eeff)";
+          minL.innerText = "Seco (0%)"; maxL.innerText = "Inundado";
+        } else if (currentLayer === 'biomass') {
+          info.innerText = "Modo: Densidade de Vegetação e Biomassa Viva";
+          grad.style.background = "linear-gradient(to right, #241c10, #386018, #2ea043, #00ff66)";
+          minL.innerText = "0.0"; maxL.innerText = "100.0";
+        } else if (currentLayer === 'danger') {
+          info.innerText = "Modo: Campo de Repulsão e Perigo de Predadores";
+          grad.style.background = "linear-gradient(to right, #111, #881111, #ff2200)";
+          minL.innerText = "Seguro"; maxL.innerText = "Perigo Fatal";
+        } else {
+          info.innerText = "Modo: Bioma Composto HD (Água, Vegetação, Solo, Gelo e Animais)";
+          grad.style.background = "linear-gradient(to right, #1969e1, #228b22, #735537, #dcebf5)";
+          minL.innerText = "Água/Verde"; maxL.innerText = "Solo/Gelo";
+        }
+
+        render();
+      });
+    });
+
+    // Pincéis de Intervenção
+    document.querySelectorAll('.brush-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.brush-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentBrush = this.dataset.brush;
+      });
+    });
+
+    // Start
+    initWorld();
+    updateInfluenceMaps();
+    updateStats();
+    inspectCell(8, 8);
+    render();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

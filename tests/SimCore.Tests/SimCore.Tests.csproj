@@ -20,6 +20,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\SimCore\SimCore.csproj" />
     <ProjectReference Include="..\..\src\SimServer\SimServer.csproj" />
+    <ProjectReference Include="..\..\src\SimVisualizer\SimVisualizer.csproj" />
+    <ProjectReference Include="..\..\src\GameClient\GameClient.csproj" />
   </ItemGroup>
 
 </Project>

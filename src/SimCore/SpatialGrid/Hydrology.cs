@@ -92,11 +92,15 @@ public static class Hydrology
                         nextWaters[idx] -= flow;
                         nextWaters[lowestNeighborIdx] += flow;
 
-                        // EROSÃO: Água corrente desgasta a elevação proporcionalmente à velocidade e fragilidade do material
+                        // EROSÃO: Água corrente desgasta a elevação (calibrada para no máximo 1m por dia)
                         if (flow > 0.05f)
                         {
                             float erodibility = Math.Clamp(1.0f - (mat.Hardness / 10.0f), 0.1f, 1.0f);
-                            float erosionAmount = flow * headDiff * SoilErosionRate * erodibility * dt;
+                            // 1 dia = 24h de simulação. Limite diário estrito de 1.0m/dia
+                            float maxErosionStep = (1.0f / 24.0f) * dt;
+                            float calculatedErosion = flow * headDiff * SoilErosionRate * erodibility * dt;
+                            float erosionAmount = MathF.Min(maxErosionStep, calculatedErosion);
+
                             elevations[idx] -= erosionAmount;
 
                             // Deposição sedimentar parcial na depressão receptora

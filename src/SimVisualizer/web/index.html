@@ -383,7 +383,7 @@
       </div>
 
       <div class="legend-bar">
-        <span id="layerInfo">Modo: Bioma HD (Montanha 2km NW &le;312 cél | Mar -100m SE &le;312 cél | Equador Y=255..256)</span>
+        <span id="layerInfo">Modo: Bioma HD (Escada de Altitudes SE -100m a NW +2000m | Sulcos Estriados &plusmn;3m | Chuva Dinâmica)</span>
         <div class="gradient-legend">
           <span id="legendMin">-100m</span>
           <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff);"></div>
@@ -526,6 +526,8 @@
 
     // Variáveis Planetárias
     let timeOfDay = 12.0; // Inicia às 12:00h (Zênite)
+    let totalSimHours = 0.0;
+    let lastSimDay = 0;
     let tickCount = 0;
     let globalErosionTotal = 0;
     let funKillsCount = 0; // Caças por diversão
@@ -534,22 +536,37 @@
     let currentLayer = 'composite';
     let currentBrush = 'inspect';
 
+    // Sistema Pluviométrico Realista Dinâmico com Duração Aleatória
+    let weather = {
+      isRaining: false,
+      timerHours: 10.0,       // Duração da fase atual em horas de simulação
+      intensity: 0.0,         // mm/s
+      frontX: 250.0,          // Centro da frente de nuvens
+      frontY: 250.0,
+      speedX: 0.7,            // Vetor de vento
+      speedY: 0.4,
+      cloudRadius: 140.0
+    };
+
     // População de Fauna (Ratos vs Gatos)
     let animals = [];
 
     function getIdx(x, y) { return y * CHUNK_SIZE + x; }
 
     // === INICIALIZAÇÃO GEOGRÁFICA 512x512 ===
-    // Restrição Estrita: Mar e Montanha iniciam com NO MÁXIMO (25x25)/2 = 312 células em seus cantos!
+    // Escada de Altitudes contínua do Sudeste (-100m) ao Noroeste (+2000m) com Sulcos Estriados (±3m)
     function initWorld() {
       animals = [];
       globalErosionTotal = 0;
       funKillsCount = 0;
       hungryKillsCount = 0;
       ratScent.fill(0);
-      const MAX_CORNER_CELLS = Math.floor((25 * 25) / 2); // 312 células rigorosas
+      totalSimHours = 0.0;
+      lastSimDay = 0;
+      weather.isRaining = false;
+      weather.timerHours = 10.0;
+      weather.intensity = 0.0;
 
-      // 1. Geração de Planície Continental Base (Elevação suave de 2m a 14m com declive NW -> SE)
       const equatorY = 255.5;
 
       for (let y = 0; y < CHUNK_SIZE; y++) {
@@ -559,111 +576,72 @@
         for (let x = 0; x < CHUNK_SIZE; x++) {
           const idx = getIdx(x, y);
 
-          // Declive continental sutil para escoamento natural em direção ao mar SE
-          const diagPos = (x + y) / (CHUNK_SIZE * 2);
-          const baseElev = 12.0 - (diagPos * 8.0); // 12m ao norte/oeste -> 4m ao sul/leste
-          elevation[idx] = baseElev;
-          initialElevation[idx] = baseElev;
+          // Eixo diagonal normalizado de SE (x=511, y=511 -> u=0.0) até NW (x=0, y=0 -> u=1.0)
+          const u = ((CHUNK_SIZE - 1 - x) + (CHUNK_SIZE - 1 - y)) / ((CHUNK_SIZE - 1) * 2.0);
 
-          // Material padrão: solo fértil, com savana/areia no equador quente
-          if (latFactor > 0.88 && x > 280) {
-            matId[idx] = MAT_SAND;
-            moisture[idx] = 0.12;
-            biomass[idx] = 15.0;
+          // Escada de altitudes (14 degraus / terraços com rampa de transição suave)
+          const steps = 14;
+          const scaled = u * steps;
+          const stepIdx = Math.floor(scaled);
+          const fract = scaled - stepIdx;
+          const smoothFract = fract * fract * (3.0 - 2.0 * fract); // Hermite smoothstep
+          const terraceU = (stepIdx + smoothFract * 0.45) / steps;
+
+          // Gradiente basal de -100m (fossa marinha SE) a +2000m (cume NW)
+          const baseElev = -100.0 + terraceU * 2100.0;
+
+          // Sulcos estriados geomorfológicos periódicos com aleatoriedade de até 3m (±3.0m)
+          const rot1 = (x - y) * 0.08;
+          const rot2 = (x + y) * 0.03;
+          const striation = (Math.sin(rot1 * 2.0) * 1.8 + Math.cos(rot2 * 1.5 + rot1) * 1.2);
+          const finalElev = Math.max(-100.0, Math.min(2000.0, baseElev + striation));
+
+          elevation[idx] = finalElev;
+          initialElevation[idx] = finalElev;
+          cumulativeErosion[idx] = 0.0;
+
+          // Classificação física de materiais na escada de altitudes
+          if (finalElev < 0.0) {
+            matId[idx] = MAT_WATER;
+            surfaceWater[idx] = -finalElev; // Lâmina de água até o nível do mar (0m)
+            moisture[idx] = 1.0;
+            biomass[idx] = 2.0;
+          } else if (finalElev > 1600.0) {
+            matId[idx] = MAT_ICE; // Cume alpino de gelo e neve
+            surfaceWater[idx] = 0.0;
+            moisture[idx] = 0.15;
+            biomass[idx] = 0.0;
+          } else if (finalElev > 950.0) {
+            matId[idx] = MAT_STONE; // Rocha montanhosa
+            surfaceWater[idx] = 0.0;
+            moisture[idx] = 0.25;
+            biomass[idx] = 6.0;
+          } else if (latFactor > 0.88 && finalElev < 250.0 && x > 280) {
+            matId[idx] = MAT_SAND; // Savana equatorial arenosa
+            surfaceWater[idx] = 0.0;
+            moisture[idx] = 0.10;
+            biomass[idx] = 14.0;
           } else {
-            matId[idx] = MAT_SOIL;
-            moisture[idx] = 0.60;
-            biomass[idx] = 40.0 + latFactor * 35.0;
+            matId[idx] = MAT_SOIL; // Solo fértil continental
+            surfaceWater[idx] = 0.0;
+            moisture[idx] = 0.65;
+            biomass[idx] = 45.0 + latFactor * 30.0;
           }
 
           // Temperatura com gradiente altimétrico adiabático (-0.0065°C / m)
-          const baseT = 20.0 + (latFactor * 16.0) - (baseElev * 0.0065);
+          const baseT = 20.0 + (latFactor * 16.0) - (Math.max(0, finalElev) * 0.0065);
           temp[idx] = baseT;
-          surfaceWater[idx] = 0.0;
-          cumulativeErosion[idx] = 0.0;
         }
       }
 
-      // 2. Montanha a Noroeste (NW: Canto 0,0) - EXATAMENTE <= 312 CÉLULAS E PICO DE 2000 METROS
-      const mtnCandidates = [];
-      for (let y = 0; y < 25; y++) {
-        for (let x = 0; x < 25; x++) {
-          mtnCandidates.push({ x, y, distSq: x * x + y * y });
-        }
-      }
-      mtnCandidates.sort((a, b) => a.distSq - b.distSq);
-      const mtnCells = mtnCandidates.slice(0, MAX_CORNER_CELLS); // Exatamente 312 células
-      const maxMtnDist = Math.sqrt(mtnCells[mtnCells.length - 1].distSq);
-
-      for (const cell of mtnCells) {
-        const idx = getIdx(cell.x, cell.y);
-        const d = Math.sqrt(cell.distSq);
-        const ratio = Math.max(0, 1.0 - (d / maxMtnDist));
-        // Cume a 2000m (2km) no vértice (0,0), decaindo até a cota continental na borda das 312 células
-        const elev = 12.0 + Math.pow(ratio, 1.25) * (2000.0 - 12.0);
-        elevation[idx] = elev;
-        initialElevation[idx] = elev;
-
-        // Gradiente térmico adiabático: -6.5°C a cada 1000m
-        // No topo de 2000m, o resfriamento é de 13.0°C!
-        const latDist = Math.abs(cell.y - equatorY) / 255.5;
-        const latFactor = Math.max(0, 1.0 - latDist);
-        const t = 20.0 + (latFactor * 16.0) - (elev * 0.0065);
-        temp[idx] = t;
-
-        // Picos acima de 1600m têm gelo e neve perpétua
-        if (elev > 1600.0) {
-          matId[idx] = MAT_ICE;
-          biomass[idx] = 0.0;
-          moisture[idx] = 0.1;
-        } else {
-          matId[idx] = MAT_STONE;
-          biomass[idx] = 4.0;
-          moisture[idx] = 0.2;
-        }
-      }
-
-      // 3. Mar a Sudeste (SE: Canto 511, 511) - EXATAMENTE <= 312 CÉLULAS E PROFUNDIDADE DE -100 METROS
-      const oceanCandidates = [];
-      for (let dy = 0; dy < 25; dy++) {
-        for (let dx = 0; dx < 25; dx++) {
-          const x = (CHUNK_SIZE - 1) - dx;
-          const y = (CHUNK_SIZE - 1) - dy;
-          oceanCandidates.push({ x, y, distSq: dx * dx + dy * dy });
-        }
-      }
-      oceanCandidates.sort((a, b) => a.distSq - b.distSq);
-      const oceanCells = oceanCandidates.slice(0, MAX_CORNER_CELLS); // Exatamente 312 células
-      const maxOceanDist = Math.sqrt(oceanCells[oceanCells.length - 1].distSq);
-
-      for (const cell of oceanCells) {
-        const idx = getIdx(cell.x, cell.y);
-        const d = Math.sqrt(cell.distSq);
-        const ratio = Math.max(0, 1.0 - (d / maxOceanDist));
-        // Depressão marinha profunda de até -100m no canto (511, 511), subindo até o nível do mar (0m)
-        const elev = 0.0 - Math.pow(ratio, 1.15) * 100.0;
-        elevation[idx] = elev;
-        initialElevation[idx] = elev;
-
-        matId[idx] = MAT_WATER;
-        surfaceWater[idx] = -elev; // Preenchido com água até a cota 0m (até 100m de lâmina líquida)
-        moisture[idx] = 1.0;
-        biomass[idx] = 2.0;
-
-        const latDist = Math.abs(cell.y - equatorY) / 255.5;
-        const latFactor = Math.max(0, 1.0 - latDist);
-        temp[idx] = 20.0 + (latFactor * 16.0) - (elev * 0.0065);
-      }
-
-      // 4. Povamento de Fauna: X Predadores (Gatos) e 4X Herbívoros (Ratos), Jovens Adultos
-      // Definimos X = 35 gatos e 4X = 140 ratos (total de 175 espécimes)
+      // Povamento de Fauna: X Predadores (Gatos) e 4X Herbívoros (Ratos), Jovens Adultos
       const X_PREDATORS = 35;
       const HERBIVORES_COUNT = 4 * X_PREDATORS; // 140
 
-      // Herbívoros (Ratos): ciclo real ~2.5 anos (~912 dias), jovem adulto inicia em ~75 dias (~8% da vida)
+      // Herbívoros (Ratos)
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
-        const rx = 30 + Math.random() * (CHUNK_SIZE - 60);
-        const ry = 30 + Math.random() * (CHUNK_SIZE - 60);
+        const rx = 40 + Math.random() * (CHUNK_SIZE - 120);
+        const ry = 40 + Math.random() * (CHUNK_SIZE - 120);
         animals.push({
           id: i + 1,
           species: 'rat',
@@ -673,17 +651,18 @@
           hp: 100,
           hunger: 20 + Math.random() * 20,
           speed: 2.2,
-          ageInDays: 75.0 + Math.random() * 20.0, // Jovem adulto
-          maxLifespan: 912.5, // ~2.5 anos
-          matingCooldown: 10.0 + Math.random() * 15.0,
-          sensoryRadius: 5 // Procura comida em até 5 células
+          ageInDays: 75.0 + Math.random() * 20.0,
+          maxLifespan: 912.5,
+          matingCooldown: 15.0,
+          sensoryRadius: 5,
+          dailyFunKills: 0
         });
       }
 
-      // Predadores (Gatos): ciclo real ~14 anos (~5110 dias), jovem adulto inicia em ~400 dias (~8% da vida)
+      // Predadores (Gatos)
       for (let i = 0; i < X_PREDATORS; i++) {
-        const gx = 60 + Math.random() * (CHUNK_SIZE - 120);
-        const gy = 60 + Math.random() * (CHUNK_SIZE - 120);
+        const gx = 60 + Math.random() * (CHUNK_SIZE - 140);
+        const gy = 60 + Math.random() * (CHUNK_SIZE - 140);
         animals.push({
           id: 1000 + i,
           species: 'cat',
@@ -693,17 +672,32 @@
           hp: 100,
           hunger: 15 + Math.random() * 15,
           speed: 2.8,
-          ageInDays: 400.0 + Math.random() * 60.0, // Jovem adulto
-          maxLifespan: 5110.0, // ~14 anos
-          matingCooldown: 30.0 + Math.random() * 30.0,
-          sensoryRadius: 15 // Procura em até 15 células e é territorial
+          ageInDays: 400.0 + Math.random() * 60.0,
+          maxLifespan: 5110.0,
+          matingCooldown: 40.0,
+          sensoryRadius: 15,
+          dailyFunKills: 0
         });
       }
     }
 
     // === DINÂMICA TÉRMICA COM GRADIENTE ALTISSONANTE ADIABÁTICO ===
     function stepThermodynamics(dt) {
-      timeOfDay = (timeOfDay + 0.08 * dt) % 24.0;
+      const simDeltaHours = 0.08 * dt;
+      timeOfDay = (timeOfDay + simDeltaHours) % 24.0;
+      totalSimHours += simDeltaHours;
+
+      // Controle de virada de dia de simulação (para reiniciar cotas diárias de caça lúdica dos gatos)
+      const currentDay = Math.floor(totalSimHours / 24.0);
+      if (currentDay > lastSimDay) {
+        lastSimDay = currentDay;
+        for (let i = 0; i < animals.length; i++) {
+          if (animals[i].species === 'cat') {
+            animals[i].dailyFunKills = 0;
+          }
+        }
+      }
+
       const sunHeight = Math.sin(((timeOfDay - 6.0) / 12.0) * Math.PI);
       const isDay = sunHeight > 0;
       const equatorY = 255.5;
@@ -747,41 +741,95 @@
       }
     }
 
-    // === ESCOAMENTO GRAVITACIONAL, INFILTRAÇÃO E EROSÃO FLUVIAL ===
+    // === SISTEMA PLUVIOMÉTRICO REALISTA, ESCOAMENTO GRAVITACIONAL E EROSÃO FLUVIAL ===
     function stepHydrologyAndErosion(dt) {
-      nextSurfaceWater.set(surfaceWater);
+      const simDeltaHours = 0.08 * dt;
 
-      // Simulação estocástica de chuva nas montanhas e planícies
-      const rainCells = 40;
-      for (let i = 0; i < rainCells; i++) {
-        // Chuva mais frequente na vertente da montanha NW e equador
-        const rx = (Math.random() < 0.6) ? Math.floor(Math.random() * 120) : Math.floor(Math.random() * CHUNK_SIZE);
-        const ry = (Math.random() < 0.6) ? Math.floor(Math.random() * 120) : Math.floor(Math.random() * CHUNK_SIZE);
-        const rIdx = getIdx(rx, ry);
-        nextSurfaceWater[rIdx] += 1.8 * dt;
+      // 1. Ciclo Dinâmico de Chuva Realista com Duração e Frente Convectiva Aleatórias
+      weather.timerHours -= simDeltaHours;
+      if (weather.timerHours <= 0) {
+        if (weather.isRaining) {
+          // Fim do período chuvoso -> Estiagem / Tempo Firme (6h a 24h)
+          weather.isRaining = false;
+          weather.timerHours = 6.0 + Math.random() * 18.0;
+          weather.intensity = 0.0;
+        } else {
+          // Início de nova tempestade com frente de nuvens em movimento (3h a 14h)
+          weather.isRaining = true;
+          weather.timerHours = 3.0 + Math.random() * 11.0;
+          weather.intensity = 0.8 + Math.random() * 2.2; // Intensidade realista mm/s
+          weather.frontX = Math.random() * CHUNK_SIZE;
+          weather.frontY = Math.random() * CHUNK_SIZE;
+          weather.speedX = (Math.random() - 0.45) * 3.0; // Deslocamento eólico
+          weather.speedY = (Math.random() - 0.45) * 3.0;
+          weather.cloudRadius = 110.0 + Math.random() * 120.0;
+        }
       }
 
-      // Passada de escoamento e erosão fluvial em grade celular
-      // Amostragem distribuída veloz
-      for (let y = 1; y < CHUNK_SIZE - 1; y += 2) {
-        for (let x = 1; x < CHUNK_SIZE - 1; x += 2) {
+      // Deslocamento da frente atmosférica pelo mapa
+      weather.frontX = (weather.frontX + weather.speedX * dt + CHUNK_SIZE) % CHUNK_SIZE;
+      weather.frontY = (weather.frontY + weather.speedY * dt + CHUNK_SIZE) % CHUNK_SIZE;
+
+      nextSurfaceWater.set(surfaceWater);
+
+      // Precipitação realista sob a mancha de nebulosidade da frente de chuva
+      if (weather.isRaining && weather.intensity > 0) {
+        const stormSamples = 70;
+        for (let i = 0; i < stormSamples; i++) {
+          const ang = Math.random() * Math.PI * 2;
+          const rad = Math.sqrt(Math.random()) * weather.cloudRadius;
+          const rx = Math.floor((weather.frontX + Math.cos(ang) * rad + CHUNK_SIZE) % CHUNK_SIZE);
+          const ry = Math.floor((weather.frontY + Math.sin(ang) * rad + CHUNK_SIZE) % CHUNK_SIZE);
+          const rIdx = getIdx(rx, ry);
+          nextSurfaceWater[rIdx] += weather.intensity * 0.45 * dt;
+        }
+      }
+
+      // Evaporação térmica solar (elimina poças d'água estagnadas nas terras quentes)
+      const evapoSamples = 400;
+      for (let i = 0; i < evapoSamples; i++) {
+        const ex = Math.floor(Math.random() * CHUNK_SIZE);
+        const ey = Math.floor(Math.random() * CHUNK_SIZE);
+        const eIdx = getIdx(ex, ey);
+        if (matId[eIdx] !== MAT_WATER && nextSurfaceWater[eIdx] > 0.01) {
+          const t = temp[eIdx];
+          if (t > 4.0) {
+            const evRate = Math.min(nextSurfaceWater[eIdx], (t - 4.0) * 0.018 * dt);
+            nextSurfaceWater[eIdx] -= evRate;
+          }
+        }
+      }
+
+      // Escoamento gravitacional e erosão fluvial em grade celular com varredura alternada
+      // Teto estrito de erosão por dia: 1.0 metro/dia = (1.0 / 24.0) * simDeltaHours
+      const maxErosionStep = (1.0 / 24.0) * simDeltaHours;
+      const passOffset = (tickCount % 2);
+
+      for (let y = 1 + passOffset; y < CHUNK_SIZE - 1; y += 2) {
+        for (let x = 1 + passOffset; x < CHUNK_SIZE - 1; x += 2) {
           const idx = getIdx(x, y);
           const water = surfaceWater[idx];
           if (water <= 0.01) continue;
+
+          // Se a célula for mar aberto, absorve a água até o nível do mar (0m)
+          if (matId[idx] === MAT_WATER) {
+            nextSurfaceWater[idx] = Math.max(0, -elevation[idx]);
+            continue;
+          }
 
           const curElev = elevation[idx];
           const curHead = curElev + water;
           const perm = MATERIALS[matId[idx]]?.perm || 0.5;
 
-          // 1. Infiltração no solo baseada na capacidade e permeabilidade
-          if (matId[idx] !== MAT_WATER && perm > 0) {
+          // 2. Infiltração no solo baseada na capacidade e permeabilidade
+          if (perm > 0) {
             const soilCap = Math.max(0, 1.0 - moisture[idx]);
-            const infilt = Math.min(water, soilCap, perm * 0.4 * dt);
+            const infilt = Math.min(water, soilCap, perm * 0.45 * dt);
             nextSurfaceWater[idx] -= infilt;
             moisture[idx] = Math.min(1.0, moisture[idx] + infilt);
           }
 
-          // 2. Escoamento gravitacional para os vizinhos mais baixos
+          // 3. Escoamento gravitacional pelos terraços da escada em direção ao Sudeste
           let lowestHead = curHead;
           let lowestIdx = -1;
 
@@ -802,24 +850,23 @@
 
           if (lowestIdx >= 0) {
             const headDiff = curHead - lowestHead;
-            const flow = Math.min(water * 0.5, headDiff * 0.35) * dt;
+            const flow = Math.min(water * 0.55, headDiff * 0.38) * dt;
 
             nextSurfaceWater[idx] -= flow;
             nextSurfaceWater[lowestIdx] += flow;
 
-            // 3. EROSÃO FLUVIAL NOS LOCAIS ONDE A ÁGUA PASSA
-            if (matId[idx] !== MAT_WATER && headDiff > 0.1) {
+            // 4. EROSÃO FLUVIAL LIMITADA A NO MÁXIMO 1 METRO POR DIA
+            if (headDiff > 0.1 && elevation[idx] > -90.0) {
               const erodibility = MATERIALS[matId[idx]]?.erod || 0.05;
-              const erosionAmount = Math.min(0.25, flow * headDiff * erodibility * 0.3);
+              const potentialErosion = flow * headDiff * erodibility * 0.06;
+              const erosionAmount = Math.min(maxErosionStep, potentialErosion);
 
-              if (elevation[idx] > -90.0) {
-                elevation[idx] -= erosionAmount;
-                cumulativeErosion[idx] += erosionAmount;
-                globalErosionTotal += erosionAmount;
+              elevation[idx] -= erosionAmount;
+              cumulativeErosion[idx] += erosionAmount;
+              globalErosionTotal += erosionAmount;
 
-                // Deposição aluvial parcial de sedimentos a jusante
-                elevation[lowestIdx] += erosionAmount * 0.45;
-              }
+              // Deposição aluvial parcial de sedimentos a jusante
+              elevation[lowestIdx] += erosionAmount * 0.40;
             }
           }
         }
@@ -880,9 +927,19 @@
     function stepFauna(dt) {
       const aliveAnimals = [];
       const newOffspring = [];
+      const simDeltaHours = 0.08 * dt;
+
+      // Censo instantâneo de densidade de ratos por célula para partilha equitativa de biomassa
+      const ratsInCell = new Uint8Array(CELL_COUNT);
+      for (let i = 0; i < animals.length; i++) {
+        const an = animals[i];
+        if (an.species === 'rat' && an.hp > 0) {
+          const cIdx = getIdx(Math.floor(an.x), Math.floor(an.y));
+          if (ratsInCell[cIdx] < 255) ratsInCell[cIdx]++;
+        }
+      }
 
       // 1. Decaimento da Trilha de Cheiro do Rato (dura 1 dia de simulação = 24h)
-      // Como 1 dia tem ~240 ticks, decai suavemente
       const scentDecayRate = 0.0035 * dt;
       for (let i = 0; i < CELL_COUNT; i += 4) {
         if (ratScent[i] > 0) ratScent[i] = Math.max(0, ratScent[i] - scentDecayRate);
@@ -892,7 +949,7 @@
       }
 
       // Constantes de alcance do Gato
-      const CAT_HUNTING_ZONE = 15; // Zona de caça direta (preda por diversão)
+      const CAT_HUNTING_ZONE = 15; // Zona de caça direta (preda por diversão até 2x/dia)
       const CAT_OLFACTORY_RANGE = 45; // Faro de cheiro (3x a zona de caça = 45 células)
 
       for (let i = 0; i < animals.length; i++) {
@@ -908,9 +965,7 @@
           continue;
         }
 
-        // Metabolismo e saciedade calibrados para estabilidade ecológica:
-        // Rato: queima moderada (0.22*dt), saciedade sustentada por dezenas de segundos
-        // Gato: queima lenta de carnívoro (0.05*dt), alta retenção energética
+        // Metabolismo e saciedade calibrados
         const hungerRate = (a.species === 'rat') ? 0.22 : 0.05;
         a.hunger = Math.min(100, a.hunger + hungerRate * dt);
 
@@ -922,13 +977,13 @@
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
-        // Afogamento no mar profundo
-        if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 10.0) {
-          a.hp -= 15.0 * dt;
+        // Checagem de inundação: animais atravessam a água, mas não permanecem em terreno inundado
+        const inWater = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.15);
+        if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 18.0) {
+          a.hp -= 10.0 * dt; // Afogamento se preso no oceano profundo
         }
 
         if (a.hp <= 0) {
-          // Morte gera boost de decomposição vegetal no solo
           applyDeathDecomposition(a.x, a.y);
           continue;
         }
@@ -944,16 +999,40 @@
         let targetX = a.x;
         let targetY = a.y;
 
+        // Evasão ativa de inundação: busca a menor lâmina de água ao redor para sair imediatamente
+        let floodEscapeX = 0, floodEscapeY = 0;
+        if (inWater) {
+          let lowestW = (matId[curIdx] === MAT_WATER) ? 999.0 : surfaceWater[curIdx];
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              const nx = curX + dx, ny = curY + dy;
+              if (nx < 0 || nx >= CHUNK_SIZE || ny < 0 || ny >= CHUNK_SIZE) continue;
+              const nIdx = getIdx(nx, ny);
+              const nw = (matId[nIdx] === MAT_WATER) ? 999.0 : surfaceWater[nIdx];
+              if (nw < lowestW) {
+                lowestW = nw;
+                floodEscapeX = dx;
+                floodEscapeY = dy;
+              }
+            }
+          }
+        }
+
         // === COMPORTAMENTO DO RATO (HERBÍVORO) ===
         if (a.species === 'rat') {
-          // 1. Pastagem Oportunista: se estiver sobre biomassa verde e fome > 5, alimenta-se
-          if (a.hunger > 5 && biomass[curIdx] > 1.5) {
-            const bite = Math.min(biomass[curIdx], 20.0 * dt);
-            biomass[curIdx] -= bite;
-            a.hunger = Math.max(0, a.hunger - bite * 4.0); // Restauração eficaz de saciedade
+          // 1. Pastagem e Partilha de Alimento:
+          // Uma célula tem capacidade de alimentar 1 rato por 3 dias (72h).
+          // Se houverem mais ratos, dividem esse tempo entre eles (3 / N dias).
+          if (a.hunger > 5 && biomass[curIdx] > 0.5) {
+            const nRats = ratsInCell[curIdx] || 1;
+            const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
+            const sharedBite = Math.min(biomass[curIdx] / nRats, baseRatePerHour * simDeltaHours);
+            biomass[curIdx] = Math.max(0, biomass[curIdx] - sharedBite);
+            a.hunger = Math.max(0, a.hunger - sharedBite * 3.6);
           }
 
-          // 2. Detecção de ameaça de predadores próximos (fuga)
+          // 2. Detecção de ameaça de predadores próximos (fuga imediata)
           let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;
           for (let j = 0; j < animals.length; j++) {
             const other = animals[j];
@@ -968,9 +1047,12 @@
           }
 
           if (dangerCount > 0) {
-            // Fuga com agilidade
-            targetX = a.x + fleeVectorX * 2.5;
-            targetY = a.y + fleeVectorY * 2.5;
+            targetX = a.x + fleeVectorX * 2.8;
+            targetY = a.y + fleeVectorY * 2.8;
+          } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
+            // Animais atravessam água, mas não vão permanecer em terreno inundado
+            targetX = a.x + floodEscapeX * 3.0;
+            targetY = a.y + floodEscapeY * 3.0;
           } else if (isReadyToMate && animals.length < 400) {
             // Acasalamento de Ratos
             let closestMate = null;
@@ -995,7 +1077,6 @@
               if (closestDist < 1.5) {
                 a.matingCooldown = 30.0;
                 closestMate.matingCooldown = 30.0;
-                // Ninhada fértil de ratos (2 a 4 filhotes) para sustentar a base da pirâmide
                 const litter = 2 + Math.floor(Math.random() * 3);
                 for (let k = 0; k < litter; k++) {
                   newOffspring.push({
@@ -1010,15 +1091,16 @@
                     ageInDays: 0,
                     maxLifespan: 912.5,
                     matingCooldown: 25.0,
-                    sensoryRadius: 5
+                    sensoryRadius: 5,
+                    dailyFunKills: 0
                   });
                 }
               }
             }
           } else {
-            // 3. Procura ativamente por biomassa verde em até 5 células
-            let bestBio = -1;
-            const searchRadius = a.sensoryRadius; // 5 células
+            // 3. Procura ativamente por biomassa verde em até 5 células (evita terrenos inundados)
+            let bestScore = -999;
+            const searchRadius = a.sensoryRadius;
 
             for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
               const ny = curY + dy;
@@ -1029,10 +1111,12 @@
                 if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
 
                 const nIdx = getIdx(nx, ny);
-                if (matId[nIdx] === MAT_WATER) continue;
+                const isFlooded = (matId[nIdx] === MAT_WATER || surfaceWater[nIdx] > 0.15);
+                const floodPenalty = isFlooded ? -60.0 : 0.0;
+                const score = biomass[nIdx] + floodPenalty;
 
-                if (biomass[nIdx] > bestBio) {
-                  bestBio = biomass[nIdx];
+                if (score > bestScore) {
+                  bestScore = score;
                   targetX = nx;
                   targetY = ny;
                 }
@@ -1041,7 +1125,7 @@
           }
         }
 
-        // === COMPORTAMENTO DO GATO (PREDADOR COM FARO E PREDAÇÃO POR DIVERSÃO) ===
+        // === COMPORTAMENTO DO GATO (PREDADOR COM FARO E LIMITE DE 2 CAÇADAS LÚDICAS/DIA) ===
         else if (a.species === 'cat') {
           // 1. Territorialidade: repele outros gatos no raio de 10 células
           let territoryRepulsionX = 0, territoryRepulsionY = 0, rivalCount = 0;
@@ -1086,7 +1170,8 @@
                       ageInDays: 0,
                       maxLifespan: 5110.0,
                       matingCooldown: 60.0,
-                      sensoryRadius: 15
+                      sensoryRadius: 15,
+                      dailyFunKills: 0
                     });
                   }
                   break;
@@ -1096,25 +1181,23 @@
           }
 
           // 3. CAÇA: DIVERSÃO NA ZONA DE CAÇA (15 cél) VS FOME FORA DELA COM FARO (45 cél)
+          // REGRA SOLICITADA: O gato perde o interesse após a 2ª caçada no dia!
           if (!mateFound) {
             let closestPrey = null;
             let closestDist = 99999;
             let isInHuntingZone = false;
 
-            // Varre presas para identificar se há alguma na zona de caça (15 cél) ou no raio de faro (45 cél)
             for (let j = 0; j < animals.length; j++) {
               const prey = animals[j];
               if (prey.species === 'rat' && prey.hp > 0) {
                 const d = Math.hypot(prey.x - a.x, prey.y - a.y);
                 if (d <= CAT_HUNTING_ZONE) {
-                  // Rato está na ZONA DE CAÇA IMEDIATA (<= 15 células)
                   if (!isInHuntingZone || d < closestDist) {
                     closestDist = d;
                     closestPrey = prey;
                     isInHuntingZone = true;
                   }
                 } else if (!isInHuntingZone && d <= CAT_OLFACTORY_RANGE) {
-                  // Rato detectado pelo FARO (<= 45 células, 3x a zona de caça)
                   if (d < closestDist) {
                     closestDist = d;
                     closestPrey = prey;
@@ -1123,17 +1206,24 @@
               }
             }
 
-            // REGRA FUNDAMENTAL SOLICITADA:
-            // - Se na zona de caça (15 cél): PREDA POR DIVERSÃO (mesmo sem fome!)
-            // - Fora dela (até 45 cél pelo faro): SÓ CAÇA SE ESTIVER COM FOME!
             let shouldHunt = false;
+            let isFunHunt = false;
 
             if (closestPrey) {
               if (isInHuntingZone) {
-                shouldHunt = true; // Na zona de caça: caça por diversão mesmo saciado!
-              } else if (a.hunger > 30) {
-                // Fora da zona de caça: caça motivada pela fome guiada pelo faro
+                // Na zona de caça (15 cél): caça por diversão apenas até a 2ª caçada diária!
+                if (a.dailyFunKills < 2) {
+                  shouldHunt = true;
+                  isFunHunt = true; // Diversão / lúdico
+                } else if (a.hunger > 35) {
+                  // Perdeu o interesse por brincadeira após a 2ª caçada! Só persegue se estiver faminto.
+                  shouldHunt = true;
+                  isFunHunt = false;
+                }
+              } else if (a.hunger > 35) {
+                // Fora da zona de caça (farejado até 45 cél): caça guiada estritamente pela fome
                 shouldHunt = true;
+                isFunHunt = false;
               }
             }
 
@@ -1143,37 +1233,41 @@
 
               // Bote de caça
               if (closestDist < 1.4) {
-                closestPrey.hp = 0; // Abate o rato
+                closestPrey.hp = 0;
                 applyDeathDecomposition(closestPrey.x, closestPrey.y); // Boost vegetal imediato
 
-                if (a.hunger > 20) {
-                  // Gato faminto alimenta-se da presa (alta saciedade prolongada)
-                  a.hunger = Math.max(0, a.hunger - 75.0);
-                  hungryKillsCount++;
-                } else {
-                  // Abate por pura diversão / brincadeira
+                if (isFunHunt && a.dailyFunKills < 2 && a.hunger <= 35) {
+                  // Abate lúdico por diversão (incrementa limite diário)
+                  a.dailyFunKills++;
                   funKillsCount++;
+                } else {
+                  // Abate alimentar por fome
+                  a.hunger = Math.max(0, a.hunger - 70.0);
+                  hungryKillsCount++;
                 }
               }
+            } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
+              // Gato não permanece em terreno inundado: prioriza sair para terra firme
+              targetX = a.x + floodEscapeX * 3.5;
+              targetY = a.y + floodEscapeY * 3.5;
             } else if (rivalCount > 0) {
-              // Patrulha territorial afastando-se do rival
               targetX = a.x + territoryRepulsionX * 3.5;
               targetY = a.y + territoryRepulsionY * 3.5;
             } else {
-              // Patrulha serena ou descanso quando saciado
               targetX = a.x + (Math.random() - 0.5) * 4.0;
               targetY = a.y + (Math.random() - 0.5) * 4.0;
             }
           }
         }
 
-        // Movimento Contínuo no Mundo 512x512
+        // Movimento Contínuo: atravessa água com atrito de nado (0.65x speed)
         const dirX = targetX - a.x;
         const dirY = targetY - a.y;
         const dist = Math.hypot(dirX, dirY);
 
         if (dist > 0.05) {
-          const step = Math.min(dist, a.speed * dt);
+          const effectiveSpeed = inWater ? a.speed * 0.65 : a.speed;
+          const step = Math.min(dist, effectiveSpeed * dt);
           a.x = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (dirX / dist) * step));
           a.y = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (dirY / dist) * step));
         }
@@ -1368,7 +1462,10 @@
 
       const sunH = Math.sin(((timeOfDay - 6.0) / 12.0) * Math.PI);
       const isDay = sunH > 0;
-      document.getElementById('solarBadge').innerText = isDay ? `☀️ ${timeStr} (Dia)` : `🌙 ${timeStr} (Noite)`;
+      const weatherStr = weather.isRaining 
+        ? `🌧️ Chuva Frente (${weather.timerHours.toFixed(1)}h | ${(weather.intensity).toFixed(1)}mm/s)` 
+        : `🌤️ Céu Aberto (${weather.timerHours.toFixed(1)}h)`;
+      document.getElementById('solarBadge').innerText = `${isDay ? '☀️' : '🌙'} ${timeStr} | ${weatherStr}`;
 
       // Amostra média térmica
       document.getElementById('statAvgTemp').innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
@@ -1456,7 +1553,8 @@
           ageInDays: 75.0,
           maxLifespan: 912.5,
           matingCooldown: 15.0,
-          sensoryRadius: 5
+          sensoryRadius: 5,
+          dailyFunKills: 0
         });
       } else if (currentBrush === 'cat') {
         animals.push({
@@ -1471,7 +1569,8 @@
           ageInDays: 400.0,
           maxLifespan: 5110.0,
           matingCooldown: 50.0,
-          sensoryRadius: 15
+          sensoryRadius: 15,
+          dailyFunKills: 0
         });
       } else if (currentBrush === 'plant') {
         for (let dy = -4; dy <= 4; dy++) {

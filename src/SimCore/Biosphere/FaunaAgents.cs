@@ -41,6 +41,7 @@ public struct AnimalAgent
     public float MaxLifespanDays;// Expectativa máxima de vida (Rato: ~900 dias; Gato: ~5100 dias)
     public float MatingCooldown; // Tempo até poder acasalar novamente
     public byte SensoryRadius;   // Raio sensorial: 5 para ratos, 15 para gatos
+    public byte DailyFunKills;   // Caças lúdicas no dia (gato perde o interesse após a 2ª)
 
     // Posição contínua no mundo
     public float PosX;
@@ -61,6 +62,7 @@ public struct AnimalAgent
         Thirst = 0f;
         Energy = 100f;
         MoveSpeed = speed;
+        DailyFunKills = 0;
         PosX = x;
         PosY = y;
         VelocityX = 0f;
@@ -164,15 +166,30 @@ public static class FaunaSystem
             int curCellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
             int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
 
-            // Herbívoro pastando oportunisticamente sobre biomassa verde
-            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f && chunk.Biomass[curCellIdx] > 1.0f)
+            // Herbívoro alimentando-se: 1 célula cheia alimenta 1 rato por 3 dias.
+            // Se houver mais ratos na mesma célula, dividem a biomassa disponível.
+            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f && chunk.Biomass[curCellIdx] > 0.5f)
             {
-                float bite = MathF.Min(chunk.Biomass[curCellIdx], 20.0f * dt);
+                int ratsInCell = 1;
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref readonly var other = ref agents[j];
+                    if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f &&
+                        (int)other.PosX == curCellX && (int)other.PosY == curCellY)
+                    {
+                        ratsInCell++;
+                    }
+                }
+
+                // Taxa diária de 1 rato: 100 biomassa / 3 dias = 33.33/dia = ~1.388 por hora de simulação
+                float bitePerDay = 33.33f / ratsInCell;
+                float bite = MathF.Min(chunk.Biomass[curCellIdx] / ratsInCell, (bitePerDay / 24.0f) * dt);
                 chunk.Biomass[curCellIdx] -= bite;
                 a.Hunger = MathF.Max(0f, a.Hunger - bite * 3.5f);
             }
 
-            // Tomada de Decisão com faro e caça lúdica vs fome
+            // Tomada de Decisão com faro, caça lúdica (máx 2/dia) e fuga de alagamento
             float bestScore = EvaluateCellScore(curCellX, curCellY, in a, influence, agents, i);
             int targetX = curCellX;
             int targetY = curCellY;
@@ -198,14 +215,15 @@ public static class FaunaSystem
                 }
             }
 
-            // Movimento suave em direção ao alvo
+            // Movimento suave em direção ao alvo (animais atravessam água a 70% da velocidade, mas não permanecem nela)
             float dirX = (targetX + 0.5f) - a.PosX;
             float dirY = (targetY + 0.5f) - a.PosY;
             float dist = MathF.Sqrt(dirX * dirX + dirY * dirY);
 
             if (dist > 0.05f)
             {
-                float stepDist = a.MoveSpeed * dt;
+                float speedModifier = (chunk.SurfaceWater[curCellIdx] > 0.2f) ? 0.7f : 1.0f;
+                float stepDist = a.MoveSpeed * speedModifier * dt;
                 float moveX = (dirX / dist) * MathF.Min(dist, stepDist);
                 float moveY = (dirY / dist) * MathF.Min(dist, stepDist);
 
@@ -251,14 +269,16 @@ public static class FaunaSystem
         float danger = influence.DangerGradient[idx];
         float water = influence.WaterGradient[idx];
 
+        // Animais podem atravessar água, mas têm repulsão severa contra permanecer em terreno inundado!
+        float floodPenalty = (water > 0.1f) ? -35.0f : 0f;
+
         if (agent.Diet == AnimalDiet.Herbivore)
         {
             // Rato: Raio de busca 5 células, pastagem e fuga equilibrada
             float fearWeight = 8.0f;
             float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
-            float waterWeight = (agent.Thirst / 100.0f) * 1.0f;
 
-            float score = (food * foodWeight) + (water * waterWeight) - (danger * fearWeight);
+            float score = (food * foodWeight) - (danger * fearWeight) + floodPenalty;
 
             // Procura semelhante para acasalamento se estiver pronto
             if (agent.IsReadyToMate)
@@ -282,11 +302,11 @@ public static class FaunaSystem
         }
         else // Carnívoro / Gato
         {
-            float score = 0f;
+            float score = floodPenalty;
 
             // Busca de presas (Ratos):
-            // 1. Se estiver na zona de caça (15 células): preda por diversão (mesmo saciado)!
-            // 2. Fora da zona de caça (até 45 células, capacidade olfativa de farejar): só caça se estiver com fome!
+            // 1. Na zona de caça (15 células): preda por diversão se tiver menos de 2 caças diárias (após a 2ª perde o interesse lúdico)!
+            // 2. Fora da zona de caça (até 45 células pelo faro): só caça se estiver com fome!
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
@@ -297,8 +317,11 @@ public static class FaunaSystem
 
                     if (d <= CatHuntingZone)
                     {
-                        // Na zona de caça (15 cél): Atração predatória por diversão instintiva!
-                        score += (CatHuntingZone - d) * 4.5f;
+                        // Se atingiu a 2ª caça no dia, perde o interesse a menos que esteja com fome real
+                        if (agent.DailyFunKills < 2 || agent.Hunger > 30.0f)
+                        {
+                            score += (CatHuntingZone - d) * 4.5f;
+                        }
                     }
                     else if (d <= CatOlfactoryRange && agent.Hunger > 30.0f)
                     {

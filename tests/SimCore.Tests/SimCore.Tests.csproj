@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SimCore\SimCore.csproj" />
+    <ProjectReference Include="..\..\src\SimServer\SimServer.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,14 @@
+## .NET Core / C#
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/
+.idea/
+*.DotSettings.user
+
+## OS Files
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store

@@ -94,12 +94,16 @@ public struct AnimalAgent
 /// </summary>
 public static class FaunaSystem
 {
-    public const float RatHungerRate = 2.5f;      // Ratos possuem metabolismo acelerado (fome rápida)
-    public const float CatHungerRate = 0.65f;     // Gatos carnívoros sustentam saciedade por muito mais tempo
-    public const float StarvationDamage = 3.5f;
+    // Taxas de metabolismo calibradas para estabilidade ecológica e saciedade realista
+    public const float RatHungerRate = 0.20f;     // Rato: queima saciedade moderadamente, alimenta-se com frequência
+    public const float CatHungerRate = 0.05f;     // Gato: queima lenta de carnívoro, alta saciedade prolongada por presa
+    public const float StarvationDamage = 0.6f;   // Dano suave de inanição dando tempo de forrageamento
+
+    public const byte CatHuntingZone = 15;        // Zona de caça e visão direta do gato: 15 células (preda por diversão)
+    public const byte CatOlfactoryRange = 45;     // Capacidade de farejar o cheiro do rato: 3x a zona de caça (45 células)
 
     /// <summary>
-    /// Executa o tick fisiológico, tomada de decisão por mapas de influência, territorialidade e reprodução.
+    /// Executa o tick fisiológico, tomada de decisão, caça por diversão/faro e reprodução.
     /// </summary>
     public static void StepFauna(
         Span<AnimalAgent> agents,
@@ -117,21 +121,22 @@ public static class FaunaSystem
             {
                 int cellX = (int)Math.Clamp(a.PosX, 0, Chunk.Width - 1);
                 int cellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
-                influence.EmitDanger(cellX, cellY, 100.0f);
+                influence.EmitDanger(cellX, cellY, 80.0f);
             }
         }
 
-        // 2. Processa fisiologia, alimentação, territorialidade e movimento
+        // 2. Processa fisiologia, alimentação, faro e movimento
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
             if (a.Health <= 0f) continue;
 
             // Envelhecimento biológico (tempo em dias)
-            a.AgeInDays += dt * 0.5f;
+            a.AgeInDays += dt * 0.1f;
             if (a.AgeInDays >= a.MaxLifespanDays)
             {
-                // Morte por senescência natural (velhice)
+                // Morte por senescência: fertiliza biomassa no solo
+                ApplyDeathDecomposition(chunk, (int)a.PosX, (int)a.PosY);
                 a.Health = 0f;
                 continue;
             }
@@ -141,29 +146,33 @@ public static class FaunaSystem
                 a.MatingCooldown = MathF.Max(0f, a.MatingCooldown - dt);
             }
 
-            // Metabolismo e Saciedade: Rato queima comida rápido; Gato fica saciado muito mais tempo
+            // Metabolismo e Saciedade realista
             float hungerRate = (a.Diet == AnimalDiet.Herbivore) ? RatHungerRate : CatHungerRate;
             a.Hunger = MathF.Min(100f, a.Hunger + hungerRate * dt);
 
             if (a.Hunger >= 90f)
             {
                 a.Health = MathF.Max(0f, a.Health - StarvationDamage * dt);
-                if (a.Health <= 0f) continue;
+                if (a.Health <= 0f)
+                {
+                    ApplyDeathDecomposition(chunk, (int)a.PosX, (int)a.PosY);
+                    continue;
+                }
             }
 
             int curCellX = (int)Math.Clamp(a.PosX, 0, Chunk.Width - 1);
             int curCellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
             int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
 
-            // Herbívoro pastando sobre biomassa
-            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 10f && chunk.Biomass[curCellIdx] > 1.0f)
+            // Herbívoro pastando oportunisticamente sobre biomassa verde
+            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f && chunk.Biomass[curCellIdx] > 1.0f)
             {
-                float bite = MathF.Min(chunk.Biomass[curCellIdx], 25.0f * dt);
+                float bite = MathF.Min(chunk.Biomass[curCellIdx], 20.0f * dt);
                 chunk.Biomass[curCellIdx] -= bite;
-                a.Hunger = MathF.Max(0f, a.Hunger - bite * 2.2f);
+                a.Hunger = MathF.Max(0f, a.Hunger - bite * 3.5f);
             }
 
-            // Tomada de Decisão: Avaliação das células vizinhas
+            // Tomada de Decisão com faro e caça lúdica vs fome
             float bestScore = EvaluateCellScore(curCellX, curCellY, in a, influence, agents, i);
             int targetX = curCellX;
             int targetY = curCellY;
@@ -208,6 +217,27 @@ public static class FaunaSystem
         }
     }
 
+    /// <summary>
+    /// Boost de biomassa vegetal decorrente da decomposição do animal morto no solo.
+    /// </summary>
+    private static void ApplyDeathDecomposition(Chunk chunk, int centerX, int centerY)
+    {
+        for (int dy = -1; dy <= 1; dy++)
+        {
+            int ny = centerY + dy;
+            if (ny < 0 || ny >= Chunk.Height) continue;
+
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int nx = centerX + dx;
+                if (nx < 0 || nx >= Chunk.Width) continue;
+
+                int idx = Chunk.GetIndex(nx, ny);
+                chunk.Biomass[idx] = MathF.Min(100f, chunk.Biomass[idx] + 35.0f);
+            }
+        }
+    }
+
     private static float EvaluateCellScore(
         int x,
         int y,
@@ -223,10 +253,10 @@ public static class FaunaSystem
 
         if (agent.Diet == AnimalDiet.Herbivore)
         {
-            // Rato: Raio de busca 5 células, busca biomassa verde e foge de perigo
-            float fearWeight = 12.0f;
-            float foodWeight = (agent.Hunger / 100.0f) * 3.5f;
-            float waterWeight = (agent.Thirst / 100.0f) * 1.5f;
+            // Rato: Raio de busca 5 células, pastagem e fuga equilibrada
+            float fearWeight = 8.0f;
+            float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
+            float waterWeight = (agent.Thirst / 100.0f) * 1.0f;
 
             float score = (food * foodWeight) + (water * waterWeight) - (danger * fearWeight);
 
@@ -242,7 +272,7 @@ public static class FaunaSystem
                         float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
                         if (d <= agent.SensoryRadius)
                         {
-                            score += MathF.Max(0f, (agent.SensoryRadius - d) * 4.0f);
+                            score += MathF.Max(0f, (agent.SensoryRadius - d) * 3.0f);
                         }
                     }
                 }
@@ -252,9 +282,32 @@ public static class FaunaSystem
         }
         else // Carnívoro / Gato
         {
-            // Gato: Raio 15 células, territorialidade (repele outros gatos), saciedade prolongada
-            float huntWeight = (agent.Hunger / 100.0f) * 4.0f;
-            float score = (food * huntWeight) + water * 1.0f;
+            float score = 0f;
+
+            // Busca de presas (Ratos):
+            // 1. Se estiver na zona de caça (15 células): preda por diversão (mesmo saciado)!
+            // 2. Fora da zona de caça (até 45 células, capacidade olfativa de farejar): só caça se estiver com fome!
+            for (int i = 0; i < allAgents.Length; i++)
+            {
+                if (i == selfIdx) continue;
+                ref readonly var other = ref allAgents[i];
+                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f)
+                {
+                    float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
+
+                    if (d <= CatHuntingZone)
+                    {
+                        // Na zona de caça (15 cél): Atração predatória por diversão instintiva!
+                        score += (CatHuntingZone - d) * 4.5f;
+                    }
+                    else if (d <= CatOlfactoryRange && agent.Hunger > 30.0f)
+                    {
+                        // Fareja até 45 células, mas somente persegue se estiver com fome
+                        float hungerFactor = agent.Hunger / 100.0f;
+                        score += (CatOlfactoryRange - d) * 1.5f * hungerFactor;
+                    }
+                }
+            }
 
             // Territorialidade: Repele outros gatos próximos se não estiver procurando acasalamento
             for (int i = 0; i < allAgents.Length; i++)
@@ -264,17 +317,15 @@ public static class FaunaSystem
                 if (other.Diet == AnimalDiet.Carnivore && other.Health > 0f)
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
-                    if (d <= 8.0f) // Raio territorial de 8 células
+                    if (d <= 10.0f)
                     {
                         if (agent.IsReadyToMate && other.IsReadyToMate)
                         {
-                            // Atração reprodutiva
-                            score += (agent.SensoryRadius - d) * 3.0f;
+                            score += (15.0f - d) * 2.5f;
                         }
                         else
                         {
-                            // Disputa territorial / repulsão
-                            score -= (8.0f - d) * 5.0f;
+                            score -= (10.0f - d) * 4.0f; // Repulsão territorial
                         }
                     }
                 }

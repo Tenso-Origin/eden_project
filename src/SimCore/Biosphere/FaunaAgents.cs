@@ -42,6 +42,10 @@ public struct AnimalAgent
     public float MatingCooldown; // Tempo até poder acasalar novamente
     public byte SensoryRadius;   // Raio sensorial: 5 para ratos, 15 para gatos
     public byte DailyFunKills;   // Caças lúdicas no dia (gato perde o interesse após a 2ª)
+    public byte Sex;             // 0 = Fêmea, 1 = Macho (proporção natural da espécie)
+    public bool IsPregnant;      // Fêmea em período de gestação
+    public float GestationDaysRemaining; // Dias de gestação restantes (Rato: ~21d; Gato: ~64d)
+    public byte LitterSize;      // Média real de filhotes (Rato: 6 a 10; Gato: 3 a 5)
 
     // Posição contínua no mundo
     public float PosX;
@@ -49,10 +53,12 @@ public struct AnimalAgent
     public float VelocityX;
     public float VelocityY;
 
+    public bool IsFemale => Sex == 0;
+    public bool IsMale => Sex == 1;
     public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f); // Jovem adulto a partir de ~8% da vida
-    public bool IsReadyToMate => IsAdult && Hunger < 30.0f && MatingCooldown <= 0.0f && Health > 50.0f;
+    public bool IsReadyToMate => IsAdult && Hunger < 35.0f && MatingCooldown <= 0.0f && Health > 50.0f && (!IsFemale || !IsPregnant);
 
-    public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f)
+    public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f, byte? specificSex = null)
     {
         EntityId = id;
         SpeciesId = species;
@@ -67,11 +73,16 @@ public struct AnimalAgent
         PosY = y;
         VelocityX = 0f;
         VelocityY = 0f;
+        IsPregnant = false;
+        GestationDaysRemaining = 0f;
+        LitterSize = 0;
 
         // Configuração Biológica baseada em tempos reais
         if (diet == AnimalDiet.Herbivore || species == (ushort)AnimalSpecies.Rat)
         {
             // RATO: Expectativa de vida ~2.5 anos (~912 dias). Adulto aos ~60 dias.
+            // Proporção sexual real: 50% machos, 50% fêmeas (1:1)
+            Sex = specificSex ?? (byte)(Random.Shared.Next(100) < 50 ? 1 : 0);
             MaxLifespanDays = 912.5f;
             AgeInDays = 75.0f; // Inicia jovem adulto
             Age = 1;
@@ -80,7 +91,9 @@ public struct AnimalAgent
         }
         else
         {
-            // GATO: Expectativa de vida ~14 anos (~5110 dias). Adulto aos ~365 dias.
+            // GATO: Expectativa de vida ~14 anos (~5110 dias). Adulto aos ~210 dias.
+            // Proporção sexual real: ~51% machos, 49% fêmeas
+            Sex = specificSex ?? (byte)(Random.Shared.Next(100) < 51 ? 1 : 0);
             MaxLifespanDays = 5110.0f;
             AgeInDays = 400.0f; // Inicia jovem adulto
             Age = 1;
@@ -146,6 +159,19 @@ public static class FaunaSystem
             if (a.MatingCooldown > 0f)
             {
                 a.MatingCooldown = MathF.Max(0f, a.MatingCooldown - dt);
+            }
+
+            // Gestação biológica real (Rato: 21d, Ninhada: 6-10; Gato: 64d, Ninhada: 3-5)
+            if (a.IsFemale && a.IsPregnant)
+            {
+                a.GestationDaysRemaining -= dt * 0.1f;
+                if (a.GestationDaysRemaining <= 0f)
+                {
+                    // Parto realizado: entra em período de amamentação/recuperação pós-parto
+                    a.IsPregnant = false;
+                    a.LitterSize = 0;
+                    a.MatingCooldown = (a.Diet == AnimalDiet.Herbivore) ? 18.0f : 50.0f;
+                }
             }
 
             // Metabolismo e Saciedade realista
@@ -280,14 +306,14 @@ public static class FaunaSystem
 
             float score = (food * foodWeight) - (danger * fearWeight) + floodPenalty;
 
-            // Procura semelhante para acasalamento se estiver pronto
+            // Procura parceiro fértil do sexo oposto para acasalamento se estiver pronto
             if (agent.IsReadyToMate)
             {
                 for (int i = 0; i < allAgents.Length; i++)
                 {
                     if (i == selfIdx) continue;
                     ref readonly var other = ref allAgents[i];
-                    if (other.SpeciesId == agent.SpeciesId && other.IsReadyToMate)
+                    if (other.SpeciesId == agent.SpeciesId && other.Sex != agent.Sex && other.IsReadyToMate)
                     {
                         float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
                         if (d <= agent.SensoryRadius)
@@ -332,7 +358,7 @@ public static class FaunaSystem
                 }
             }
 
-            // Territorialidade: Repele outros gatos próximos se não estiver procurando acasalamento
+            // Territorialidade: Repele outros gatos próximos se não estiver procurando acasalamento heterossexual
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
@@ -342,7 +368,7 @@ public static class FaunaSystem
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
                     if (d <= 10.0f)
                     {
-                        if (agent.IsReadyToMate && other.IsReadyToMate)
+                        if (agent.IsReadyToMate && other.IsReadyToMate && other.Sex != agent.Sex)
                         {
                             score += (15.0f - d) * 2.5f;
                         }

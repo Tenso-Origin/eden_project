@@ -1,53 +1,115 @@
 using System;
+using System.Runtime.CompilerServices;
 using SimCore.Matter;
 
 namespace SimCore.SpatialGrid;
 
 /// <summary>
-/// FASE 2: Difusão de calor (Lei de Fourier) e transições de fase de matéria (Fusão / Ebulição).
-/// Opera diretamente sobre os buffers do Chunk lendo do estado atual e escrevendo no próximo.
+/// FASE 2: Condução Térmica (Lei de Fourier) e Transições de Fase Bidirecionais.
+/// Execução pura sobre arrays contíguos do Chunk sem alocação de memória (GC = 0).
 /// </summary>
 public static class Thermodynamics
 {
-    public const float AmbientDiffusionRate = 0.05f;
+    public const float AmbientAirTemp = 20.0f;
+    public const float AmbientAirCoupling = 0.02f;
 
     /// <summary>
-    /// Passo de simulação térmica sobre o Chunk.
+    /// Executa um passo de difusão de calor no Chunk.
+    /// Lê exclusivamente de Chunk.Temperature e Chunk.MaterialId (ReadOnly)
+    /// Escreve em Chunk.NextTemperature e Chunk.NextMaterialId.
     /// </summary>
-    public static void StepDiffusion(Chunk chunk, ReadOnlySpan<MaterialDef> catalog, float dt)
+    public static void StepDiffusion(
+        Chunk chunk,
+        ReadOnlySpan<MaterialDef> catalog,
+        float dt,
+        float ambientTemp = AmbientAirTemp)
     {
+        ReadOnlySpan<ushort> matIds = chunk.MaterialId;
+        ReadOnlySpan<float> temps = chunk.Temperature;
+        Span<ushort> nextMatIds = chunk.NextMaterialId;
+        Span<float> nextTemps = chunk.NextTemperature;
+
         for (int y = 0; y < Chunk.Height; y++)
         {
             for (int x = 0; x < Chunk.Width; x++)
             {
                 int idx = Chunk.GetIndex(x, y);
-                ushort matId = chunk.MaterialId[idx];
+                ushort matId = matIds[idx];
                 ref readonly var mat = ref catalog[matId];
 
-                float currentTemp = chunk.Temperature[idx];
+                float currentTemp = temps[idx];
+                float k1 = mat.ThermalConductivity;
+                float thermalMass = MathF.Max(0.5f, mat.Density);
 
-                // Difusão laplaciana simples com 4 vizinhos imediatos
-                float neighborTempSum = 0f;
-                int neighborCount = 0;
+                float heatFluxSum = 0f;
 
-                if (x > 0) { neighborTempSum += chunk.Temperature[Chunk.GetIndex(x - 1, y)]; neighborCount++; }
-                if (x < Chunk.Width - 1) { neighborTempSum += chunk.Temperature[Chunk.GetIndex(x + 1, y)]; neighborCount++; }
-                if (y > 0) { neighborTempSum += chunk.Temperature[Chunk.GetIndex(x, y - 1)]; neighborCount++; }
-                if (y < Chunk.Height - 1) { neighborTempSum += chunk.Temperature[Chunk.GetIndex(x, y + 1)]; neighborCount++; }
-
-                float avgNeighbor = neighborCount > 0 ? (neighborTempSum / neighborCount) : currentTemp;
-                float diff = (avgNeighbor - currentTemp) * mat.ThermalConductivity * dt;
-
-                float newTemp = currentTemp + diff;
-
-                // Verificação de transição de fase
-                if (mat.PhaseChangeTargetId != 0 && newTemp >= mat.BoilingPoint)
+                // Condução com os 4 vizinhos ortogonais (Von Neumann)
+                if (x > 0)
                 {
-                    chunk.MaterialId[idx] = mat.PhaseChangeTargetId;
+                    int nIdx = Chunk.GetIndex(x - 1, y);
+                    heatFluxSum += ComputeConductionFlux(currentTemp, temps[nIdx], k1, catalog[matIds[nIdx]].ThermalConductivity);
+                }
+                if (x < Chunk.Width - 1)
+                {
+                    int nIdx = Chunk.GetIndex(x + 1, y);
+                    heatFluxSum += ComputeConductionFlux(currentTemp, temps[nIdx], k1, catalog[matIds[nIdx]].ThermalConductivity);
+                }
+                if (y > 0)
+                {
+                    int nIdx = Chunk.GetIndex(x, y - 1);
+                    heatFluxSum += ComputeConductionFlux(currentTemp, temps[nIdx], k1, catalog[matIds[nIdx]].ThermalConductivity);
+                }
+                if (y < Chunk.Height - 1)
+                {
+                    int nIdx = Chunk.GetIndex(x, y + 1);
+                    heatFluxSum += ComputeConductionFlux(currentTemp, temps[nIdx], k1, catalog[matIds[nIdx]].ThermalConductivity);
                 }
 
-                chunk.NextTemperature[idx] = newTemp;
+                // Troca térmica com a atmosfera ambiente (resfriamento/aquecimento convectivo de topo)
+                heatFluxSum += (ambientTemp - currentTemp) * AmbientAirCoupling;
+
+                // Atualização da temperatura resultante
+                float deltaT = (heatFluxSum / thermalMass) * dt;
+                float newTemp = currentTemp + deltaT;
+
+                // Avaliação de Transições de Fase
+                ushort newMatId = matId;
+
+                // 1. Gelo <-> Água Líquida (0°C)
+                if (matId == MaterialCatalog.IdIce && newTemp > 0.0f)
+                {
+                    newMatId = MaterialCatalog.IdWater;
+                }
+                else if (matId == MaterialCatalog.IdWater && newTemp <= 0.0f)
+                {
+                    newMatId = MaterialCatalog.IdIce;
+                }
+                // 2. Água Líquida <-> Vapor (100°C)
+                else if (matId == MaterialCatalog.IdWater && newTemp >= 100.0f)
+                {
+                    newMatId = MaterialCatalog.IdSteam;
+                }
+                else if (matId == MaterialCatalog.IdSteam && newTemp < 100.0f)
+                {
+                    newMatId = MaterialCatalog.IdWater;
+                }
+                // 3. Regra Geral de Catálogo
+                else if (mat.PhaseChangeTargetId != 0 && newTemp >= mat.BoilingPoint)
+                {
+                    newMatId = mat.PhaseChangeTargetId;
+                }
+
+                nextTemps[idx] = newTemp;
+                nextMatIds[idx] = newMatId;
             }
         }
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static float ComputeConductionFlux(float t1, float t2, float k1, float k2)
+    {
+        // Média harmônica das condutividades térmicas das duas células
+        float kEff = (2.0f * k1 * k2) / (k1 + k2 + 0.0001f);
+        return kEff * (t2 - t1);
     }
 }

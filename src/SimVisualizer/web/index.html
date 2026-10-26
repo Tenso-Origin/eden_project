@@ -173,62 +173,62 @@
     .canvas-container {
       position: relative;
       flex: 1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      width: 100%;
+      height: 100%;
       background: #04070b;
       border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.06);
-      padding: 4px;
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 0;
       min-height: 0;
       overflow: hidden;
+      display: flex;
     }
 
     canvas {
-      border-radius: 6px;
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+      border-radius: 10px;
       image-rendering: pixelated;
       cursor: crosshair;
-      box-shadow: 0 0 45px rgba(0,0,0,0.85);
-      max-height: 100%;
-      max-width: 100%;
-      aspect-ratio: 1 / 1;
-      width: auto;
-      height: auto;
+      display: block;
     }
 
-    /* Navegação flutuante sobre o mapa */
+    /* Navegação flutuante sobre o mapa (D-Pad Flutuante com Glassmorphism) */
     .map-nav-overlay {
       position: absolute;
-      bottom: 12px;
-      right: 12px;
-      background: rgba(18, 23, 32, 0.90);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 5px;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(14, 18, 26, 0.82);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(88, 166, 255, 0.35);
+      border-radius: 12px;
+      padding: 6px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      z-index: 10;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+      gap: 4px;
+      z-index: 25;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.75);
+      pointer-events: auto;
     }
     .map-nav-row {
       display: flex;
-      gap: 3px;
+      gap: 4px;
     }
     .nav-btn {
-      width: 28px;
-      height: 28px;
-      background: #1f242d;
+      width: 30px;
+      height: 30px;
+      background: #1e2430;
       color: var(--text-bright);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: 7px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       transition: all 0.15s ease;
       padding: 0;
     }
@@ -236,6 +236,10 @@
       background: #388bfd;
       color: white;
       border-color: #58a6ff;
+      transform: scale(1.08);
+    }
+    .nav-btn:active {
+      transform: scale(0.95);
     }
 
     .legend-bar {

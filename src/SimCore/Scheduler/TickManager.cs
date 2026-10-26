@@ -16,22 +16,36 @@ public sealed class TickManager
     public ulong TickCount { get; private set; }
     private double _accumulator;
 
+    /// <summary>
+    /// Escala de velocidade da simulação (Ex: 1x, 2x, 4x, 10x, 100x). Padrão = 1.0f.
+    /// </summary>
+    public float TimeScale { get; set; } = 1.0f;
+
     public event Action<float>? OnPhysicsTick;         // 30Hz: Animais e entidades
     public event Action<int, int, float>? OnSliceTick; // 5Hz fatiado: (sliceIndex, totalSlices, dt)
     public event Action<float>? OnClimateTick;         // 0.1Hz: Macro-clima (a cada 300 ticks)
 
     /// <summary>
-    /// Acumula tempo real decorrido e executa a quantidade exata de ticks determinísticos necessários.
+    /// Define a escala de velocidade da simulação (suporta 1x até 100x).
+    /// </summary>
+    public void SetSpeed(float speed)
+    {
+        TimeScale = Math.Clamp(speed, 0.1f, 100.0f);
+    }
+
+    /// <summary>
+    /// Acumula tempo real decorrido multiplicado pelo TimeScale e executa os ticks determinísticos.
     /// Garante que mesmo com variações de taxa de quadros (FPS jitter), a simulação avance de forma fixa.
     /// </summary>
     public void AdvanceTime(double realDeltaTime)
     {
-        _accumulator += realDeltaTime;
+        _accumulator += realDeltaTime * TimeScale;
 
-        // Evita espiral de morte (spiral of death) limitando a no máximo 5 ticks por frame de render
-        if (_accumulator > FixedDeltaTime * 5.0)
+        // Limite dinâmico de segurança proporcional à velocidade para evitar espiral de morte
+        double maxAccumulator = FixedDeltaTime * Math.Max(5.0, 5.0 * TimeScale);
+        if (_accumulator > maxAccumulator)
         {
-            _accumulator = FixedDeltaTime * 5.0;
+            _accumulator = maxAccumulator;
         }
 
         while (_accumulator >= FixedDeltaTime)

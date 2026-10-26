@@ -371,10 +371,12 @@
 
         <div class="btn-group">
           <label style="font-size:0.78rem; color:var(--text-dim);">Velocidade:</label>
-          <select id="simSpeed" style="background:#21262d; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-family:inherit; font-size:0.8rem;">
+          <select id="simSpeed" style="background:#21262d; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:3px 6px; font-family:inherit; font-size:0.8rem; cursor:pointer;">
             <option value="1">1x (Tempo Real)</option>
             <option value="2" selected>2x (Dinâmico)</option>
             <option value="4">4x (Acelerado)</option>
+            <option value="10">⚡ 10x (Super Rápido)</option>
+            <option value="100">🚀 100x (Ultra Acelerado)</option>
           </select>
         </div>
       </div>
@@ -1631,7 +1633,7 @@
     }
 
     // Ciclo Geral
-    function tick() {
+    function tick(skipRender = false) {
       const dt = 0.15;
       stepThermodynamics(dt);
       stepHydrologyAndErosion(dt);
@@ -1639,8 +1641,10 @@
       stepFauna(dt);
 
       tickCount++;
-      updateStats();
-      render();
+      if (!skipRender) {
+        updateStats();
+        render();
+      }
     }
 
     function updateStats() {
@@ -1819,11 +1823,15 @@
     window.addEventListener('mouseup', () => isMouseDown = false);
     canvas.addEventListener('mousemove', (e) => { if (isMouseDown) handleCanvasInteraction(e); });
 
-    // Loop de Animação
+    // Loop de Animação com Suporte a 10x e 100x (Desacoplamento Gráfico)
     function loop() {
       if (isPlaying) {
         const speed = parseInt(document.getElementById('simSpeed').value) || 1;
-        for (let i = 0; i < speed; i++) tick();
+        // Para velocidades elevadas (10x, 100x), executa a física em lote e renderiza 1x por frame
+        for (let i = 0; i < speed; i++) {
+          const isLast = (i === speed - 1);
+          tick(!isLast);
+        }
       }
       requestAnimationFrame(loop);
     }

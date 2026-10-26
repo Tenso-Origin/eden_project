@@ -23,6 +23,8 @@ public static class MaterialCatalog
     public const ushort IdPineWood= 23;
     public const ushort IdStone   = 30;
     public const ushort IdSand    = 31;
+    public const ushort IdSoil    = 32; // Solo Fértil / Sedimento Aluvial
+    public const ushort IdClay    = 33; // Argila Impermeável / Fundo de Lago
 
     public const ushort MaxMaterials = 256;
 
@@ -150,6 +152,22 @@ public static class MaterialCatalog
             density: 1.60f, hardness: 6.0f, toughness: 0.1f, flexibility: 0.0f,
             meltingPoint: 1700f, boilingPoint: 2230f, thermalCond: 0.27f, flammability: 0f,
             oxidationRate: 0.0f, putrefactionRate: 0f, permeability: 0.95f);
+
+        // 32: Solo Fértil / Sedimento Aluvial
+        _registry[IdSoil] = new MaterialDef(
+            id: IdSoil, phaseTargetId: 0,
+            flags: MaterialFlags.IsSolid | MaterialFlags.IsOrganic | MaterialFlags.IsMineral,
+            density: 1.30f, hardness: 1.5f, toughness: 0.8f, flexibility: 0.05f,
+            meltingPoint: 1100f, boilingPoint: 2000f, thermalCond: 0.35f, flammability: 0.05f,
+            oxidationRate: 0.0f, putrefactionRate: 0.10f, permeability: 0.65f);
+
+        // 33: Argila Impermeável (Leito de Lago)
+        _registry[IdClay] = new MaterialDef(
+            id: IdClay, phaseTargetId: 0,
+            flags: MaterialFlags.IsSolid | MaterialFlags.IsMineral,
+            density: 1.80f, hardness: 2.0f, toughness: 1.2f, flexibility: 0.20f,
+            meltingPoint: 1250f, boilingPoint: 2400f, thermalCond: 0.40f, flammability: 0f,
+            oxidationRate: 0.0f, putrefactionRate: 0f, permeability: 0.08f);
 
         // Regras de Sinergia
         _synergies = new SynergyRule[]

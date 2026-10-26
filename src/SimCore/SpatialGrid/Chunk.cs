@@ -23,6 +23,9 @@ public sealed class Chunk
     public float[] Temperature = new float[CellCount];
     public float[] Moisture = new float[CellCount];        // Umidade intersticial do solo (0.0 a 1.0)
     public float[] SurfaceWater = new float[CellCount];    // Lâmina d'água superficial livre (mm ou litros/m²)
+    public float[] SuspendedSediment = new float[CellCount]; // Sedimento sólido carreado pelo fluxo (kg/m²)
+    public float[] WaterDischarge = new float[CellCount];    // Vazão hídrica acumulada da bacia (Q)
+    public float[] LakeWater = new float[CellCount];        // Volume estagnado em depressões endorreicas (lagos)
     public readonly float[] Elevation = new float[CellCount];
     public readonly float[] Biomass = new float[CellCount];
 
@@ -31,6 +34,9 @@ public sealed class Chunk
     public float[] NextTemperature = new float[CellCount];
     public float[] NextMoisture = new float[CellCount];
     public float[] NextSurfaceWater = new float[CellCount];
+    public float[] NextSuspendedSediment = new float[CellCount];
+    public float[] NextWaterDischarge = new float[CellCount];
+    public float[] NextLakeWater = new float[CellCount];
 
     public Chunk(int chunkX, int chunkY)
     {
@@ -51,6 +57,9 @@ public sealed class Chunk
         Array.Copy(Temperature, NextTemperature, CellCount);
         Array.Copy(Moisture, NextMoisture, CellCount);
         Array.Copy(SurfaceWater, NextSurfaceWater, CellCount);
+        Array.Copy(SuspendedSediment, NextSuspendedSediment, CellCount);
+        Array.Copy(WaterDischarge, NextWaterDischarge, CellCount);
+        Array.Copy(LakeWater, NextLakeWater, CellCount);
     }
 
     /// <summary>
@@ -62,12 +71,15 @@ public sealed class Chunk
         (Temperature, NextTemperature) = (NextTemperature, Temperature);
         (Moisture, NextMoisture) = (NextMoisture, Moisture);
         (SurfaceWater, NextSurfaceWater) = (NextSurfaceWater, SurfaceWater);
+        (SuspendedSediment, NextSuspendedSediment) = (NextSuspendedSediment, SuspendedSediment);
+        (WaterDischarge, NextWaterDischarge) = (NextWaterDischarge, WaterDischarge);
+        (LakeWater, NextLakeWater) = (NextLakeWater, LakeWater);
     }
 
     /// <summary>
     /// Preenche o Chunk com valores homogêneos para testes ou inicialização de bioma.
     /// </summary>
-    public void Fill(ushort matId, float temp, float moisture, float elevation, float surfaceWater = 0f)
+    public void Fill(ushort matId, float temp, float moisture, float elevation, float surfaceWater = 0f, float lakeWater = 0f)
     {
         for (int i = 0; i < CellCount; i++)
         {
@@ -76,10 +88,17 @@ public sealed class Chunk
             Moisture[i] = moisture;
             Elevation[i] = elevation;
             SurfaceWater[i] = surfaceWater;
+            LakeWater[i] = lakeWater;
+            SuspendedSediment[i] = 0f;
+            WaterDischarge[i] = 0f;
+
             NextMaterialId[i] = matId;
             NextTemperature[i] = temp;
             NextMoisture[i] = moisture;
             NextSurfaceWater[i] = surfaceWater;
+            NextLakeWater[i] = lakeWater;
+            NextSuspendedSediment[i] = 0f;
+            NextWaterDischarge[i] = 0f;
         }
     }
 }

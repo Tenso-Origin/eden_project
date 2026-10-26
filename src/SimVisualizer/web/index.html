@@ -2370,14 +2370,22 @@
       // Blit da imagem no offscreenCanvas
       offscreenCtx.putImageData(imgData, 0, 0);
 
-      // Limpa canvas principal e aplica transformação de Zoom & Pan (1 chunk = 1 m²)
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Limpa canvas principal com fundo escuro e aplica transformação de Zoom & Pan (1 chunk = 1 m²)
+      ctx.fillStyle = '#05080e';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
       ctx.scale(zoomLevel, zoomLevel);
       ctx.translate(-panX, -panY);
       ctx.imageSmoothingEnabled = (zoomLevel <= 1.0);
       ctx.drawImage(offscreenCanvas, 0, 0);
+
+      // Em zoom out (< 1.0x), desenha uma moldura sutil marcando a fronteira planetária de 512x512
+      if (zoomLevel < 1.0) {
+        ctx.strokeStyle = 'rgba(88, 166, 255, 0.45)';
+        ctx.lineWidth = 1.0 / zoomLevel;
+        ctx.strokeRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+      }
 
       // Renderização sobreposta de Ninhos e Refúgios
       for (let ni = 0; ni < nests.length; ni++) {
@@ -2914,10 +2922,13 @@
     }
 
     // === CONTROLE DE ZOOM E CÂMERA INTERATIVA (1 CHUNK = 1 M²) ===
+    const MIN_ZOOM = 0.40; // Permite zoom out total além de 1.0x até enquadrar 100% de todo o mapa na tela
+    const MAX_ZOOM = 8.0;
+
     // Limita o deslocamento da câmera para que as bordas do mundo 512x512 nunca fiquem fora da tela
     function clampPan() {
       if (zoomLevel <= 1.0) {
-        zoomLevel = 1.0;
+        // Em zoom out (<= 1.0x), o mapa fica perfeitamente centrado em (256, 256)
         panX = 256.0;
         panY = 256.0;
       } else {
@@ -2929,9 +2940,8 @@
     }
 
     function setZoom(newZoom, centerX = panX, centerY = panY) {
-      zoomLevel = Math.max(1.0, Math.min(8.0, newZoom));
+      zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
       if (zoomLevel <= 1.0) {
-        zoomLevel = 1.0;
         panX = 256.0;
         panY = 256.0;
       } else {
@@ -3038,10 +3048,10 @@
       const worldY = (mouseCanvasY - canvas.height / 2) / zoomLevel + panY;
 
       const zoomFactor = (e.deltaY < 0) ? 1.25 : (1.0 / 1.25);
-      const targetZoom = Math.max(1.0, Math.min(8.0, zoomLevel * zoomFactor));
+      const targetZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoomLevel * zoomFactor));
 
       if (targetZoom <= 1.0) {
-        resetCamera();
+        setZoom(targetZoom);
       } else {
         const newPanX = worldX - (mouseCanvasX - canvas.width / 2) / targetZoom;
         const newPanY = worldY - (mouseCanvasY - canvas.height / 2) / targetZoom;

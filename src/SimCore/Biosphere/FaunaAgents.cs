@@ -187,8 +187,9 @@ public static class FaunaSystem
                 }
             }
 
-            // Gasto Metabólico Basal (BMR derivado da Lei de Kleiber na Tabela 1)
-            float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * 0.25f;
+            // Gasto Metabólico Basal (BMR derivado da Lei de Kleiber na Tabela 1 - PanTHERIA)
+            // Roedores queimam ~0.08 a 0.10/hora, permitindo ciclos de forrageamento sustentáveis
+            float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * (a.Diet == AnimalDiet.Herbivore ? 0.08f : 0.04f);
             a.Hunger = MathF.Min(100f, a.Hunger + bmrHourRate * dt);
             a.Energy = MathF.Max(0f, a.Energy - (speciesDef.MovementCostPerMeter * dt));
 
@@ -310,6 +311,16 @@ public static class FaunaSystem
                         targetY = ny;
                     }
                 }
+            }
+
+            // PERAMBULAÇÃO EXPLORATÓRIA ATIVA (LÉVY FORAGING FLIGHT):
+            // Se o rato consumiu o pasto local e não detectou comida nas 8 células vizinhas,
+            // NUNCA FICA PARADO: caminha com persistência angular até descobrir novos pastos!
+            if (targetX == curCellX && targetY == curCellY && a.Diet == AnimalDiet.Herbivore && chunk.Biomass[curCellIdx] < 5.0f)
+            {
+                float angle = MathF.Atan2(a.VelocityY, a.VelocityX + 0.0001f) + ((Random.Shared.NextSingle() - 0.5f) * 0.9f);
+                targetX = (int)Math.Clamp(a.PosX + MathF.Cos(angle) * 4.0f, 0, Chunk.Width - 1);
+                targetY = (int)Math.Clamp(a.PosY + MathF.Sin(angle) * 4.0f, 0, Chunk.Height - 1);
             }
 
             // Movimentação suave (animais atravessam água a 70% da velocidade, mas não permanecem nela)

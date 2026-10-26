@@ -124,29 +124,30 @@ public static class SpeciesCatalog
         // -------------------------------------------------------------------------
         // 1. ESPÉCIE: Rattus norvegicus (Rato-marrom / Herbívoro)
         // Traços baseados em PanTHERIA & Add-my-Pet:
-        // Massa: ~250g | BMR: ~1.8W | Vida: ~2.5 anos (912.5 dias) | Maturidade: ~60 dias
+        // Massa: ~250g | BMR: ~1.4W | Vida: ~2.5 anos (912.5 dias) | Maturidade: ~60 dias
         // Gestação: 21 dias | Ninhada média: 8 filhotes | Proporção sexual: 50% Fêmeas (1:1)
+        // Olfato biológico agudo: detecta biomassa/umidade em até 20 células!
         // -------------------------------------------------------------------------
         _speciesRegistry[IdRat] = new SpeciesDef(
             id: IdRat,
             guild: TrophicGuild.PrimaryConsumer,
             trophicLevel: 2,
             massGrams: 250f,
-            bmrWatts: 1.8f,
-            moveCost: 0.08f,
-            maxEnergy: 500f,
-            waterMl: 25f,
+            bmrWatts: 1.4f,
+            moveCost: 0.04f,
+            maxEnergy: 650f,
+            waterMl: 28f,
             maxLifespan: 912.5f,
             maturityDays: 60.0f,
             gestationDays: 21.0f,
             litterSize: 8.0f,
-            reproCost: 95.0f,
+            reproCost: 90.0f,
             femaleRatio: 0.50f,
-            postPartumCooldown: 18.0f,
+            postPartumCooldown: 15.0f,
             minTemp: -5.0f,
             maxTemp: 38.0f,
-            visualRadius: 5,
-            olfactoryRadius: 8
+            visualRadius: 8,
+            olfactoryRadius: 20
         );
 
         // -------------------------------------------------------------------------

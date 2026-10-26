@@ -1183,8 +1183,9 @@
           continue;
         }
 
-        // Metabolismo e saciedade calibrados
-        const hungerRate = (a.species === 'rat') ? 0.22 : 0.05;
+        // Metabolismo e saciedade calibrados com PanTHERIA e Add-my-Pet
+        // Roedores queimam ~0.09/hora (suportando forrageamento real de múltiplos dias)
+        const hungerRate = (a.species === 'rat') ? 0.09 : 0.04;
         a.hunger = Math.min(100, a.hunger + hungerRate * dt);
 
         if (a.hunger >= 90) {
@@ -1238,17 +1239,16 @@
           }
         }
 
-        // === COMPORTAMENTO DO RATO (HERBÍVORO) ===
+        // === COMPORTAMENTO DO RATO (HERBÍVORO - PANTHERIA / OPEN TRAITS) ===
         if (a.species === 'rat') {
           // 1. Pastagem e Partilha de Alimento:
           // Uma célula tem capacidade de alimentar 1 rato por 3 dias (72h).
-          // Se houverem mais ratos, dividem esse tempo entre eles (3 / N dias).
           if (a.hunger > 5 && biomass[curIdx] > 0.5) {
             const nRats = ratsInCell[curIdx] || 1;
             const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
             const sharedBite = Math.min(biomass[curIdx] / nRats, baseRatePerHour * simDeltaHours);
             biomass[curIdx] = Math.max(0, biomass[curIdx] - sharedBite);
-            a.hunger = Math.max(0, a.hunger - sharedBite * 3.6);
+            a.hunger = Math.max(0, a.hunger - sharedBite * 4.2);
           }
 
           // 2. Detecção de ameaça de predadores próximos (fuga imediata)
@@ -1257,7 +1257,7 @@
             const other = animals[j];
             if (other.species === 'cat' && other.hp > 0) {
               const d = Math.hypot(other.x - a.x, other.y - a.y);
-              if (d < 12.0) {
+              if (d < 14.0) {
                 fleeVectorX += (a.x - other.x) / (d + 0.1);
                 fleeVectorY += (a.y - other.y) / (d + 0.1);
                 dangerCount++;
@@ -1266,72 +1266,92 @@
           }
 
           if (dangerCount > 0) {
-            targetX = a.x + fleeVectorX * 2.8;
-            targetY = a.y + fleeVectorY * 2.8;
+            targetX = a.x + fleeVectorX * 3.2;
+            targetY = a.y + fleeVectorY * 3.2;
           } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
             // Animais atravessam água, mas não vão permanecer em terreno inundado
             targetX = a.x + floodEscapeX * 3.0;
             targetY = a.y + floodEscapeY * 3.0;
-          } else if (isReadyToMate && animals.length < 500) {
-            // Acasalamento heterossexual de Ratos (Fêmea fértil procura Macho, ou Macho procura Fêmea)
-            let closestMate = null;
-            let closestDist = a.sensoryRadius; // 5 células
+          } else {
+            let mateTargetFound = false;
 
-            for (let j = 0; j < animals.length; j++) {
-              if (i === j) continue;
-              const other = animals[j];
-              if (other.species === 'rat' && other.hp > 0 && other.sex !== a.sex) {
-                const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
-                const otherReady = otherAdult && other.hunger < 55 && other.matingCooldown <= 0 && (!other.isPregnant);
-                if (otherReady) {
-                  const d = Math.hypot(other.x - a.x, other.y - a.y);
-                  if (d < closestDist) {
-                    closestDist = d;
-                    closestMate = other;
+            // Busca de parceiro fértil (somente se não estiver faminto)
+            if (isReadyToMate && a.hunger < 40 && animals.length < 500) {
+              let closestMate = null;
+              let closestDist = 8.0;
+
+              for (let j = 0; j < animals.length; j++) {
+                if (i === j) continue;
+                const other = animals[j];
+                if (other.species === 'rat' && other.hp > 0 && other.sex !== a.sex) {
+                  const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
+                  const otherReady = otherAdult && other.hunger < 50 && other.matingCooldown <= 0 && (!other.isPregnant);
+                  if (otherReady) {
+                    const d = Math.hypot(other.x - a.x, other.y - a.y);
+                    if (d < closestDist) {
+                      closestDist = d;
+                      closestMate = other;
+                    }
                   }
                 }
               }
-            }
 
-            if (closestMate) {
-              targetX = closestMate.x;
-              targetY = closestMate.y;
+              if (closestMate) {
+                targetX = closestMate.x;
+                targetY = closestMate.y;
+                mateTargetFound = true;
 
-              if (closestDist < 1.5) {
-                // Fecundação heterossexual real
-                const female = (a.sex === 'female') ? a : closestMate;
-                const male = (a.sex === 'male') ? a : closestMate;
-
-                male.matingCooldown = 12.0; // Cooldown do macho
-                female.isPregnant = true;
-                female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0; // Gestação real: 21 a 23 dias
-                female.litterSize = 6 + Math.floor(Math.random() * 5); // Ninhada real: 6 a 10 filhotes (média 8)
-                female.matingCooldown = female.gestationRemaining + 18.0;
+                if (closestDist < 1.5) {
+                  const female = (a.sex === 'female') ? a : closestMate;
+                  const male = (a.sex === 'male') ? a : closestMate;
+                  male.matingCooldown = 15.0;
+                  female.isPregnant = true;
+                  female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
+                  female.litterSize = 6 + Math.floor(Math.random() * 5); // 6 a 10 filhotes
+                  female.matingCooldown = female.gestationRemaining + 15.0;
+                }
               }
             }
-          } else {
-            // 3. Procura ativamente por biomassa verde em até 5 células (evita terrenos inundados)
-            let bestScore = -999;
-            const searchRadius = a.sensoryRadius;
 
-            for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
-              const ny = curY + dy;
-              if (ny < 0 || ny >= CHUNK_SIZE) continue;
-              for (let dx = -searchRadius; dx <= searchRadius; dx += 2) {
-                const nx = curX + dx;
-                if (nx < 0 || nx >= CHUNK_SIZE) continue;
-                if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
+            // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO!
+            if (!mateTargetFound) {
+              let bestScore = -999;
+              let bestX = curX, bestY = curY;
+              const searchRadius = 12; // Alcance olfatório e visual ampliado para 12 células
 
-                const nIdx = getIdx(nx, ny);
-                const isFlooded = (matId[nIdx] === MAT_WATER || surfaceWater[nIdx] > 0.15);
-                const floodPenalty = isFlooded ? -60.0 : 0.0;
-                const score = biomass[nIdx] + floodPenalty;
+              for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
+                const ny = curY + dy;
+                if (ny < 0 || ny >= CHUNK_SIZE) continue;
+                for (let dx = -searchRadius; dx <= searchRadius; dx += 2) {
+                  const nx = curX + dx;
+                  if (nx < 0 || nx >= CHUNK_SIZE) continue;
+                  if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
 
-                if (score > bestScore) {
-                  bestScore = score;
-                  targetX = nx;
-                  targetY = ny;
+                  const nIdx = getIdx(nx, ny);
+                  const isFlooded = (matId[nIdx] === MAT_WATER || surfaceWater[nIdx] > 0.15);
+                  const floodPenalty = isFlooded ? -80.0 : 0.0;
+                  // Atração por biomassa vegetal e umidade de solo (pastos ripários férteis)
+                  const score = biomass[nIdx] * 1.5 + (moisture[nIdx] * 25.0) + floodPenalty;
+
+                  if (score > bestScore) {
+                    bestScore = score;
+                    bestX = nx;
+                    bestY = ny;
+                  }
                 }
+              }
+
+              // Se detectou pasto viçoso ao redor:
+              if (bestScore > 5.0 && (bestX !== curX || bestY !== curY)) {
+                targetX = bestX;
+                targetY = bestY;
+              } else {
+                // PERAMBULAÇÃO EXPLORATÓRIA (LÉVY FLIGHT):
+                // O rato NUNCA fica parado esperando a fome subir: caminha ativamente explorando o mapa!
+                if (!a.wanderAngle) a.wanderAngle = Math.random() * Math.PI * 2;
+                a.wanderAngle += (Math.random() - 0.5) * 0.7; // Pequena deflexão angular
+                targetX = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + Math.cos(a.wanderAngle) * 5.0));
+                targetY = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + Math.sin(a.wanderAngle) * 5.0));
               }
             }
           }

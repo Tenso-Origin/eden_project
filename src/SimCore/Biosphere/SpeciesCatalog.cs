@@ -120,6 +120,8 @@ public static class SpeciesCatalog
     public const ushort IdVegetation = 0;
     public const ushort IdRat = 1;
     public const ushort IdCat = 10;
+    public const ushort IdGrain = 20;       // Arroz Silvestre da Várzea Amazônica (Oryza glumaepatula)
+    public const ushort IdHarpyEagle = 30;  // Harpia / Gavião-Real Amazônico (Harpia harpyja)
 
     private static readonly SpeciesDef[] _speciesRegistry = new SpeciesDef[64];
     private static readonly TrophicInteraction[] _trophicInteractions;
@@ -158,7 +160,7 @@ public static class SpeciesCatalog
         );
 
         // -------------------------------------------------------------------------
-        // 2. ESPÉCIE: Felis catus (Gato-doméstico / Carnívoro Predador)
+        // 2. ESPÉCIE: Felis catus (Gato-doméstico / Carnívoro Mesopredador)
         // Traços baseados em PanTHERIA & Add-my-Pet:
         // Massa: ~4200g | BMR: ~12.5W | Vida: ~14 anos (5110 dias) | Maturidade: ~210 dias
         // Gestação: 64 dias | Ninhada média: 4 filhotes | Proporção sexual: 49% Fêmeas / 51% Machos
@@ -189,28 +191,89 @@ public static class SpeciesCatalog
         );
 
         // -------------------------------------------------------------------------
+        // 3. ESPÉCIE: Harpia harpyja (Gavião-Real / Harpia Amazônica - Predador de Topo)
+        // Traços reais (AVONET / PanTHERIA):
+        // Massa: ~6500g (fêmea) / ~4800g (macho) | BMR: ~18.0W | Vida: ~35 anos (12775 dias)
+        // Monogamia estrita (casal vitalício) | Ninhada: 1 a 2 ovos a cada 2 a 3 anos
+        // Visão telescópica aérea de altíssima resolução (raio visual de 50 células)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdHarpyEagle] = new SpeciesDef(
+            id: IdHarpyEagle,
+            guild: TrophicGuild.ApexPredator,
+            trophicLevel: 4,
+            massGrams: 6000f,
+            bmrWatts: 18.0f,
+            moveCost: 0.15f,
+            maxEnergy: 3800f,
+            waterMl: 120f,
+            maxLifespan: 12775.0f,
+            maturityDays: 1460.0f,
+            gestationDays: 56.0f,
+            litterSize: 2.0f,
+            reproCost: 450.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 180.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 14.0f,
+            minTemp: 12.0f,
+            maxTemp: 42.0f,
+            visualRadius: 50, // Visão telescópica de ave de rapina
+            olfactoryRadius: 10
+        );
+
+        // -------------------------------------------------------------------------
         // TABELA 3: Grafo de Conexões Tróficas (Quem come o quê)
         // -------------------------------------------------------------------------
         _trophicInteractions = new TrophicInteraction[]
         {
-            // Rato consome Biomassa Vegetal (Herbivoria)
+            // Rato consome Biomassa Vegetal Comum (Herbivoria)
             new TrophicInteraction(
                 predatorId: IdRat,
                 preyId: IdVegetation,
                 nutritionalYield: 45.0f,
-                captureSuccess: 1.0f,     // Pastagem garantida se houver biomassa
+                captureSuccess: 1.0f,
                 handlingTime: 0.2f,
                 satietyBoost: 25.0f
+            ),
+
+            // Rato consome Grãos Amazônicos (Alimento Premium Rico em Amido e Lipídios)
+            new TrophicInteraction(
+                predatorId: IdRat,
+                preyId: IdGrain,
+                nutritionalYield: 180.0f, // 4x o rendimento calórico da biomassa verde comum
+                captureSuccess: 1.0f,
+                handlingTime: 0.15f,
+                satietyBoost: 55.0f      // Forte saciedade que acalma a fome rapidamente
             ),
 
             // Gato consome Rato (Predação com Saciedade Calórica Realista da Lei de Kleiber)
             new TrophicInteraction(
                 predatorId: IdCat,
                 preyId: IdRat,
-                nutritionalYield: 650.0f, // 1 rato (250g) sustenta o felino por vários dias
-                captureSuccess: 0.75f,    // Bote de emboscada felina
+                nutritionalYield: 650.0f,
+                captureSuccess: 0.75f,
                 handlingTime: 0.5f,
-                satietyBoost: 85.0f       // Saciedade farta que restaura o predador
+                satietyBoost: 85.0f
+            ),
+
+            // Harpia preda Rato em Campo Aberto (Rasante Aéreo Letal)
+            new TrophicInteraction(
+                predatorId: IdHarpyEagle,
+                preyId: IdRat,
+                nutritionalYield: 250.0f,
+                captureSuccess: 0.90f,    // 90% de sucesso em grama aberta
+                handlingTime: 0.3f,
+                satietyBoost: 35.0f
+            ),
+
+            // Harpia preda Gato em Campo Aberto (Chance de Revide Felino!)
+            new TrophicInteraction(
+                predatorId: IdHarpyEagle,
+                preyId: IdCat,
+                nutritionalYield: 1800.0f,
+                captureSuccess: 0.55f,    // Gato pode revidar com unhas e dentes e fugir
+                handlingTime: 1.2f,
+                satietyBoost: 95.0f
             )
         };
     }

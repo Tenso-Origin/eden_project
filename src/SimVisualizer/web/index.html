@@ -359,14 +359,32 @@
     <!-- Viewport Central -->
     <div class="viewport-card">
       <div class="controls-bar">
+        <div class="btn-group" style="margin-right: 6px;">
+          <label style="font-size:0.75rem; color:var(--text-dim);">Cenário:</label>
+          <select id="scenarioSelect" style="background:#161b22; color:#58a6ff; font-weight:600; border:1px solid var(--accent); border-radius:6px; padding:3px 8px; font-family:inherit; font-size:0.78rem; cursor:pointer;">
+            <option value="amazon" selected>🌴 Amazônia: Oeste do Pará (Lago, Várzea & Harpias)</option>
+            <option value="temperate">⛰️ Planalto Continental Temperado</option>
+          </select>
+        </div>
+
+        <div class="btn-group" style="align-items: center; gap: 4px; margin-right: 6px;">
+          <span style="font-size:0.74rem; color:var(--text-dim); font-family:'JetBrains Mono',monospace;">Zoom (1m²/chunk):</span>
+          <button id="btnZoomOut" class="brush-btn" style="padding:2px 8px; font-size:0.8rem;" title="Diminuir Zoom">🔍 -</button>
+          <span id="lblZoomLevel" style="font-size:0.74rem; font-family:'JetBrains Mono',monospace; min-width:32px; text-align:center;">1.0x</span>
+          <button id="btnZoomIn" class="brush-btn" style="padding:2px 8px; font-size:0.8rem;" title="Aumentar Zoom">🔍 +</button>
+          <button id="btnResetZoom" class="brush-btn" style="padding:2px 6px; font-size:0.72rem;" title="Resetar Câmera 1:1">1:1</button>
+        </div>
+
         <div class="layer-selector">
           <button class="layer-btn active" data-layer="composite">🌍 Bioma HD</button>
-          <button class="layer-btn" data-layer="temp">🔥 Térmico (Altitude)</button>
-          <button class="layer-btn" data-layer="moisture">💧 Hidrologia & Escoamento</button>
+          <button class="layer-btn" data-layer="grains">🌾 Grãos de Várzea</button>
+          <button class="layer-btn" data-layer="nests">🪹 Ninhos & Refúgios</button>
+          <button class="layer-btn" data-layer="temp">🔥 Térmico</button>
+          <button class="layer-btn" data-layer="moisture">💧 Hidrologia</button>
           <button class="layer-btn" data-layer="erosion">⚡ Relevo & Erosão</button>
-          <button class="layer-btn" data-layer="biomass">🌿 Biomassa Verde</button>
+          <button class="layer-btn" data-layer="biomass">🌿 Biomassa</button>
           <button class="layer-btn" data-layer="fauna">🐾 Ratos vs Gatos</button>
-          <button class="layer-btn" data-layer="scent">👃 Faro & Trilha (45 cél)</button>
+          <button class="layer-btn" data-layer="scent">👃 Faro (45m)</button>
         </div>
 
         <div class="btn-group">
@@ -386,7 +404,7 @@
       </div>
 
       <div class="legend-bar">
-        <span id="layerInfo">Modo: Bioma HD (Escada de Altitudes SE -100m a NW +2000m | Sulcos Estriados &plusmn;3m | Chuva Dinâmica)</span>
+        <span id="layerInfo">Modo: Bioma HD (Lago Central ~4.000m² | Várzea de Gramíneas 50m | Floresta de Borda | Arroz Silvestre & Casal de Harpias)</span>
         <div class="gradient-legend">
           <span id="legendMin">-100m</span>
           <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff);"></div>
@@ -398,11 +416,15 @@
     <!-- Sidebar Analítica -->
     <aside class="sidebar">
       <div class="side-card">
-        <h2>Ciclos e Métricas Globais</h2>
+        <h2>Ciclos e Métricas Globais (Escala: 1 chunk = 1 m²)</h2>
         <div class="stats-grid">
           <div class="stat-box" style="border-left: 3px solid #388bfd; grid-column: span 2;">
             <div class="stat-label">CALENDÁRIO PLANETÁRIO</div>
             <div id="statDate" class="stat-val" style="font-size:0.92rem; color:#58a6ff;">01 de janeiro do ano 0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #00f2fe; grid-column: span 2; background:rgba(0, 242, 254, 0.05);">
+            <div class="stat-label">🦅 CASAL DE HARPIAS AMAZÔNICAS (GAVIÃO-REAL)</div>
+            <div id="statHarpies" class="stat-val" style="color:#00f2fe; font-size:0.85rem;">2 aves (1♂ | 1♀) - Patrulha Aérea em Várzea</div>
           </div>
           <div class="stat-box">
             <div class="stat-label">TICKS DISCRETOS</div>
@@ -420,6 +442,14 @@
             <div class="stat-label">VOLUME ERODIDO</div>
             <div id="statErosion" class="stat-val">0.0 m³</div>
           </div>
+          <div class="stat-box" style="border-left: 3px solid #f6e05e;">
+            <div class="stat-label">🌾 GRÃOS DISPONÍVEIS (VÁRZEA)</div>
+            <div id="statGrains" class="stat-val" style="color:#f6e05e; font-size:0.88rem;">0 kg</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #b7791f;">
+            <div class="stat-label">🪹 NINHOS ATIVOS</div>
+            <div id="statNests" class="stat-val" style="color:#e2a03f; font-size:0.88rem;">0</div>
+          </div>
           <div class="stat-box" style="border-left: 3px solid #ffcc00;">
             <div class="stat-label">RATOS (♀ Claro | ♂ Escuro)</div>
             <div id="statRats" class="stat-val" style="color:#ffea79; font-size:0.88rem;">0 (♀0 | ♂0)</div>
@@ -433,12 +463,12 @@
             <div id="statPregnant" class="stat-val" style="font-size:0.84rem; color:#f778ba;">0 ratas (21d) | 0 gatas (64d)</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">CUME MONTANHA (NW)</div>
-            <div id="statPeak" class="stat-val">2000.0 m</div>
+            <div class="stat-label">RELEVO OESTE (SERRA)</div>
+            <div id="statPeak" class="stat-val">550.0 m</div>
           </div>
           <div class="stat-box">
-            <div class="stat-label">FUNDO OCEANO (SE)</div>
-            <div id="statAbyss" class="stat-val">-100.0 m</div>
+            <div class="stat-label">MAR LESTE (DELTA)</div>
+            <div id="statAbyss" class="stat-val">-10.0 m</div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #bc8cff;">
             <div class="stat-label">CAÇAS P/ DIVERSÃO (15c)</div>
@@ -553,6 +583,8 @@
           <div class="inspector-row"><span>Lâmina d'Água (Runoff):</span><span class="inspector-val" id="inspWater">0.0 mm</span></div>
           <div class="inspector-row"><span>Umidade do Solo:</span><span class="inspector-val" id="inspMoist">65.0%</span></div>
           <div class="inspector-row"><span>Biomassa Vegetal:</span><span class="inspector-val" id="inspBio">74.2</span></div>
+          <div class="inspector-row"><span>Grãos de Várzea:</span><span class="inspector-val" id="inspGrains">0.0 kg/m²</span></div>
+          <div class="inspector-row"><span>Ninho / Refúgio:</span><span class="inspector-val" id="inspNest">Nenhum</span></div>
           <div class="inspector-row"><span>Sedimento Erodido:</span><span class="inspector-val" id="inspEroded">0.00 m</span></div>
           <div class="inspector-row"><span>Fauna na Célula:</span><span class="inspector-val" id="inspFauna">Nenhum</span></div>
         </div>
@@ -627,6 +659,24 @@
     const biomass = new Float32Array(CELL_COUNT);
     const cumulativeErosion = new Float32Array(CELL_COUNT);
     const ratScent = new Float32Array(CELL_COUNT); // Trilha de cheiro do rato (dura 1 dia = 24h)
+    const grains = new Float32Array(CELL_COUNT);   // Grãos de Arroz Selvagem Amazônico (Oryza glumaepatula) por m²
+
+    // Sistema de Ninhos e Predador Aéreo (Harpia Amazônica)
+    let nests = [];   // Ninhos ativos de mamíferos e harpias
+    let harpies = []; // Exatamente 2 harpias (Casal monogâmico: 1 Macho e 1 Fêmea)
+    let currentScenario = 'amazon'; // 'amazon' (Oeste do Pará) ou 'temperate' (Planalto Continental)
+
+    // Controle de Zoom e Câmera Interativa (1 chunk = 1 m²)
+    let zoomLevel = 1.0; // 1.0x a 6.0x
+    let panX = 256.0, panY = 256.0;
+    let isPanning = false;
+    let startPanMouseX = 0, startPanMouseY = 0;
+    let startPanX = 256.0, startPanY = 256.0;
+
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = CHUNK_SIZE;
+    offscreenCanvas.height = CHUNK_SIZE;
+    const offscreenCtx = offscreenCanvas.getContext('2d');
 
     // Variáveis Planetárias & Calendário (Inicia em 01 de janeiro do ano 0)
     const MONTHS = [
@@ -692,9 +742,9 @@
       intensity: 0.0,         // mm/s
       frontX: 250.0,          // Centro da frente de nuvens
       frontY: 250.0,
-      speedX: 0.7,            // Vetor de vento
-      speedY: 0.4,
-      cloudRadius: 140.0
+      speedX: -1.2,           // Ventos alísios de Leste para Oeste na Amazônia
+      speedY: 0.2,
+      cloudRadius: 160.0
     };
 
     // População de Fauna (Ratos vs Gatos)
@@ -704,8 +754,14 @@
 
     // === INICIALIZAÇÃO GEOGRÁFICA 512x512 ===
     // Escada de Altitudes contínua do Sudeste (-100m) ao Noroeste (+2000m) com Sulcos Estriados (±3m)
+    // === INICIALIZAÇÃO GEOGRÁFICA 512x512 ===
+    // Suporta Cenário 1: Amazônia (Oeste do Pará: Lago Central ~4.000m², Várzea de Gramíneas 50m, Floresta de Borda, Grãos, Ninhos e Casal de Harpias)
+    // e Cenário 2: Planalto Continental Temperado
     function initWorld() {
       animals = [];
+      nests = [];
+      harpies = [];
+      grains.fill(0);
       globalErosionTotal = 0;
       funKillsCount = 0;
       hungryKillsCount = 0;
@@ -720,75 +776,220 @@
       weather.timerHours = 10.0;
       weather.intensity = 0.0;
 
+      const scSelect = document.getElementById('scenarioSelect');
+      if (scSelect) currentScenario = scSelect.value;
+
       const equatorY = 255.5;
 
-      for (let y = 0; y < CHUNK_SIZE; y++) {
-        const latDist = Math.abs(y - equatorY) / 255.5;
-        const latFactor = Math.max(0, 1.0 - latDist);
+      // -------------------------------------------------------------------------
+      // CENÁRIO 1: AMAZÔNIA - OESTE DO ESTADO DO PARÁ (Várzea, Floresta & Lago)
+      // -------------------------------------------------------------------------
+      if (currentScenario === 'amazon') {
+        const lakeCenterX = 256.0, lakeCenterY = 256.0;
+        let lakeCellCount = 0;
 
-        for (let x = 0; x < CHUNK_SIZE; x++) {
-          const idx = getIdx(x, y);
+        for (let y = 0; y < CHUNK_SIZE; y++) {
+          for (let x = 0; x < CHUNK_SIZE; x++) {
+            const idx = getIdx(x, y);
 
-          // Eixo diagonal normalizado de SE (x=511, y=511 -> u=0.0) até NW (x=0, y=0 -> u=1.0)
-          const u = ((CHUNK_SIZE - 1 - x) + (CHUNK_SIZE - 1 - y)) / ((CHUNK_SIZE - 1) * 2.0);
+            // Relevo Regional do Oeste do Pará:
+            // Massa térrea elevada a Oeste (Serra do Tapajós/Carajás: até 550m) e foz marítima a Leste
+            let regionalElev = 8.0 + Math.sin(x * 0.02 + y * 0.015) * 4.0;
+            if (x < 150) {
+              const uWest = (150 - x) / 150.0;
+              regionalElev += Math.pow(uWest, 1.8) * 540.0; // Elevação da serra ocidental
+            } else if (x > 465) {
+              const uEast = (x - 465) / 47.0;
+              regionalElev -= uEast * 18.0; // Desce para o nível do mar/braço estuarino a leste
+            }
 
-          // Escada de altitudes (14 degraus / terraços com rampa de transição suave)
-          const steps = 14;
-          const scaled = u * steps;
-          const stepIdx = Math.floor(scaled);
-          const fract = scaled - stepIdx;
-          const smoothFract = fract * fract * (3.0 - 2.0 * fract); // Hermite smoothstep
-          const terraceU = (stepIdx + smoothFract * 0.45) / steps;
+            // Distância ao centro do lago e ângulo polar
+            const dx = x - lakeCenterX;
+            const dy = y - lakeCenterY;
+            const d = Math.hypot(dx, dy);
+            const angle = Math.atan2(dy, dx);
 
-          // Gradiente basal de -100m (fossa marinha SE) a +2000m (cume NW)
-          const baseElev = -100.0 + terraceU * 2100.0;
+            // Raio fractal do lago (~4.000 chunks de área: raio médio ~35.7m com perturbações harmônicas)
+            const lakeR = 35.7 * (1.0 + 0.22 * Math.sin(3 * angle) + 0.16 * Math.cos(5 * angle + 0.5) + 0.08 * Math.sin(7 * angle));
+            // Faixa de gramíneas de várzea em torno do lago (~50 chunks)
+            const grassR = lakeR + 50.0 + 6.0 * Math.sin(4 * angle + 0.3) + 3.0 * Math.cos(6 * angle);
 
-          // Sulcos estriados geomorfológicos periódicos com aleatoriedade de até 3m (±3.0m)
-          const rot1 = (x - y) * 0.08;
-          const rot2 = (x + y) * 0.03;
-          const striation = (Math.sin(rot1 * 2.0) * 1.8 + Math.cos(rot2 * 1.5 + rot1) * 1.2);
-          const finalElev = Math.max(-100.0, Math.min(2000.0, baseElev + striation));
+            let finalElev = regionalElev;
 
-          elevation[idx] = finalElev;
-          initialElevation[idx] = finalElev;
-          cumulativeErosion[idx] = 0.0;
+            if (d <= lakeR) {
+              // 1. GRANDE LAGO DE ÁGUA DOCE (~4.000 CHUNKS)
+              finalElev = -2.5 + (d / lakeR) * 0.5;
+              matId[idx] = MAT_WATER;
+              surfaceWater[idx] = Math.max(0, -finalElev); // ~2.0m a 2.5m de lâmina d'água
+              moisture[idx] = 1.0;
+              biomass[idx] = 2.0;
+              grains[idx] = 0.0;
+              temp[idx] = 27.5;
+              lakeCellCount++;
+            } else if (d <= grassR) {
+              // 2. FAIXA DE GRAMÍNEAS DE VÁRZEA (50m DE CAMPO ABERTO - ZONA DE ATAQUE DA HARPIA)
+              finalElev = 1.0 + (d - lakeR) * 0.08;
+              matId[idx] = MAT_SOIL;
+              surfaceWater[idx] = 0.0;
+              moisture[idx] = 0.70 + Math.sin(d * 0.1) * 0.10;
+              biomass[idx] = 25.0 + Math.sin(x * 0.12) * 8.0; // Campo aberto rasteiro (sem dossel arbóreo)
 
-          // Classificação física de materiais na escada de altitudes
-          if (finalElev < 0.0) {
-            matId[idx] = MAT_WATER;
-            surfaceWater[idx] = -finalElev; // Lâmina de água até o nível do mar (0m)
-            moisture[idx] = 1.0;
-            biomass[idx] = 2.0;
-          } else if (finalElev > 1600.0) {
-            matId[idx] = MAT_ICE; // Cume alpino de gelo e neve
-            surfaceWater[idx] = 0.0;
-            moisture[idx] = 0.15;
-            biomass[idx] = 0.0;
-          } else if (finalElev > 950.0) {
-            matId[idx] = MAT_STONE; // Rocha montanhosa
-            surfaceWater[idx] = 0.0;
-            moisture[idx] = 0.25;
-            biomass[idx] = 6.0;
-          } else if (latFactor > 0.88 && finalElev < 250.0 && x > 280) {
-            matId[idx] = MAT_SAND; // Savana equatorial arenosa
-            surfaceWater[idx] = 0.0;
-            moisture[idx] = 0.10;
-            biomass[idx] = 14.0;
-          } else {
-            matId[idx] = MAT_SOIL; // Solo fértil continental
-            surfaceWater[idx] = 0.0;
-            moisture[idx] = 0.65;
-            biomass[idx] = 45.0 + latFactor * 30.0;
+              // 3º ELEMENTO: Grãos de Arroz Selvagem Amazônico (Oryza glumaepatula) nas margens úmidas da várzea
+              if (d <= lakeR + 36.0 && moisture[idx] > 0.45) {
+                // Manchas de grãos ricos em amido/lipídios de altíssima densidade calórica
+                grains[idx] = 20.0 + Math.random() * 45.0;
+              } else {
+                grains[idx] = 0.0;
+              }
+              temp[idx] = 29.5; // Calor úmido de campo aberto
+            } else {
+              // 3. FLORESTA EQUATORIAL DE BORDA E INTERIOR (TERRA FIRME - DOSSEL FECHADO)
+              if (finalElev < 0.0) {
+                // Mar/braço estuarino a leste
+                matId[idx] = MAT_WATER;
+                surfaceWater[idx] = -finalElev;
+                moisture[idx] = 1.0;
+                biomass[idx] = 2.0;
+                grains[idx] = 0.0;
+                temp[idx] = 27.8;
+              } else if (finalElev > 400.0) {
+                // Serra rochosa a oeste
+                matId[idx] = MAT_STONE;
+                surfaceWater[idx] = 0.0;
+                moisture[idx] = 0.35;
+                biomass[idx] = 15.0;
+                grains[idx] = 0.0;
+                temp[idx] = 24.5;
+              } else {
+                // Floresta Densa de Terra Firme (alta biomassa 75 a 95 - dossel fechado que bloqueia a Harpia)
+                matId[idx] = MAT_SOIL;
+                surfaceWater[idx] = 0.0;
+                moisture[idx] = 0.78;
+                biomass[idx] = 75.0 + Math.random() * 20.0;
+                grains[idx] = 0.0; // Sombra densa impede o arroz de várzea
+                temp[idx] = 27.2;
+              }
+            }
+
+            elevation[idx] = finalElev;
+            initialElevation[idx] = finalElev;
+            cumulativeErosion[idx] = 0.0;
           }
+        }
 
-          // Temperatura com gradiente altimétrico adiabático (-0.0065°C / m)
-          const baseT = 20.0 + (latFactor * 16.0) - (Math.max(0, finalElev) * 0.0065);
-          temp[idx] = baseT;
+        // 4º ELEMENTO: Casal Monogâmico de Harpias Amazônicas (Gavião-Real)
+        // Exatamente 2 indivíduos (1 Macho e 1 Fêmea) com ninho na árvore emergente na floresta a nordeste
+        harpies = [
+          {
+            id: 9001,
+            species: 'harpy',
+            sex: 'male',
+            name: 'Harpia Macho',
+            x: 230.0,
+            y: 220.0,
+            z: 35.0, // Altitude em metros
+            hp: 100,
+            hunger: 15.0,
+            state: 'patrol',
+            target: null,
+            diveSpeed: 0.0,
+            nestX: 410.0,
+            nestY: 130.0,
+            flightAngle: 0.5,
+            circleRadius: 65.0
+          },
+          {
+            id: 9002,
+            species: 'harpy',
+            sex: 'female',
+            name: 'Harpia Fêmea',
+            x: 280.0,
+            y: 290.0,
+            z: 38.0,
+            hp: 100,
+            hunger: 15.0,
+            state: 'patrol',
+            target: null,
+            diveSpeed: 0.0,
+            nestX: 410.0,
+            nestY: 130.0,
+            flightAngle: 3.6,
+            circleRadius: 80.0
+          }
+        ];
+
+        // Ninho do Casal de Harpias (na copa de grande Samaúma/Castanheira)
+        nests.push({
+          id: 9000,
+          x: 410.0,
+          y: 130.0,
+          species: 'harpy',
+          name: 'Ninho de Harpia (Copa Samaúma)',
+          quality: 95
+        });
+
+      } else {
+        // -------------------------------------------------------------------------
+        // CENÁRIO 2: PLANALTO CONTINENTAL TEMPERADO (Cenário Clássico)
+        // -------------------------------------------------------------------------
+        for (let y = 0; y < CHUNK_SIZE; y++) {
+          const latDist = Math.abs(y - equatorY) / 255.5;
+          const latFactor = Math.max(0, 1.0 - latDist);
+
+          for (let x = 0; x < CHUNK_SIZE; x++) {
+            const idx = getIdx(x, y);
+
+            const u = ((CHUNK_SIZE - 1 - x) + (CHUNK_SIZE - 1 - y)) / ((CHUNK_SIZE - 1) * 2.0);
+            const steps = 14;
+            const scaled = u * steps;
+            const stepIdx = Math.floor(scaled);
+            const fract = scaled - stepIdx;
+            const smoothFract = fract * fract * (3.0 - 2.0 * fract);
+            const terraceU = (stepIdx + smoothFract * 0.45) / steps;
+            const baseElev = -100.0 + terraceU * 2100.0;
+
+            const rot1 = (x - y) * 0.08;
+            const rot2 = (x + y) * 0.03;
+            const striation = (Math.sin(rot1 * 2.0) * 1.8 + Math.cos(rot2 * 1.5 + rot1) * 1.2);
+            const finalElev = Math.max(-100.0, Math.min(2000.0, baseElev + striation));
+
+            elevation[idx] = finalElev;
+            initialElevation[idx] = finalElev;
+            cumulativeErosion[idx] = 0.0;
+
+            if (finalElev < 0.0) {
+              matId[idx] = MAT_WATER;
+              surfaceWater[idx] = -finalElev;
+              moisture[idx] = 1.0;
+              biomass[idx] = 2.0;
+            } else if (finalElev > 1600.0) {
+              matId[idx] = MAT_ICE;
+              surfaceWater[idx] = 0.0;
+              moisture[idx] = 0.15;
+              biomass[idx] = 0.0;
+            } else if (finalElev > 950.0) {
+              matId[idx] = MAT_STONE;
+              surfaceWater[idx] = 0.0;
+              moisture[idx] = 0.25;
+              biomass[idx] = 6.0;
+            } else if (latFactor > 0.88 && finalElev < 250.0 && x > 280) {
+              matId[idx] = MAT_SAND;
+              surfaceWater[idx] = 0.0;
+              moisture[idx] = 0.10;
+              biomass[idx] = 14.0;
+            } else {
+              matId[idx] = MAT_SOIL;
+              surfaceWater[idx] = 0.0;
+              moisture[idx] = 0.65;
+              biomass[idx] = 45.0 + latFactor * 30.0;
+            }
+
+            temp[idx] = 20.0 + (latFactor * 16.0) - (Math.max(0, finalElev) * 0.0065);
+          }
         }
       }
 
       // Povamento de Fauna: Predadores (Gatos) e Herbívoros (Ratos) dinâmicos
-      // Proporções sexuais e biologia reprodutiva baseadas na realidade
       const ratsInput = document.getElementById('initRatsInput');
       const catsInput = document.getElementById('initCatsInput');
       const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 180;
@@ -796,15 +997,18 @@
 
       // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1) com Genoma Adaptativo e Ciclo Estral Real (4.5d)
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
-        const rx = 40 + Math.random() * (CHUNK_SIZE - 120);
-        const ry = 40 + Math.random() * (CHUNK_SIZE - 120);
+        // No cenário amazônico, posiciona fora da água funda do lago central
+        let rx = 40 + Math.random() * (CHUNK_SIZE - 120);
+        let ry = 40 + Math.random() * (CHUNK_SIZE - 120);
+        if (currentScenario === 'amazon' && Math.hypot(rx - 256, ry - 256) < 40.0) {
+          rx += (rx >= 256 ? 50 : -50);
+        }
+
         const sex = (i % 2 === 0) ? 'female' : 'male';
-        // ~35% das fêmeas adultas iniciam prenhes com gestação escalonada contínua
         const isPregnant = (sex === 'female' && Math.random() < 0.35);
         const gestationRemaining = isPregnant ? (1.0 + Math.random() * 20.0) : 0.0;
-        const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0; // Ninhada real: 6 a 10 filhotes
+        const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0;
         const matingCooldown = isPregnant ? (gestationRemaining + 15.0) : (1.0 + Math.random() * 3.0);
-        // Ciclo estral do rato: a cada 4.5 dias com janela fértil de ~0.8 dias (PanTHERIA)
         const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (0.8 / 4.5));
         const estrusDurationRemaining = inEstrusInit ? (Math.random() * 0.8) : 0.0;
         const estrusCycleTimer = isPregnant ? gestationRemaining : (inEstrusInit ? 0.0 : Math.random() * 4.5);
@@ -816,6 +1020,13 @@
           epigeneticBonus: 0.0,
           generation: 0
         };
+
+        const hasNest = isPregnant || Math.random() < 0.40;
+        const nestX = rx + (Math.random() - 0.5) * 6.0;
+        const nestY = ry + (Math.random() - 0.5) * 6.0;
+        if (hasNest) {
+          nests.push({ id: i + 1, x: nestX, y: nestY, species: 'rat', name: 'Toca de Roedores', quality: 80 });
+        }
 
         animals.push({
           id: i + 1,
@@ -829,6 +1040,9 @@
           estrusDurationRemaining: estrusDurationRemaining,
           x: rx,
           y: ry,
+          hasNest: hasNest,
+          nestX: nestX,
+          nestY: nestY,
           hp: 100,
           hunger: 15 + Math.random() * 15,
           speed: 2.2,
@@ -843,21 +1057,29 @@
       }
 
       // Predadores (Gatos) - Proporção sexual natural: 49% fêmeas, 51% machos
-      // Gestação escalonada inicial para continuidade geracional e evitar extinção aos 26 dias
       const maleCatsCount = Math.round(X_PREDATORS * 0.51);
       for (let i = 0; i < X_PREDATORS; i++) {
-        const gx = 60 + Math.random() * (CHUNK_SIZE - 140);
-        const gy = 60 + Math.random() * (CHUNK_SIZE - 140);
+        let gx = 60 + Math.random() * (CHUNK_SIZE - 140);
+        let gy = 60 + Math.random() * (CHUNK_SIZE - 140);
+        if (currentScenario === 'amazon' && Math.hypot(gx - 256, gy - 256) < 40.0) {
+          gx += (gx >= 256 ? 55 : -55);
+        }
+
         const sex = (i < maleCatsCount) ? 'male' : 'female';
-        // 50% das fêmeas adultas iniciam prenhes com tempo escalonado (4 a 55 dias)
         const isPregnant = (sex === 'female' && Math.random() < 0.50);
         const gestationRemaining = isPregnant ? (4.0 + Math.random() * 55.0) : 0.0;
-        const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0; // Ninhada real: 3 a 5 filhotes
+        const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0;
         const matingCooldown = isPregnant ? (gestationRemaining + 45.0) : (5.0 + Math.random() * 15.0);
-        // Ciclo estral do gato: ciclo de 18 dias com janela de cio receptivo de 5 dias (PanTHERIA)
         const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (5.0 / 18.0));
         const estrusDurationRemaining = inEstrusInit ? (Math.random() * 5.0) : 0.0;
         const estrusCycleTimer = isPregnant ? gestationRemaining : (inEstrusInit ? 0.0 : Math.random() * 18.0);
+
+        const hasNest = isPregnant || Math.random() < 0.50;
+        const nestX = gx + (Math.random() - 0.5) * 8.0;
+        const nestY = gy + (Math.random() - 0.5) * 8.0;
+        if (hasNest) {
+          nests.push({ id: 1000 + i, x: nestX, y: nestY, species: 'cat', name: 'Covil Felino', quality: 85 });
+        }
 
         animals.push({
           id: 1000 + i,
@@ -871,6 +1093,9 @@
           estrusDurationRemaining: estrusDurationRemaining,
           x: gx,
           y: gy,
+          hasNest: hasNest,
+          nestX: nestX,
+          nestY: nestY,
           hp: 100,
           hunger: 5 + Math.random() * 10,
           speed: 2.8,
@@ -1077,7 +1302,7 @@
       surfaceWater.set(nextSurfaceWater);
     }
 
-    // === CRESCIMENTO DE BIOMASSA VEGETAL ===
+    // === CRESCIMENTO DE BIOMASSA VEGETAL & GRÃOS DE VÁRZEA ===
     function stepFlora(dt) {
       // Regeneração da biomassa verde em áreas com boa umidade e temperatura
       const sampleCount = 600;
@@ -1096,6 +1321,14 @@
           const opt = 1.0 - Math.abs(t - 24) / 16;
           const growth = Math.max(0.1, opt) * m * 3.5 * dt * (1.0 - curBio / 100);
           biomass[idx] = Math.min(100, curBio + growth);
+
+          // 3º ELEMENTO: Regeneração de Grãos de Arroz Selvagem (Oryza glumaepatula) na Várzea Amazônica
+          if (currentScenario === 'amazon' && m > 0.40) {
+            const d = Math.hypot(rx - 256, ry - 256);
+            if (d >= 36.0 && d <= 78.0 && biomass[idx] < 55.0) {
+              grains[idx] = Math.min(80.0, grains[idx] + 0.18 * dt * m);
+            }
+          }
         } else if (t < 0 || m < 0.05) {
           biomass[idx] = Math.max(0, curBio - 1.0 * dt);
         }
@@ -1338,8 +1571,12 @@
         // === COMPORTAMENTO DO RATO (HERBÍVORO - PANTHERIA / OPEN TRAITS) ===
         if (a.species === 'rat') {
           // 1. Pastagem e Partilha de Alimento:
-          // Uma célula tem capacidade de alimentar 1 rato por 3 dias (72h).
-          if (a.hunger > 5 && biomass[curIdx] > 0.5) {
+          // 3º ELEMENTO: Se houver Grãos Amazônicos de Várzea (Oryza glumaepatula), consome com prioridade máxima pelo alto teor calórico!
+          if (a.hunger > 5 && grains[curIdx] > 0.5) {
+            const grainBite = Math.min(grains[curIdx], 2.8 * simDeltaHours);
+            grains[curIdx] = Math.max(0, grains[curIdx] - grainBite);
+            a.hunger = Math.max(0, a.hunger - grainBite * 18.0); // Boost imediato de saciedade calórica
+          } else if (a.hunger > 5 && biomass[curIdx] > 0.5) {
             const nRats = ratsInCell[curIdx] || 1;
             const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
             const sharedBite = Math.min(biomass[curIdx] / nRats, baseRatePerHour * simDeltaHours);
@@ -1347,7 +1584,7 @@
             a.hunger = Math.max(0, a.hunger - sharedBite * 4.2);
           }
 
-          // 2. Detecção de ameaça de predadores com Genoma Adaptativo & Fuga Inteligente
+          // 2. Detecção de ameaça de predadores terrestres (gatos) e aéreos (harpias)
           const effectiveAlert = (a.genome ? a.genome.alertRadius + (a.genome.epigeneticBonus || 0) : 12.0);
           let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;
           let closestCatDist = 999.0;
@@ -1365,8 +1602,22 @@
             }
           }
 
+          // Perigo Aéreo: se houver Harpia mergulhando próximo na grama aberta
+          for (let hi = 0; hi < harpies.length; hi++) {
+            const h = harpies[hi];
+            if (h.hp > 0 && h.state === 'dive') {
+              const hd = Math.hypot(h.x - a.x, h.y - a.y);
+              if (hd < 25.0) {
+                fleeVectorX += (a.x - h.x) / (hd + 0.1);
+                fleeVectorY += (a.y - h.y) / (hd + 0.1);
+                dangerCount += 2;
+                if (hd < closestCatDist) closestCatDist = hd;
+              }
+            }
+          }
+
           if (dangerCount > 0) {
-            // Evasão com viés cinemático de refúgio (Holling): atração por cobertura vegetal densa
+            // Evasão com viés cinemático de refúgio (Holling): atração por cobertura vegetal densa (árvores) ou ninho
             let refugeBiasX = 0, refugeBiasY = 0;
             const refugeAffinity = a.genome ? a.genome.refugeAffinity : 0.45;
             if (refugeAffinity > 0.15) {
@@ -1387,13 +1638,18 @@
               }
             }
 
+            // Se o ninho estiver próximo, foge prioritariamente para o ninho seguro!
+            if (a.hasNest && Math.hypot(a.nestX - a.x, a.nestY - a.y) < 25.0) {
+              refugeBiasX = (a.nestX - a.x);
+              refugeBiasY = (a.nestY - a.y);
+            }
+
             targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 1.6);
             targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 1.6);
 
             // Arrancada anaeróbica (SprintBurst) e aprendizado por experiência em perigo iminente
             if (closestCatDist < 3.8 && a.genome) {
               a.currentSprintBoost = a.genome.sprintBurst || 1.35;
-              // Condicionamento epigenético: sobreviveu a encontro perigoso, ganha alerta permanente
               a.genome.epigeneticBonus = Math.min(4.0, (a.genome.epigeneticBonus || 0) + 0.15 * dt);
             } else {
               a.currentSprintBoost = 1.0;
@@ -1401,9 +1657,12 @@
           } else {
             a.currentSprintBoost = 1.0;
             if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
-              // Animais atravessam água, mas não vão permanecer em terreno inundado
               targetX = a.x + floodEscapeX * 3.0;
               targetY = a.y + floodEscapeY * 3.0;
+            } else if (a.isPregnant && a.gestationRemaining < 2.5 && a.hasNest) {
+              // MECÂNICA DE NINHO: Fêmea prenhe perto do parto retorna ao ninho seguro na floresta
+              targetX = a.nestX;
+              targetY = a.nestY;
             } else {
               let mateTargetFound = false;
 
@@ -1441,20 +1700,29 @@
                     male.matingCooldown = 12.0;
                     female.isPregnant = true;
                     female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
-                    female.litterSize = 6 + Math.floor(Math.random() * 5); // 6 a 10 filhotes
-                    female.mateGenome = male.genome; // Retém genoma paterno para recombinação mendeliana no parto!
-                    female.estrusDurationRemaining = 0.0; // Encerra estro receptivo ao emprenhar
+                    female.litterSize = 6 + Math.floor(Math.random() * 5);
+                    female.mateGenome = male.genome;
+                    female.estrusDurationRemaining = 0.0;
                     female.estrusCycleTimer = female.gestationRemaining;
                     female.matingCooldown = female.gestationRemaining + 15.0;
+
+                    // Estabelece ninho conjunto se ainda não possuir
+                    if (!female.hasNest) {
+                      female.hasNest = true;
+                      female.nestX = female.x;
+                      female.nestY = female.y;
+                      nests.push({ id: female.id, x: female.x, y: female.y, species: 'rat', name: 'Toca de Roedores', quality: 80 });
+                    }
                   }
                 }
               }
 
             // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO!
+            // INTELIGÊNCIA DOS HERBÍVOROS: sabem que os grãos de várzea são muito mais saborosos e calóricos!
             if (!mateTargetFound) {
               let bestScore = -999;
               let bestX = curX, bestY = curY;
-              const searchRadius = 12; // Alcance olfatório e visual ampliado para 12 células
+              const searchRadius = 14;
 
               for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
                 const ny = curY + dy;
@@ -1467,8 +1735,10 @@
                   const nIdx = getIdx(nx, ny);
                   const isFlooded = (matId[nIdx] === MAT_WATER || surfaceWater[nIdx] > 0.15);
                   const floodPenalty = isFlooded ? -80.0 : 0.0;
-                  // Atração por biomassa vegetal e umidade de solo (pastos ripários férteis)
-                  const score = biomass[nIdx] * 1.5 + (moisture[nIdx] * 25.0) + floodPenalty;
+
+                  // 3º ELEMENTO: Grãos têm peso 8.0x superior devido à alta densidade energética!
+                  const grainVal = grains[nIdx] || 0.0;
+                  const score = (biomass[nIdx] * 1.2) + (grainVal * 8.5) + (moisture[nIdx] * 18.0) + floodPenalty;
 
                   if (score > bestScore) {
                     bestScore = score;
@@ -1644,12 +1914,38 @@
               // Gato não permanece em terreno inundado: prioriza sair para terra firme
               targetX = a.x + floodEscapeX * 3.5;
               targetY = a.y + floodEscapeY * 3.5;
+            } else if (a.isPregnant && a.gestationRemaining < 4.0 && a.hasNest) {
+              // MECÂNICA DE NINHO: Gata prenhe perto do parto retorna ao covil seguro
+              targetX = a.nestX;
+              targetY = a.nestY;
             } else if (rivalCount > 0) {
               targetX = a.x + territoryRepulsionX * 3.5;
               targetY = a.y + territoryRepulsionY * 3.5;
             } else {
-              targetX = a.x + (Math.random() - 0.5) * 4.0;
-              targetY = a.y + (Math.random() - 0.5) * 4.0;
+              // INTELIGÊNCIA DOS CARNÍVOROS: sabem que as margens do lago e a faixa de várzea com grãos atraem presas!
+              let ambushX = 0, ambushY = 0, hasAmbushGoal = false;
+              if (currentScenario === 'amazon' && a.hunger > 22) {
+                const distToCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
+                // Várzea fica entre R=36 e R=86. Gatos se posicionam na borda externa (R ≈ 75..90) para emboscada na orla da floresta!
+                if (distToCenter > 88.0) {
+                  ambushX = (256.0 - a.x) / distToCenter;
+                  ambushY = (256.0 - a.y) / distToCenter;
+                  hasAmbushGoal = true;
+                } else if (distToCenter < 60.0) {
+                  // Muito perto da água aberta: afasta-se para a cobertura vegetal
+                  ambushX = (a.x - 256.0) / distToCenter;
+                  ambushY = (a.y - 256.0) / distToCenter;
+                  hasAmbushGoal = true;
+                }
+              }
+
+              if (hasAmbushGoal) {
+                targetX = a.x + ambushX * 3.2 + (Math.random() - 0.5) * 1.5;
+                targetY = a.y + ambushY * 3.2 + (Math.random() - 0.5) * 1.5;
+              } else {
+                targetX = a.x + (Math.random() - 0.5) * 4.0;
+                targetY = a.y + (Math.random() - 0.5) * 4.0;
+              }
             }
           }
         }
@@ -1672,6 +1968,183 @@
       }
 
       animals = aliveAnimals.concat(newOffspring);
+
+      // === 4º ELEMENTO: CASAL DE HARPIAS AMAZÔNICAS (GAVIÃO-REAL) ===
+      if (currentScenario === 'amazon' && harpies.length > 0) {
+        for (let hi = 0; hi < harpies.length; hi++) {
+          const h = harpies[hi];
+          if (h.hp <= 0) continue;
+
+          // Metabolismo basal
+          h.hunger = Math.min(100, h.hunger + 0.15 * simDeltaHours);
+
+          // 1. Descanso e Regeneração no Ninho da Copa da Samaúma (410, 130)
+          if (h.state === 'nest_resting') {
+            h.z = 35.0;
+            h.x = h.nestX;
+            h.y = h.nestY;
+            h.hp = Math.min(100, h.hp + 5.0 * dt);
+            if (h.hp >= 95.0 && h.hunger > 25.0) {
+              h.state = 'patrol';
+            }
+            continue;
+          }
+
+          // 2. Autoconservação e Sobrevivência da Espécie: se HP < 30, voa para o ninho
+          if (h.hp < 30.0) {
+            h.state = 'retreat';
+            h.target = null;
+          }
+
+          // 3. Fuga / Retorno ao Ninho
+          if (h.state === 'retreat') {
+            const toNestX = h.nestX - h.x;
+            const toNestY = h.nestY - h.y;
+            const distNest = Math.hypot(toNestX, toNestY);
+            h.z = Math.min(45.0, h.z + 6.0 * dt);
+            if (distNest > 2.0) {
+              const flySpeed = 8.0;
+              h.x += (toNestX / distNest) * flySpeed * dt;
+              h.y += (toNestY / distNest) * flySpeed * dt;
+            } else {
+              h.x = h.nestX;
+              h.y = h.nestY;
+              h.state = 'nest_resting';
+            }
+            continue;
+          }
+
+          // 4. Voo de Patrulha em Círculos sobre o Lago e Várzea
+          if (h.state === 'patrol') {
+            h.z = 38.0 + Math.sin(h.flightAngle * 2.0) * 4.0;
+            h.flightAngle += 0.24 * dt;
+            const cx = 256.0, cy = 256.0;
+            const targetPatrolX = cx + Math.cos(h.flightAngle) * h.circleRadius;
+            const targetPatrolY = cy + Math.sin(h.flightAngle) * h.circleRadius;
+
+            const pDirX = targetPatrolX - h.x;
+            const pDirY = targetPatrolY - h.y;
+            const pDist = Math.hypot(pDirX, pDirY);
+            if (pDist > 0.1) {
+              const speed = 5.5;
+              h.x += (pDirX / pDist) * speed * dt;
+              h.y += (pDirY / pDist) * speed * dt;
+            }
+
+            // Busca por presas se faminta (hunger > 20)
+            if (h.hunger > 20.0) {
+              let candidatePrey = null;
+              let bestScore = -999;
+
+              for (let ai = 0; ai < animals.length; ai++) {
+                const prey = animals[ai];
+                if (prey.hp <= 0) continue;
+
+                const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
+                if (pX < 0 || pX >= CHUNK_SIZE || pY < 0 || pY >= CHUNK_SIZE) continue;
+                const pIdx = getIdx(pX, pY);
+
+                // REGRA ESTRITA: Harpia SÓ ATACA NA ZONA DE GRAMÍNEAS (CAMPO ABERTO DE VÁRZEA)!
+                // Floresta densa (biomass > 55) bloqueia mergulho; água impede captura
+                const isGrasslandZone = (matId[pIdx] !== MAT_WATER && surfaceWater[pIdx] < 0.10 && biomass[pIdx] >= 15.0 && biomass[pIdx] <= 55.0);
+                if (!isGrasslandZone) continue;
+
+                const distToPrey = Math.hypot(prey.x - h.x, prey.y - h.y);
+                if (distToPrey > 90.0) continue;
+
+                // Inteligência para Sobrevivência da Espécie:
+                // Se HP < 50, a harpia RECUSA caçar gatos (risco de ferimento por revide)
+                if (prey.species === 'cat' && h.hp < 50.0) continue;
+
+                let preyVal = (prey.species === 'rat') ? 80.0 : 45.0;
+                const score = preyVal - distToPrey * 0.8;
+                if (score > bestScore) {
+                  bestScore = score;
+                  candidatePrey = prey;
+                }
+              }
+
+              if (candidatePrey) {
+                h.state = 'dive';
+                h.target = candidatePrey;
+              }
+            }
+          }
+
+          // 5. Mergulho Rasante de Ataque (Dive Attack)
+          else if (h.state === 'dive') {
+            const prey = h.target;
+            if (!prey || prey.hp <= 0) {
+              h.state = 'patrol';
+              h.target = null;
+              h.z = 38.0;
+              continue;
+            }
+
+            const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
+            const pIdx = getIdx(Math.max(0, Math.min(CHUNK_SIZE - 1, pX)), Math.max(0, Math.min(CHUNK_SIZE - 1, pY)));
+
+            // SE A PRESA FUGIR PARA A FLORESTA DENSA OU ÁGUA: ABORTA MERGULHO!
+            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15) {
+              h.state = 'patrol';
+              h.target = null;
+              h.z = 38.0;
+              continue;
+            }
+
+            const dX = prey.x - h.x;
+            const dY = prey.y - h.y;
+            const distHoriz = Math.hypot(dX, dY);
+
+            // Mergulho em alta velocidade com descida de altitude Z
+            const diveSpeed = 12.8;
+            if (distHoriz > 0.2) {
+              h.x += (dX / distHoriz) * diveSpeed * dt;
+              h.y += (dY / distHoriz) * diveSpeed * dt;
+            }
+            h.z = Math.max(0.5, h.z - 18.0 * dt);
+
+            // Bote no alvo
+            if (distHoriz < 1.8 && h.z < 2.5) {
+              if (prey.species === 'rat') {
+                // RATO: 90% de sucesso
+                if (Math.random() < 0.90) {
+                  prey.hp = 0;
+                  totalPredationDeaths++;
+                  applyDeathDecomposition(prey.x, prey.y);
+                  h.hunger = Math.max(0, h.hunger - 45.0);
+                }
+                h.state = 'patrol';
+                h.target = null;
+                h.z = 38.0;
+              } else if (prey.species === 'cat') {
+                // GATO: 55% abate / 45% revide felino com unhas e dentes
+                const felineRetaliation = (Math.random() < 0.45);
+
+                if (felineRetaliation) {
+                  // Gato revida furiosamente! Harpia perde 30 HP e recua para o ninho
+                  h.hp = Math.max(0, h.hp - 30.0);
+                  h.state = 'retreat';
+                  h.target = null;
+
+                  // Gato sobrevive com adrenalina e corre para a floresta densa
+                  prey.currentSprintBoost = 1.6;
+                  prey.wanderAngle = Math.atan2(prey.y - 256.0, prey.x - 256.0);
+                } else {
+                  // Captura com sucesso (55%)
+                  prey.hp = 0;
+                  totalPredationDeaths++;
+                  applyDeathDecomposition(prey.x, prey.y);
+                  h.hunger = Math.max(0, h.hunger - 85.0);
+                  h.state = 'patrol';
+                  h.target = null;
+                  h.z = 38.0;
+                }
+              }
+            }
+          }
+        }
+      }
     }
 
     // === RENDERIZADOR ULTRARRÁPIDO 512x512 VIA DIRECT UINT32 BUFFER (60 FPS) ===
@@ -1775,6 +2248,28 @@
               g = Math.floor(210 * s + 28 * (1 - s));
               b = Math.floor(40 * s + 32 * (1 - s)); // Rastro de odor dourado
             }
+          } else if (currentLayer === 'grains') {
+            // Visualização dos Grãos de Várzea (Oryza glumaepatula)
+            if (matId[idx] === MAT_WATER) {
+              r = 15; g = 35; b = 75;
+            } else if (grains[idx] > 0.5) {
+              const gN = Math.min(1.0, grains[idx] / 60.0);
+              r = Math.floor(255 * gN + 40 * (1 - gN));
+              g = Math.floor(190 * gN + 60 * (1 - gN));
+              b = Math.floor(20 * gN + 25 * (1 - gN)); // Âmbar / Dourado intenso
+            } else {
+              r = 28; g = 38; b = 32;
+            }
+          } else if (currentLayer === 'nests') {
+            // Visualização da Paisagem com foco em Ninhos
+            if (matId[idx] === MAT_WATER) {
+              r = 15; g = 35; b = 75;
+            } else {
+              const bioN = Math.min(1.0, biomass[idx] / 100.0);
+              r = Math.floor(25 + bioN * 35);
+              g = Math.floor(35 + bioN * 80);
+              b = Math.floor(25 + bioN * 35);
+            }
           }
 
           // Linha do Equador dourada sutil entre linhas 255 e 256
@@ -1788,8 +2283,54 @@
         }
       }
 
-      // Blit ultrarrápido na GPU
-      ctx.putImageData(imgData, 0, 0);
+      // Blit da imagem no offscreenCanvas
+      offscreenCtx.putImageData(imgData, 0, 0);
+
+      // Limpa canvas principal e aplica transformação de Zoom & Pan (1 chunk = 1 m²)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.save();
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(zoomLevel, zoomLevel);
+      ctx.translate(-panX, -panY);
+      ctx.imageSmoothingEnabled = (zoomLevel <= 1.0);
+      ctx.drawImage(offscreenCanvas, 0, 0);
+
+      // Renderização sobreposta de Ninhos e Refúgios
+      for (let ni = 0; ni < nests.length; ni++) {
+        const n = nests[ni];
+        ctx.beginPath();
+        if (n.species === 'harpy') {
+          // Ninho de Harpia na copa da Samaúma (410, 130)
+          ctx.arc(n.x, n.y, 5.0, 0, Math.PI * 2);
+          ctx.fillStyle = '#10b981';
+          ctx.shadowColor = 'rgba(16, 185, 129, 0.9)';
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.strokeStyle = '#58a6ff';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else if (n.species === 'cat') {
+          // Covil Felino
+          ctx.arc(n.x, n.y, 3.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#cd853f';
+          ctx.shadowColor = 'rgba(205, 133, 63, 0.8)';
+          ctx.shadowBlur = 5;
+          ctx.fill();
+          ctx.strokeStyle = '#f85149';
+          ctx.lineWidth = 1.0;
+          ctx.stroke();
+          ctx.shadowBlur = 0;
+        } else {
+          // Toca de Roedores
+          ctx.arc(n.x, n.y, 2.4, 0, Math.PI * 2);
+          ctx.fillStyle = '#8b5a2b';
+          ctx.strokeStyle = '#d29922';
+          ctx.lineWidth = 0.9;
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
 
       // Renderização sobreposta da Fauna (Ratos e Gatos) com seus raios sensoriais e olfativos
       for (const a of animals) {
@@ -1871,6 +2412,74 @@
           ctx.stroke();
         }
       }
+
+      // Renderização do Casal de Harpias (Gavião-Real)
+      if (currentScenario === 'amazon' && harpies.length > 0) {
+        for (let hi = 0; hi < harpies.length; hi++) {
+          const h = harpies[hi];
+          if (h.hp <= 0) continue;
+
+          // 1. Sombra no solo projetada pela luz solar
+          const shadowDist = h.z * 0.25;
+          const shadowScale = Math.max(1.2, 5.0 - h.z * 0.08);
+          ctx.beginPath();
+          ctx.ellipse(h.x + shadowDist * 0.5, h.y + shadowDist * 0.8, shadowScale * 1.6, shadowScale * 0.8, 0.4, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+          ctx.fill();
+
+          // 2. Silhueta e Envergadura da Harpia no Ar
+          const renderAirY = h.y - h.z * 0.35;
+          const wingspan = (h.state === 'dive') ? 4.5 : 7.2;
+
+          ctx.save();
+          ctx.translate(h.x, renderAirY);
+
+          let rotAngle = h.flightAngle + Math.PI / 2;
+          if (h.state === 'dive' && h.target) {
+            rotAngle = Math.atan2(h.target.y - h.y, h.target.x - h.x) + Math.PI / 2;
+          }
+          ctx.rotate(rotAngle);
+
+          // Asas abertas com penas escuras
+          ctx.beginPath();
+          ctx.moveTo(-wingspan, 1.2);
+          ctx.quadraticCurveTo(-wingspan * 0.4, -2.5, 0, -1.0);
+          ctx.quadraticCurveTo(wingspan * 0.4, -2.5, wingspan, 1.2);
+          ctx.lineTo(wingspan * 0.7, 2.5);
+          ctx.lineTo(0, 0.5);
+          ctx.lineTo(-wingspan * 0.7, 2.5);
+          ctx.closePath();
+          ctx.fillStyle = (h.sex === 'female') ? '#263238' : '#37474f';
+          ctx.fill();
+
+          // Corpo e peito cinza/branco
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 1.3, 3.2, 0, 0, Math.PI * 2);
+          ctx.fillStyle = '#eceff1';
+          ctx.fill();
+
+          // Crista occipital dupla característica
+          ctx.beginPath();
+          ctx.moveTo(-0.8, -3.2);
+          ctx.lineTo(0, -4.5);
+          ctx.lineTo(0.8, -3.2);
+          ctx.fillStyle = '#263238';
+          ctx.fill();
+
+          // Se estiver com ferimento / HP < 50: aura de advertência
+          if (h.hp < 50) {
+            ctx.beginPath();
+            ctx.arc(0, 0, wingspan * 0.8, 0, Math.PI * 2);
+            ctx.strokeStyle = 'rgba(248, 81, 73, 0.7)';
+            ctx.lineWidth = 1.0;
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      ctx.restore();
     }
 
     // Ciclo Geral
@@ -1910,6 +2519,36 @@
       // Amostra média térmica
       document.getElementById('statAvgTemp').innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
       document.getElementById('statErosion').innerText = (globalErosionTotal * 12.5).toFixed(1) + " m³";
+
+      // 4º ELEMENTO: Telemetria do Casal de Harpias Amazônicas
+      const elHarpies = document.getElementById('statHarpies');
+      if (elHarpies) {
+        if (currentScenario === 'amazon' && harpies.length >= 2) {
+          const hM = harpies[0], hF = harpies[1];
+          const stM = hM.state === 'dive' ? '⚡Mergulho' : (hM.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hM.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha'));
+          const stF = hF.state === 'dive' ? '⚡Mergulho' : (hF.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hF.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha'));
+          elHarpies.innerText = `♂ ${stM} (${hM.hp.toFixed(0)} HP) | ♀ ${stF} (${hF.hp.toFixed(0)} HP)`;
+        } else {
+          elHarpies.innerText = "Inativo neste bioma";
+        }
+      }
+
+      // 3º ELEMENTO: Censo de Grãos de Arroz de Várzea (Oryza glumaepatula)
+      const elGrains = document.getElementById('statGrains');
+      if (elGrains) {
+        let totalG = 0;
+        for (let i = 0; i < CELL_COUNT; i += 8) totalG += grains[i];
+        elGrains.innerText = `${Math.round(totalG * 8)} kg`;
+      }
+
+      // MECÂNICA DE NINHOS: Censo de abrigos e refúgios
+      const elNests = document.getElementById('statNests');
+      if (elNests) {
+        const ratN = nests.filter(n => n.species === 'rat').length;
+        const catN = nests.filter(n => n.species === 'cat').length;
+        const harpyN = nests.filter(n => n.species === 'harpy').length;
+        elNests.innerText = `${nests.length} (${ratN} tocas, ${catN} covis, ${harpyN} harpia)`;
+      }
 
       // Censo de Fauna por sexo, prenhez e estro cíclico
       const rats = animals.filter(a => a.species === 'rat');
@@ -1999,11 +2638,20 @@
       document.getElementById('inspCoord').innerText = `(X: ${x}, Y: ${y})`;
 
       let region = "Planalto Continental";
-      if (x <= 25 && y <= 25 && Math.hypot(x, y) <= 20) region = "Maciço Montanhoso NW (2km)";
-      else if (x >= 486 && y >= 486 && Math.hypot(511 - x, 511 - y) <= 20) region = "Oceano / Fossa Abissal SE (-100m)";
-      else if (Math.abs(y - 255.5) <= 4) region = "Linha do Equador";
-      else if (y < 80) region = "Planície Boreal (Norte)";
-      else if (y > 430) region = "Planície Austral (Sul)";
+      if (currentScenario === 'amazon') {
+        const distCenter = Math.hypot(x - 256, y - 256);
+        if (distCenter <= 36.0) region = "Lago de Várzea Central (~4.000m²)";
+        else if (distCenter <= 86.0) region = "Faixa de Gramíneas de Várzea (50m - Zona da Harpia)";
+        else if (x < 150) region = "Serra Ocidental Elevada (550m)";
+        else if (x > 465) region = "Delta / Mar Estuarino Leste";
+        else region = "Floresta Equatorial de Terra Firme";
+      } else {
+        if (x <= 25 && y <= 25 && Math.hypot(x, y) <= 20) region = "Maciço Montanhoso NW (2km)";
+        else if (x >= 486 && y >= 486 && Math.hypot(511 - x, 511 - y) <= 20) region = "Oceano / Fossa Abissal SE (-100m)";
+        else if (Math.abs(y - 255.5) <= 4) region = "Linha do Equador";
+        else if (y < 80) region = "Planície Boreal (Norte)";
+        else if (y > 430) region = "Planície Austral (Sul)";
+      }
       document.getElementById('inspRegion').innerText = region;
 
       document.getElementById('inspMat').innerText = MATERIALS[matId[idx]]?.name || "Desconhecido";
@@ -2012,6 +2660,13 @@
       document.getElementById('inspWater').innerText = surfaceWater[idx].toFixed(1) + " mm";
       document.getElementById('inspMoist').innerText = (moisture[idx] * 100).toFixed(1) + "%";
       document.getElementById('inspBio').innerText = biomass[idx].toFixed(1);
+      const elGrains = document.getElementById('inspGrains');
+      if (elGrains) elGrains.innerText = (grains[idx] || 0.0).toFixed(1) + " kg/m²";
+      const elNest = document.getElementById('inspNest');
+      if (elNest) {
+        const nestHere = nests.find(n => Math.hypot(n.x - x, n.y - y) < 4.0);
+        elNest.innerText = nestHere ? `${nestHere.name} (${nestHere.species})` : "Nenhum";
+      }
       document.getElementById('inspEroded').innerText = cumulativeErosion[idx].toFixed(2) + " m";
 
       // Detecta se há animal nesta célula com sexo e prenhez
@@ -2035,13 +2690,24 @@
       }
     }
 
+    // Conversão de Coordenadas de Tela para o Grid Mundial 512x512 considerando Zoom e Pan
+    function screenToWorld(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
+      const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
+      const wx = (canvasX - canvas.width / 2) / zoomLevel + panX;
+      const wy = (canvasY - canvas.height / 2) / zoomLevel + panY;
+      return {
+        x: Math.max(0, Math.min(CHUNK_SIZE - 1, Math.floor(wx))),
+        y: Math.max(0, Math.min(CHUNK_SIZE - 1, Math.floor(wy)))
+      };
+    }
+
     // Interações com o Canvas
     function handleCanvasInteraction(e) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) * (CHUNK_SIZE / rect.width));
-      const y = Math.floor((e.clientY - rect.top) * (CHUNK_SIZE / rect.height));
-
-      if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
+      const coord = screenToWorld(e.clientX, e.clientY);
+      const x = coord.x;
+      const y = coord.y;
       const idx = getIdx(x, y);
 
       if (currentBrush === 'inspect') {
@@ -2072,6 +2738,9 @@
           estrusDurationRemaining: 0,
           x: x + 0.5,
           y: y + 0.5,
+          hasNest: true,
+          nestX: x + 0.5,
+          nestY: y + 0.5,
           hp: 100,
           hunger: 20,
           speed: 2.2,
@@ -2103,6 +2772,9 @@
           estrusDurationRemaining: 0,
           x: x + 0.5,
           y: y + 0.5,
+          hasNest: true,
+          nestX: x + 0.5,
+          nestY: y + 0.5,
           hp: 100,
           hunger: 10,
           speed: 2.8,
@@ -2134,10 +2806,102 @@
       render();
     }
 
+    // === CONTROLE DE ZOOM E CÂMERA INTERATIVA (1 CHUNK = 1 M²) ===
+    function setZoom(newZoom, centerX = panX, centerY = panY) {
+      zoomLevel = Math.max(1.0, Math.min(8.0, newZoom));
+      panX = Math.max(0, Math.min(CHUNK_SIZE, centerX));
+      panY = Math.max(0, Math.min(CHUNK_SIZE, centerY));
+      const lbl = document.getElementById('lblZoomLevel');
+      if (lbl) lbl.innerText = `${zoomLevel.toFixed(1)}x`;
+      render();
+    }
+
+    const btnZIn = document.getElementById('btnZoomIn');
+    if (btnZIn) btnZIn.addEventListener('click', () => setZoom(zoomLevel * 1.35));
+    const btnZOut = document.getElementById('btnZoomOut');
+    if (btnZOut) btnZOut.addEventListener('click', () => setZoom(zoomLevel / 1.35));
+    const btnZReset = document.getElementById('btnResetZoom');
+    if (btnZReset) btnZReset.addEventListener('click', () => {
+      panX = 256.0;
+      panY = 256.0;
+      setZoom(1.0);
+    });
+
+    // Zoom suave com a roda do mouse (Wheel) centrado na posição do cursor
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mouseCanvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const mouseCanvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+
+      const worldX = (mouseCanvasX - canvas.width / 2) / zoomLevel + panX;
+      const worldY = (mouseCanvasY - canvas.height / 2) / zoomLevel + panY;
+
+      const zoomFactor = (e.deltaY < 0) ? 1.25 : (1.0 / 1.25);
+      const targetZoom = Math.max(1.0, Math.min(8.0, zoomLevel * zoomFactor));
+
+      const newPanX = worldX - (mouseCanvasX - canvas.width / 2) / targetZoom;
+      const newPanY = worldY - (mouseCanvasY - canvas.height / 2) / targetZoom;
+
+      setZoom(targetZoom, newPanX, newPanY);
+    }, { passive: false });
+
+    // Arrastar câmera (Pan) com botão direito do mouse, ou arrastando no modo Inspecionar
     let isMouseDown = false;
-    canvas.addEventListener('mousedown', (e) => { isMouseDown = true; handleCanvasInteraction(e); });
-    window.addEventListener('mouseup', () => isMouseDown = false);
-    canvas.addEventListener('mousemove', (e) => { if (isMouseDown) handleCanvasInteraction(e); });
+    let isDraggingPan = false;
+    let lastMouseX = 0, lastMouseY = 0;
+    let mouseMovedDist = 0;
+
+    canvas.addEventListener('mousedown', (e) => {
+      isMouseDown = true;
+      isDraggingPan = (e.button === 2 || e.shiftKey || currentBrush === 'inspect');
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      mouseMovedDist = 0;
+      if (!isDraggingPan) handleCanvasInteraction(e);
+    });
+
+    window.addEventListener('mouseup', (e) => {
+      if (isMouseDown && currentBrush === 'inspect' && mouseMovedDist < 6) {
+        handleCanvasInteraction(e);
+      }
+      isMouseDown = false;
+      isDraggingPan = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isMouseDown) {
+        const dx = e.clientX - lastMouseX;
+        const dy = e.clientY - lastMouseY;
+        mouseMovedDist += Math.abs(dx) + Math.abs(dy);
+        lastMouseX = e.clientX;
+        lastMouseY = e.clientY;
+
+        if (isDraggingPan || e.buttons === 2 || e.shiftKey || (currentBrush === 'inspect' && mouseMovedDist > 5)) {
+          panX = Math.max(0, Math.min(CHUNK_SIZE, panX - dx / zoomLevel));
+          panY = Math.max(0, Math.min(CHUNK_SIZE, panY - dy / zoomLevel));
+          render();
+        } else {
+          handleCanvasInteraction(e);
+        }
+      }
+    });
+
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Seletor de Cenário
+    const scenarioSelect = document.getElementById('scenarioSelect');
+    if (scenarioSelect) {
+      scenarioSelect.addEventListener('change', () => {
+        currentScenario = scenarioSelect.value;
+        initWorld();
+        tickCount = 0;
+        totalSimHours = 0;
+        timeOfDay = 12.0;
+        updateStats();
+        render();
+      });
+    }
 
     // Loop de Animação com Suporte a 10x e 100x (Desacoplamento Gráfico)
     function loop() {
@@ -2199,6 +2963,14 @@
           info.innerText = "Modo: Biomassa Vegetal e Pasto para Herbívoros (0.0 a 100.0)";
           grad.style.background = "linear-gradient(to right, #241c10, #386018, #2ea043, #00ff66)";
           minL.innerText = "0.0"; maxL.innerText = "100.0";
+        } else if (currentLayer === 'grains') {
+          info.innerText = "Modo: Grãos de Arroz Selvagem Amazônico (Oryza glumaepatula) na Várzea";
+          grad.style.background = "linear-gradient(to right, #1c2620, #734812, #d29922, #f59e0b, #fff085)";
+          minL.innerText = "0 kg/m²"; maxL.innerText = "80 kg/m² (Rico em Calorias)";
+        } else if (currentLayer === 'nests') {
+          info.innerText = "Modo: Ninhos e Refúgios - Tocas Roedores (Ocre) | Covis Felinos (Vermelho) | Harpias (Esmeralda)";
+          grad.style.background = "linear-gradient(to right, #8b5a2b, #cd853f, #10b981, #58a6ff)";
+          minL.innerText = "Tocas Roedores"; maxL.innerText = "Ninho Harpia (Copa)";
         } else if (currentLayer === 'fauna') {
           info.innerText = "Modo: Fauna ECS - Fêmeas (Amarelo/Vermelho Claro) | Machos (Escuros) | Halo: Fêmea Gestante";
           grad.style.background = "linear-gradient(to right, #fff59d, #d48800, #ff7b72, #991b1b)";
@@ -2208,7 +2980,7 @@
           grad.style.background = "linear-gradient(to right, #111111, #443311, #ffcc00, #ff4444)";
           minL.innerText = "Sem Rastro"; maxL.innerText = "Trilha Fresca";
         } else {
-          info.innerText = "Modo: Bioma Composto HD (Montanha 2km NW &le;312 cél | Mar -100m SE &le;312 cél | Equador Y=255..256)";
+          info.innerText = "Modo: Bioma Composto HD (Lago Central ~4.000m² | Várzea de Gramíneas 50m | Floresta de Borda | Arroz Silvestre & Casal de Harpias)";
           grad.style.background = "linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff)";
           minL.innerText = "-100m"; maxL.innerText = "+2000m";
         }

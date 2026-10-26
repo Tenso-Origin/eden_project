@@ -8,13 +8,15 @@ public enum AnimalDiet : byte
 {
     Herbivore = 0,
     Carnivore = 1,
-    Omnivore  = 2
+    Omnivore  = 2,
+    AvianApex = 3 // Predador Aéreo de Topo (Harpia / Gavião-Real Amazônico)
 }
 
 public enum AnimalSpecies : ushort
 {
-    Rat = 1, // Herbívoro: Vida ~2.5 anos, busca biomassa em até 5 células, alta taxa metabólica
-    Cat = 10 // Carnívoro: Vida ~14 anos, territorial, busca presas em até 15 células, alta saciedade
+    Rat = 1,        // Herbívoro: Vida ~2.5 anos, busca biomassa/grãos, alta fecundidade
+    Cat = 10,       // Carnívoro: Vida ~14 anos, territorial, busca presas em até 15 células
+    HarpyEagle = 30 // Ave de Rapina de Topo: Casal monogâmico, caça em gramíneas abertas
 }
 
 public enum AgentState : byte
@@ -127,6 +129,11 @@ public struct AnimalAgent
     public float VelocityX;
     public float VelocityY;
 
+    // Mecânica de Ninho / Toca / Refúgio Ecológico (+ comida, - predadores)
+    public bool HasNest;
+    public float NestPosX;
+    public float NestPosY;
+
     public bool IsFemale => Sex == 0;
     public bool IsMale => Sex == 1;
     public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f);
@@ -150,6 +157,9 @@ public struct AnimalAgent
         PosY = y;
         VelocityX = 0f;
         VelocityY = 0f;
+        HasNest = false;
+        NestPosX = x;
+        NestPosY = y;
         IsPregnant = false;
         GestationDaysRemaining = 0f;
         LitterSize = 0;
@@ -186,10 +196,15 @@ public struct AnimalAgent
             AgeInDays = 75.0f;
             MatingCooldown = 15.0f;
         }
-        else // Gato
+        else if (species == SpeciesCatalog.IdCat)
         {
             AgeInDays = 400.0f;
             MatingCooldown = 60.0f;
+        }
+        else // Harpia Amazônica
+        {
+            AgeInDays = 2000.0f;
+            MatingCooldown = 180.0f;
         }
     }
 }

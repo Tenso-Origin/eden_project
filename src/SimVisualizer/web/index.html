@@ -457,8 +457,16 @@
           <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #3fb950;">
             <div class="stat-label">ÍNDICE DE HOMEOSTASE ECOLÓGICA (LOTKA-VOLTERRA)</div>
             <div id="statHomeostasis" class="stat-val" style="color:#3fb950; font-size:0.92rem; display:flex; align-items:center; justify-content:space-between;">
-              <span id="lblHomeostasisVal">95.0% (Equilíbrio Dinâmico)</span>
-              <span id="lblPredPreyRatio" style="font-size:0.75rem; color:var(--text-dim);">Razão 4.0:1</span>
+              <span id="lblHomeostasisVal">98.0% (Equilíbrio Sustentável)</span>
+              <span id="lblPredPreyRatio" style="font-size:0.75rem; color:var(--text-dim);">Razão 30.0:1</span>
+            </div>
+          </div>
+          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #f778ba; background:rgba(247,120,186,0.06);">
+            <div class="stat-label">🧬 GENÉTICA ADAPTATIVA & INTELIGÊNCIA DOS RATOS</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.78rem; font-family:'JetBrains Mono', monospace;">
+              <span>Geração: <strong id="lblAvgGen" style="color:#f778ba;">G0</strong></span>
+              <span>Alerta: <strong id="lblAvgAlert" style="color:#ffea79;">12.0c</strong></span>
+              <span>Refúgio: <strong id="lblAvgRefuge" style="color:#3fb950;">45%</strong></span>
             </div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #58a6ff;">
@@ -490,12 +498,12 @@
           <div>
             <label style="font-size:0.68rem; color:var(--text-dim); display:block; margin-bottom:3px; font-family:'JetBrains Mono', monospace; font-weight:600;">PRESET DE POPULAÇÃO:</label>
             <select id="popPreset" style="width:100%; background:#141922; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-family:inherit; font-size:0.77rem; cursor:pointer;">
-              <option value="default" selected>🌱 Padrão (35 Gatos / 140 Ratos - 1:4)</option>
-              <option value="sparse">🌵 Baixa Densidade (12 Gatos / 48 Ratos)</option>
-              <option value="dense">🌳 Alta Densidade (60 Gatos / 240 Ratos)</option>
-              <option value="herbivores">🐁 Santuário Herbívoro (0 Gatos / 200 Ratos)</option>
-              <option value="predators">🐈 Domínio de Predadores (50 Gatos / 80 Ratos)</option>
-              <option value="super">⚡ Superpopulação (100 Gatos / 400 Ratos)</option>
+              <option value="default" selected>⚖️ Equilíbrio Natural (6 Gatos / 180 Ratos - 1:30)</option>
+              <option value="sparse">🌵 Baixa Densidade (3 Gatos / 90 Ratos - 1:30)</option>
+              <option value="dense">🌳 Alta Densidade (10 Gatos / 300 Ratos - 1:30)</option>
+              <option value="herbivores">🐁 Santuário Herbívoro (0 Gatos / 250 Ratos)</option>
+              <option value="predators">🐈 Domínio de Predadores (15 Gatos / 150 Ratos - 1:10)</option>
+              <option value="extinction_test">⚡ Teste Extinção Rápida (35 Gatos / 140 Ratos - 1:4)</option>
               <option value="custom">⚙️ Personalizado (Sliders Livres)</option>
             </select>
           </div>
@@ -503,24 +511,24 @@
             <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <span style="font-size:0.68rem; color:#ffea79; font-weight:600; font-family:'JetBrains Mono', monospace;">🐁 RATOS</span>
-                <span id="lblRatsVal" style="font-size:0.72rem; color:#ffea79; font-family:'JetBrains Mono', monospace; font-weight:700;">140</span>
+                <span id="lblRatsVal" style="font-size:0.72rem; color:#ffea79; font-family:'JetBrains Mono', monospace; font-weight:700;">180</span>
               </div>
-              <input type="number" id="initRatsInput" min="0" max="600" value="140" style="width:100%; background:#0a0e14; color:#ffea79; border:1px solid rgba(255,234,121,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
-              <input type="range" id="initRatsSlider" min="0" max="600" value="140" step="1" style="width:100%; margin-top:5px; accent-color:#ffea79; cursor:pointer;">
+              <input type="number" id="initRatsInput" min="0" max="600" value="180" style="width:100%; background:#0a0e14; color:#ffea79; border:1px solid rgba(255,234,121,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
+              <input type="range" id="initRatsSlider" min="0" max="600" value="180" step="1" style="width:100%; margin-top:5px; accent-color:#ffea79; cursor:pointer;">
             </div>
             <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                 <span style="font-size:0.68rem; color:#ff6b6b; font-weight:600; font-family:'JetBrains Mono', monospace;">🐈 GATOS</span>
-                <span id="lblCatsVal" style="font-size:0.72rem; color:#ff6b6b; font-family:'JetBrains Mono', monospace; font-weight:700;">35</span>
+                <span id="lblCatsVal" style="font-size:0.72rem; color:#ff6b6b; font-family:'JetBrains Mono', monospace; font-weight:700;">6</span>
               </div>
-              <input type="number" id="initCatsInput" min="0" max="200" value="35" style="width:100%; background:#0a0e14; color:#ff6b6b; border:1px solid rgba(255,107,107,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
-              <input type="range" id="initCatsSlider" min="0" max="200" value="35" step="1" style="width:100%; margin-top:5px; accent-color:#ff6b6b; cursor:pointer;">
+              <input type="number" id="initCatsInput" min="0" max="200" value="6" style="width:100%; background:#0a0e14; color:#ff6b6b; border:1px solid rgba(255,107,107,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
+              <input type="range" id="initCatsSlider" min="0" max="200" value="6" step="1" style="width:100%; margin-top:5px; accent-color:#ff6b6b; cursor:pointer;">
             </div>
           </div>
           <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.71rem; color:var(--text-dim); padding:0 2px;">
             <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
               <input type="checkbox" id="chkLockRatio" checked style="accent-color:var(--accent); cursor:pointer;">
-              <span>Travar proporção 4:1 (Ratos = 4x Gatos)</span>
+              <span>Travar proporção 30:1 (Ratos = 30x Gatos)</span>
             </label>
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
@@ -783,19 +791,27 @@
       // Proporções sexuais e biologia reprodutiva baseadas na realidade
       const ratsInput = document.getElementById('initRatsInput');
       const catsInput = document.getElementById('initCatsInput');
-      const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 140;
-      const X_PREDATORS = catsInput ? Math.max(0, parseInt(catsInput.value) || 0) : 35;
+      const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 180;
+      const X_PREDATORS = catsInput ? Math.max(0, parseInt(catsInput.value) || 0) : 6;
 
-      // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1)
+      // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1) com Genoma Adaptativo
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
         const rx = 40 + Math.random() * (CHUNK_SIZE - 120);
         const ry = 40 + Math.random() * (CHUNK_SIZE - 120);
         const sex = (i % 2 === 0) ? 'female' : 'male';
-        // ~25% das fêmeas adultas iniciam prenhes com gestação em andamento
-        const isPregnant = (sex === 'female' && Math.random() < 0.25);
-        const gestationRemaining = isPregnant ? (2.0 + Math.random() * 19.0) : 0.0;
+        // ~35% das fêmeas adultas iniciam prenhes com gestação escalonada contínua
+        const isPregnant = (sex === 'female' && Math.random() < 0.35);
+        const gestationRemaining = isPregnant ? (1.0 + Math.random() * 20.0) : 0.0;
         const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0; // Ninhada real: 6 a 10 filhotes
         const matingCooldown = isPregnant ? (gestationRemaining + 18.0) : (5.0 + Math.random() * 15.0);
+
+        const initGenome = {
+          alertRadius: 12.0 + (Math.random() * 4.0 - 2.0),
+          refugeAffinity: 0.45 + (Math.random() * 0.20 - 0.10),
+          sprintBurst: 1.35 + (Math.random() * 0.20 - 0.10),
+          epigeneticBonus: 0.0,
+          generation: 0
+        };
 
         animals.push({
           id: i + 1,
@@ -814,7 +830,9 @@
           maxLifespan: 912.5,
           matingCooldown: matingCooldown,
           sensoryRadius: 5,
-          dailyFunKills: 0
+          dailyFunKills: 0,
+          genome: initGenome,
+          mateGenome: initGenome
         });
       }
 
@@ -1152,6 +1170,27 @@
                   ? (Math.random() < 0.50 ? 'male' : 'female') 
                   : (Math.random() < 0.51 ? 'male' : 'female');
 
+                let pupGenome = null;
+                if (a.species === 'rat') {
+                  // Recombinação Genética (Crossover Mendeliano) + Herança Epigenética + Mutação
+                  const motherGen = a.genome || { alertRadius: 12.0, refugeAffinity: 0.45, sprintBurst: 1.35, epigeneticBonus: 0, generation: 0 };
+                  const fatherGen = a.mateGenome || motherGen;
+                  const baseAlert = (motherGen.alertRadius + fatherGen.alertRadius) * 0.5 + ((motherGen.epigeneticBonus || 0) + (fatherGen.epigeneticBonus || 0)) * 0.15;
+                  const baseRefuge = (motherGen.refugeAffinity + fatherGen.refugeAffinity) * 0.5;
+                  const baseSprint = (motherGen.sprintBurst + fatherGen.sprintBurst) * 0.5;
+                  const mutAlert = (Math.random() * 0.10 - 0.05) * baseAlert;
+                  const mutRefuge = (Math.random() * 0.10 - 0.05) * baseRefuge;
+                  const mutSprint = (Math.random() * 0.10 - 0.05) * baseSprint;
+
+                  pupGenome = {
+                    alertRadius: Math.max(8.0, Math.min(26.0, baseAlert + mutAlert)),
+                    refugeAffinity: Math.max(0.10, Math.min(1.0, baseRefuge + mutRefuge)),
+                    sprintBurst: Math.max(1.15, Math.min(2.0, baseSprint + mutSprint)),
+                    epigeneticBonus: 0.0,
+                    generation: Math.max(motherGen.generation || 0, fatherGen.generation || 0) + 1
+                  };
+                }
+
                 newOffspring.push({
                   id: Date.now() + Math.random(),
                   species: a.species,
@@ -1169,7 +1208,9 @@
                   maxLifespan: a.maxLifespan,
                   matingCooldown: (a.species === 'rat' ? 25.0 : 60.0),
                   sensoryRadius: a.sensoryRadius,
-                  dailyFunKills: 0
+                  dailyFunKills: 0,
+                  genome: pupGenome,
+                  mateGenome: pupGenome
                 });
               }
             }
@@ -1251,67 +1292,104 @@
             a.hunger = Math.max(0, a.hunger - sharedBite * 4.2);
           }
 
-          // 2. Detecção de ameaça de predadores próximos (fuga imediata)
+          // 2. Detecção de ameaça de predadores com Genoma Adaptativo & Fuga Inteligente
+          const effectiveAlert = (a.genome ? a.genome.alertRadius + (a.genome.epigeneticBonus || 0) : 12.0);
           let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;
+          let closestCatDist = 999.0;
+
           for (let j = 0; j < animals.length; j++) {
             const other = animals[j];
             if (other.species === 'cat' && other.hp > 0) {
               const d = Math.hypot(other.x - a.x, other.y - a.y);
-              if (d < 14.0) {
+              if (d < effectiveAlert) {
                 fleeVectorX += (a.x - other.x) / (d + 0.1);
                 fleeVectorY += (a.y - other.y) / (d + 0.1);
                 dangerCount++;
+                if (d < closestCatDist) closestCatDist = d;
               }
             }
           }
 
           if (dangerCount > 0) {
-            targetX = a.x + fleeVectorX * 3.2;
-            targetY = a.y + fleeVectorY * 3.2;
-          } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
-            // Animais atravessam água, mas não vão permanecer em terreno inundado
-            targetX = a.x + floodEscapeX * 3.0;
-            targetY = a.y + floodEscapeY * 3.0;
-          } else {
-            let mateTargetFound = false;
-
-            // Busca de parceiro fértil (somente se não estiver faminto)
-            if (isReadyToMate && a.hunger < 40 && animals.length < 500) {
-              let closestMate = null;
-              let closestDist = 8.0;
-
-              for (let j = 0; j < animals.length; j++) {
-                if (i === j) continue;
-                const other = animals[j];
-                if (other.species === 'rat' && other.hp > 0 && other.sex !== a.sex) {
-                  const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
-                  const otherReady = otherAdult && other.hunger < 50 && other.matingCooldown <= 0 && (!other.isPregnant);
-                  if (otherReady) {
-                    const d = Math.hypot(other.x - a.x, other.y - a.y);
-                    if (d < closestDist) {
-                      closestDist = d;
-                      closestMate = other;
-                    }
+            // Evasão com viés cinemático de refúgio (Holling): atração por cobertura vegetal densa
+            let refugeBiasX = 0, refugeBiasY = 0;
+            const refugeAffinity = a.genome ? a.genome.refugeAffinity : 0.45;
+            if (refugeAffinity > 0.15) {
+              let maxBio = 0;
+              for (let dy = -3; dy <= 3; dy++) {
+                const ny = curY + dy;
+                if (ny < 0 || ny >= CHUNK_SIZE) continue;
+                for (let dx = -3; dx <= 3; dx++) {
+                  const nx = curX + dx;
+                  if (nx < 0 || nx >= CHUNK_SIZE) continue;
+                  const bVal = biomass[getIdx(nx, ny)];
+                  if (bVal > 30.0 && bVal > maxBio) {
+                    maxBio = bVal;
+                    refugeBiasX = dx;
+                    refugeBiasY = dy;
                   }
                 }
               }
+            }
 
-              if (closestMate) {
-                targetX = closestMate.x;
-                targetY = closestMate.y;
-                mateTargetFound = true;
+            targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 1.6);
+            targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 1.6);
 
-                if (closestDist < 1.5) {
-                  const female = (a.sex === 'female') ? a : closestMate;
-                  const male = (a.sex === 'male') ? a : closestMate;
-                  male.matingCooldown = 15.0;
-                  female.isPregnant = true;
-                  female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
-                  female.litterSize = 6 + Math.floor(Math.random() * 5); // 6 a 10 filhotes
-                  female.matingCooldown = female.gestationRemaining + 15.0;
+            // Arrancada anaeróbica (SprintBurst) e aprendizado por experiência em perigo iminente
+            if (closestCatDist < 3.8 && a.genome) {
+              a.currentSprintBoost = a.genome.sprintBurst || 1.35;
+              // Condicionamento epigenético: sobreviveu a encontro perigoso, ganha alerta permanente
+              a.genome.epigeneticBonus = Math.min(4.0, (a.genome.epigeneticBonus || 0) + 0.15 * dt);
+            } else {
+              a.currentSprintBoost = 1.0;
+            }
+          } else {
+            a.currentSprintBoost = 1.0;
+            if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
+              // Animais atravessam água, mas não vão permanecer em terreno inundado
+              targetX = a.x + floodEscapeX * 3.0;
+              targetY = a.y + floodEscapeY * 3.0;
+            } else {
+              let mateTargetFound = false;
+
+              // Busca de parceiro fértil (somente se não estiver faminto)
+              if (isReadyToMate && a.hunger < 40 && animals.length < 500) {
+                let closestMate = null;
+                let closestDist = 8.0;
+
+                for (let j = 0; j < animals.length; j++) {
+                  if (i === j) continue;
+                  const other = animals[j];
+                  if (other.species === 'rat' && other.hp > 0 && other.sex !== a.sex) {
+                    const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
+                    const otherReady = otherAdult && other.hunger < 50 && other.matingCooldown <= 0 && (!other.isPregnant);
+                    if (otherReady) {
+                      const d = Math.hypot(other.x - a.x, other.y - a.y);
+                      if (d < closestDist) {
+                        closestDist = d;
+                        closestMate = other;
+                      }
+                    }
+                  }
+                }
+
+                if (closestMate) {
+                  targetX = closestMate.x;
+                  targetY = closestMate.y;
+                  mateTargetFound = true;
+
+                  if (closestDist < 1.5) {
+                    const female = (a.sex === 'female') ? a : closestMate;
+                    const male = (a.sex === 'male') ? a : closestMate;
+                    male.matingCooldown = 15.0;
+                    female.isPregnant = true;
+                    female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
+                    female.litterSize = 6 + Math.floor(Math.random() * 5); // 6 a 10 filhotes
+                    female.mateGenome = male.genome; // Retém genoma paterno para recombinação mendeliana no parto!
+                    female.matingCooldown = female.gestationRemaining + 15.0;
+                  }
                 }
               }
-            }
 
             // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO!
             if (!mateTargetFound) {
@@ -1461,9 +1539,12 @@
               // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
               if (closestDist < 1.4) {
                 const preyCellIdx = getIdx(Math.floor(closestPrey.x), Math.floor(closestPrey.y));
-                const inHighVegetation = (biomass[preyCellIdx] > 40.0);
-                // Holling: se a biomassa for densa, a presa tem 35% de chance de escapar para a toca
-                if (!inHighVegetation || Math.random() < 0.65) {
+                const inHighVegetation = (biomass[preyCellIdx] > 35.0);
+                const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
+                // Quanto maior a aptidão genética com refúgio, maior a chance de se camuflar e escapar
+                const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
+
+                if (Math.random() >= escapeChance) {
                   closestPrey.hp = 0;
                   totalPredationDeaths++;
                   applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
@@ -1493,13 +1574,15 @@
           }
         }
 
-        // Movimento Contínuo: atravessa água com atrito de nado (0.65x speed)
+        // Movimento Contínuo: atravessa água com atrito de nado (0.65x speed) e aplica sprint se ativado
         const dirX = targetX - a.x;
         const dirY = targetY - a.y;
         const dist = Math.hypot(dirX, dirY);
 
         if (dist > 0.05) {
-          const effectiveSpeed = inWater ? a.speed * 0.65 : a.speed;
+          const sprint = a.currentSprintBoost || 1.0;
+          const baseSpeed = inWater ? a.speed * 0.65 : a.speed;
+          const effectiveSpeed = baseSpeed * sprint;
           const step = Math.min(dist, effectiveSpeed * dt);
           a.x = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (dirX / dist) * step));
           a.y = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (dirY / dist) * step));
@@ -1774,16 +1857,16 @@
       const elSenescD = document.getElementById('statSenescDeaths');
       if (elSenescD) elSenescD.innerText = totalSenescenceDeaths;
 
-      // Cálculo de Homeostase de Lotka-Volterra
+      // Cálculo de Homeostase de Lotka-Volterra com Pirâmide de Biomassa de Elton (Razão sustentável 30:1)
       const nRats = rats.length;
       const nCats = cats.length;
       const ratio = (nCats > 0) ? (nRats / nCats) : 0;
       const elRatio = document.getElementById('lblPredPreyRatio');
       if (elRatio) elRatio.innerText = `Razão: ${ratio.toFixed(1)}:1`;
 
-      let homeostasis = 100 - Math.min(100, Math.abs(ratio - 4.0) * 12.0);
+      let homeostasis = 100 - Math.min(100, Math.abs(ratio - 30.0) * 2.8);
       if (nRats === 0 && nCats === 0) homeostasis = 0;
-      let statusStr = "Equilíbrio Dinâmico";
+      let statusStr = "Equilíbrio Sustentável";
       let statusColor = "#3fb950";
       if (homeostasis < 50) {
         statusStr = "Desequilíbrio Trófico";
@@ -1796,6 +1879,27 @@
       if (elHomeo) {
         elHomeo.innerText = `${homeostasis.toFixed(1)}% (${statusStr})`;
         elHomeo.style.color = statusColor;
+      }
+
+      // Telemetria Genética Evolutiva dos Ratos
+      if (rats.length > 0) {
+        let sumGen = 0, sumAlert = 0, sumRefuge = 0;
+        for (let i = 0; i < rats.length; i++) {
+          const g = rats[i].genome || { generation: 0, alertRadius: 12.0, refugeAffinity: 0.45, epigeneticBonus: 0 };
+          sumGen += (g.generation || 0);
+          sumAlert += (g.alertRadius + (g.epigeneticBonus || 0));
+          sumRefuge += (g.refugeAffinity * 100);
+        }
+        const avgGen = Math.round(sumGen / rats.length);
+        const avgAlert = sumAlert / rats.length;
+        const avgRefuge = sumRefuge / rats.length;
+
+        const elAvgGen = document.getElementById('lblAvgGen');
+        if (elAvgGen) elAvgGen.innerText = `G${avgGen}`;
+        const elAvgAlert = document.getElementById('lblAvgAlert');
+        if (elAvgAlert) elAvgAlert.innerText = `${avgAlert.toFixed(1)}c`;
+        const elAvgRefuge = document.getElementById('lblAvgRefuge');
+        if (elAvgRefuge) elAvgRefuge.innerText = `${avgRefuge.toFixed(0)}%`;
       }
     }
 
@@ -1828,7 +1932,8 @@
           const sp = (a.species === 'rat') ? '🐁 Rato' : '🐈 Gato';
           const sx = (a.sex === 'female') ? '♀' : '♂';
           const preg = a.isPregnant ? ` [Prenhe: ${a.gestationRemaining.toFixed(1)}d rest., Ninhada: ${a.litterSize}]` : '';
-          return `${sp} ${sx}${preg} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
+          const genStr = a.genome ? ` [Gen: G${a.genome.generation}, Alerta: ${(a.genome.alertRadius + (a.genome.epigeneticBonus || 0)).toFixed(1)}c]` : '';
+          return `${sp} ${sx}${preg}${genStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
         }).join(', ');
         document.getElementById('inspFauna').innerText = names;
       } else {
@@ -1878,7 +1983,15 @@
           maxLifespan: 912.5,
           matingCooldown: 15.0,
           sensoryRadius: 5,
-          dailyFunKills: 0
+          dailyFunKills: 0,
+          genome: {
+            alertRadius: 12.0 + (Math.random() * 4.0 - 2.0),
+            refugeAffinity: 0.45 + (Math.random() * 0.20 - 0.10),
+            sprintBurst: 1.35 + (Math.random() * 0.20 - 0.10),
+            epigeneticBonus: 0.0,
+            generation: 0
+          },
+          mateGenome: null
         });
       } else if (currentBrush === 'cat') {
         const sex = (Math.random() < 0.51) ? 'male' : 'female';
@@ -2040,23 +2153,23 @@
       popPreset.addEventListener('change', () => {
         const p = popPreset.value;
         if (p === 'default') {
-          setRatsUI(140); setCatsUI(35);
+          setRatsUI(180); setCatsUI(6);
           if (chkLockRatio) chkLockRatio.checked = true;
         } else if (p === 'sparse') {
-          setRatsUI(48); setCatsUI(12);
+          setRatsUI(90); setCatsUI(3);
           if (chkLockRatio) chkLockRatio.checked = true;
         } else if (p === 'dense') {
-          setRatsUI(240); setCatsUI(60);
+          setRatsUI(300); setCatsUI(10);
           if (chkLockRatio) chkLockRatio.checked = true;
         } else if (p === 'herbivores') {
           if (chkLockRatio) chkLockRatio.checked = false;
-          setRatsUI(200); setCatsUI(0);
+          setRatsUI(250); setCatsUI(0);
         } else if (p === 'predators') {
           if (chkLockRatio) chkLockRatio.checked = false;
-          setRatsUI(80); setCatsUI(50);
-        } else if (p === 'super') {
-          setRatsUI(400); setCatsUI(100);
-          if (chkLockRatio) chkLockRatio.checked = true;
+          setRatsUI(150); setCatsUI(15);
+        } else if (p === 'extinction_test') {
+          if (chkLockRatio) chkLockRatio.checked = false;
+          setRatsUI(140); setCatsUI(35);
         }
       });
     }
@@ -2066,7 +2179,7 @@
         const rVal = parseInt(ratsSlider.value) || 0;
         setRatsUI(rVal);
         if (chkLockRatio && chkLockRatio.checked) {
-          const cVal = Math.round(rVal / 4);
+          const cVal = Math.max(1, Math.round(rVal / 30));
           setCatsUI(cVal);
         }
         if (popPreset) popPreset.value = 'custom';
@@ -2079,7 +2192,7 @@
         if (ratsSlider) ratsSlider.value = Math.min(600, rVal);
         if (lblRatsVal) lblRatsVal.innerText = rVal;
         if (chkLockRatio && chkLockRatio.checked) {
-          const cVal = Math.round(rVal / 4);
+          const cVal = Math.max(1, Math.round(rVal / 30));
           setCatsUI(cVal);
         }
         if (popPreset) popPreset.value = 'custom';
@@ -2091,7 +2204,7 @@
         const cVal = parseInt(catsSlider.value) || 0;
         setCatsUI(cVal);
         if (chkLockRatio && chkLockRatio.checked) {
-          const rVal = cVal * 4;
+          const rVal = cVal * 30;
           setRatsUI(rVal);
         }
         if (popPreset) popPreset.value = 'custom';
@@ -2104,7 +2217,7 @@
         if (catsSlider) catsSlider.value = Math.min(200, cVal);
         if (lblCatsVal) lblCatsVal.innerText = cVal;
         if (chkLockRatio && chkLockRatio.checked) {
-          const rVal = cVal * 4;
+          const rVal = cVal * 30;
           setRatsUI(rVal);
         }
         if (popPreset) popPreset.value = 'custom';
@@ -2115,7 +2228,7 @@
       chkLockRatio.addEventListener('change', () => {
         if (chkLockRatio.checked && catsInput) {
           const cVal = parseInt(catsInput.value) || 0;
-          setRatsUI(cVal * 4);
+          setRatsUI(cVal * 30);
         }
       });
     }

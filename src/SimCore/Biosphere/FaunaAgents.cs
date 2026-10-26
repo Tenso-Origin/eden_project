@@ -29,6 +29,60 @@ public enum AgentState : byte
 }
 
 /// <summary>
+/// Genoma Adaptativo e Neuroevolução de Traços Herdáveis dos Ratos.
+/// Modelado para seleção natural darwiniana contínua, recombinação mendeliana e plasticidade epigenética.
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public struct RatGenome
+{
+    public float AlertRadius;     // 10.0f a 24.0f: Raio sensorial de percepção antecipada de predadores
+    public float RefugeAffinity;  // 0.2f a 1.0f: Viés cinemático de fuga para cobertura vegetal densa (refúgio de Holling)
+    public float SprintBurst;     // 1.2f a 1.9f: Multiplicador de arrancada anaeróbica sob perseguição iminente
+    public float EpigeneticBonus; // 0.0f a 4.0f: Experiência adquirida de sobrevivência individual
+    public ushort Generation;     // Contador geracional contínuo (G0, G1, G2...)
+
+    public static RatGenome CreateDefault(ushort gen = 0)
+    {
+        return new RatGenome
+        {
+            AlertRadius = 12.0f + (Random.Shared.NextSingle() * 4.0f - 2.0f),
+            RefugeAffinity = 0.45f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
+            SprintBurst = 1.35f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
+            EpigeneticBonus = 0f,
+            Generation = gen
+        };
+    }
+
+    public static RatGenome Recombine(in RatGenome mother, in RatGenome father)
+    {
+        // 1. Recombinação genética (Crossover 50/50)
+        float baseAlert = (mother.AlertRadius + father.AlertRadius) * 0.5f;
+        float baseRefuge = (mother.RefugeAffinity + father.RefugeAffinity) * 0.5f;
+        float baseSprint = (mother.SprintBurst + father.SprintBurst) * 0.5f;
+
+        // 2. Herança epigenética parcial (pais experientes passam +15% de vigilância aos filhotes)
+        float parentalExp = (mother.EpigeneticBonus + father.EpigeneticBonus) * 0.15f;
+        baseAlert += parentalExp;
+
+        // 3. Mutação darwiniana randômica (+- 5%)
+        float mutAlert = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseAlert;
+        float mutRefuge = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseRefuge;
+        float mutSprint = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseSprint;
+
+        ushort nextGen = (ushort)(Math.Max(mother.Generation, father.Generation) + 1);
+
+        return new RatGenome
+        {
+            AlertRadius = Math.Clamp(baseAlert + mutAlert, 8.0f, 26.0f),
+            RefugeAffinity = Math.Clamp(baseRefuge + mutRefuge, 0.10f, 1.0f),
+            SprintBurst = Math.Clamp(baseSprint + mutSprint, 1.15f, 2.0f),
+            EpigeneticBonus = 0f,
+            Generation = nextGen
+        };
+    }
+}
+
+/// <summary>
 /// TABELA 2: Agentes Individuais Ativos (ECS Entity Component).
 /// Struct contígua em memória sem ponteiros para o Garbage Collector (GC = 0).
 /// </summary>
@@ -58,6 +112,10 @@ public struct AnimalAgent
     public float GestationDaysRemaining; // Dias de gestação restantes
     public byte LitterSize;      // Média real de filhotes da ninhada
 
+    // Genética Evolutiva e Inteligência Hereditária
+    public RatGenome Genome;
+    public RatGenome MateGenome; // Genoma do parceiro retido na fêmea para recombinação no parto
+
     // Posição contínua e Cinética no Mundo
     public float PosX;
     public float PosY;
@@ -69,7 +127,7 @@ public struct AnimalAgent
     public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f);
     public bool IsReadyToMate => IsAdult && Hunger < 35.0f && MatingCooldown <= 0.0f && Health > 50.0f && (!IsFemale || !IsPregnant);
 
-    public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f, byte? specificSex = null)
+    public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f, byte? specificSex = null, ushort initialGen = 0)
     {
         EntityId = id;
         SpeciesId = species;
@@ -86,6 +144,8 @@ public struct AnimalAgent
         IsPregnant = false;
         GestationDaysRemaining = 0f;
         LitterSize = 0;
+        Genome = RatGenome.CreateDefault(initialGen);
+        MateGenome = Genome;
 
         // Puxa os parâmetros biológicos reais diretamente do "DNA" da Espécie (Tabela 1)
         ref readonly var def = ref SpeciesCatalog.GetSpecies(species);
@@ -236,6 +296,35 @@ public static class FaunaSystem
             }
 
             // =========================================================================
+            // ACASALAMENTO FÍSICO E TRANSMISSÃO GENÉTICA
+            // =========================================================================
+            if (a.IsReadyToMate)
+            {
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref var partner = ref agents[j];
+                    if (partner.SpeciesId == a.SpeciesId && partner.Health > 0f && partner.Sex != a.Sex && partner.IsReadyToMate)
+                    {
+                        float distSq = MathF.Pow(partner.PosX - a.PosX, 2) + MathF.Pow(partner.PosY - a.PosY, 2);
+                        if (distSq <= 2.25f) // Contato reprodutivo (1.5 células)
+                        {
+                            ref var female = ref (a.IsFemale ? ref a : ref partner);
+                            ref var male = ref (a.IsMale ? ref a : ref partner);
+
+                            female.IsPregnant = true;
+                            female.GestationDaysRemaining = speciesDef.GestationPeriodDays + ((Random.Shared.NextSingle() - 0.5f) * 2.0f);
+                            female.LitterSize = (byte)Random.Shared.Next(speciesDef.MinLitterSize, speciesDef.MaxLitterSize + 1);
+                            female.MateGenome = male.Genome; // Retém genoma paterno para recombinação mendeliana no parto
+                            female.MatingCooldown = female.GestationDaysRemaining + speciesDef.PostPartumCooldownDays;
+                            male.MatingCooldown = 15.0f;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
             // PREDAÇÃO COM RESPOSTA FUNCIONAL DE HOLLING TIPO II / III (GATO PREDA RATO)
             // =========================================================================
             if (a.Diet == AnimalDiet.Carnivore)
@@ -247,7 +336,7 @@ public static class FaunaSystem
                     if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f) continue;
 
                     float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
-                    if (distSq <= 1.2f) // Alcance físico de contato
+                    if (distSq <= 1.44f) // Alcance físico de bote (1.2 células)
                     {
                         // Verifica se pode predar: por diversão se tiver < 2 caças no dia, ou por fome real
                         bool willAttack = (a.DailyFunKills < 2) || (a.Hunger > 25.0f);
@@ -255,8 +344,13 @@ public static class FaunaSystem
                         {
                             if (SpeciesCatalog.TryGetInteraction(a.SpeciesId, prey.SpeciesId, out var interaction))
                             {
-                                // Resposta de Holling: em locais de mata densa, presas encontram refúgio ecológico
-                                float refugeFactor = (chunk.Biomass[curCellIdx] > 40.0f) ? 0.65f : 1.0f;
+                                // Resposta de Holling com Proteção Adaptativa do Genoma:
+                                // Em vegetação densa, presas com alta afinidade genética de refúgio se camuflam com maestria
+                                float refugeFactor = 1.0f;
+                                if (chunk.Biomass[curCellIdx] > 35.0f)
+                                {
+                                    refugeFactor = MathF.Max(0.35f, 0.70f - (prey.Genome.RefugeAffinity * 0.35f));
+                                }
                                 float effectiveSuccessRate = interaction.BaseCaptureSuccessRate * refugeFactor;
 
                                 if (Random.Shared.NextDouble() < effectiveSuccessRate)
@@ -331,6 +425,34 @@ public static class FaunaSystem
             if (dist > 0.05f)
             {
                 float speedModifier = (chunk.SurfaceWater[curCellIdx] > 0.2f || chunk.LakeWater[curCellIdx] > 0.2f) ? 0.7f : 1.0f;
+
+                // Adaptação Dinâmica: Arrancada Anaeróbica (SprintBurst) e Aprendizado de Fuga
+                if (a.Diet == AnimalDiet.Herbivore)
+                {
+                    bool underImminentPursuit = false;
+                    for (int j = 0; j < agents.Length; j++)
+                    {
+                        if (i == j) continue;
+                        ref readonly var cat = ref agents[j];
+                        if (cat.Diet == AnimalDiet.Carnivore && cat.Health > 0f)
+                        {
+                            float dSq = MathF.Pow(cat.PosX - a.PosX, 2) + MathF.Pow(cat.PosY - a.PosY, 2);
+                            if (dSq <= 16.0f) // Predador colado (< 4.0 células)
+                            {
+                                underImminentPursuit = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (underImminentPursuit)
+                    {
+                        speedModifier *= a.Genome.SprintBurst;
+                        // Sobreviver a encontros imediatos aumenta a vigilância fenotípica (aprendizado epigenético)
+                        a.Genome.EpigeneticBonus = MathF.Min(4.0f, a.Genome.EpigeneticBonus + 0.12f * dt);
+                    }
+                }
+
                 float stepDist = a.MoveSpeed * speedModifier * dt;
                 float moveX = (dirX / dist) * MathF.Min(dist, stepDist);
                 float moveY = (dirY / dist) * MathF.Min(dist, stepDist);
@@ -385,9 +507,19 @@ public static class FaunaSystem
 
         if (agent.Diet == AnimalDiet.Herbivore)
         {
-            float fearWeight = 8.0f;
+            // Vigilância ponderada pelo Genoma Evoluído + Experiência Epigenética
+            float effectiveAlert = agent.Genome.AlertRadius + agent.Genome.EpigeneticBonus;
+            float fearWeight = 8.0f * (effectiveAlert / 12.0f);
             float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
-            float score = (food * foodWeight) - (danger * fearWeight) + floodPenalty;
+
+            // Busca Ativa de Refúgio (Holling): sob perigo, atração potente por vegetação densa para camuflagem
+            float refugeBonus = 0f;
+            if (danger > 8.0f)
+            {
+                refugeBonus = (food * 4.0f) * agent.Genome.RefugeAffinity;
+            }
+
+            float score = (food * foodWeight) - (danger * fearWeight) + refugeBonus + floodPenalty;
 
             // Busca de parceiro fértil para acasalamento
             if (agent.IsReadyToMate)

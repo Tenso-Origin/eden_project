@@ -187,7 +187,7 @@
     canvas {
       width: 100%;
       height: 100%;
-      object-fit: fill;
+      object-fit: cover;
       border-radius: 10px;
       image-rendering: pixelated;
       cursor: crosshair;
@@ -2774,11 +2774,34 @@
       }
     }
 
+    // Converte coordenadas do mouse na tela para o espaço interno 512x512 respeitando object-fit: cover
+    function getCanvasCoordinates(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const elemAspect = rect.width / rect.height;
+      let renderedW, renderedH, offsetX, offsetY;
+
+      if (elemAspect >= 1.0) {
+        // Container mais largo que alto: preenchimento lateral com zoom cover
+        renderedW = rect.width;
+        renderedH = rect.width; // 1:1 aspect
+        offsetX = 0;
+        offsetY = (rect.height - renderedH) / 2;
+      } else {
+        // Container mais alto que largo: preenchimento vertical com zoom cover
+        renderedH = rect.height;
+        renderedW = rect.height; // 1:1 aspect
+        offsetX = (rect.width - renderedW) / 2;
+        offsetY = 0;
+      }
+
+      const canvasX = (clientX - rect.left - offsetX) * (canvas.width / renderedW);
+      const canvasY = (clientY - rect.top - offsetY) * (canvas.height / renderedH);
+      return { canvasX, canvasY };
+    }
+
     // Conversão de Coordenadas de Tela para o Grid Mundial 512x512 considerando Zoom e Pan
     function screenToWorld(clientX, clientY) {
-      const rect = canvas.getBoundingClientRect();
-      const canvasX = (clientX - rect.left) * (canvas.width / rect.width);
-      const canvasY = (clientY - rect.top) * (canvas.height / rect.height);
+      const { canvasX, canvasY } = getCanvasCoordinates(clientX, clientY);
       const wx = (canvasX - canvas.width / 2) / zoomLevel + panX;
       const wy = (canvasY - canvas.height / 2) / zoomLevel + panY;
       return {
@@ -3009,9 +3032,7 @@
     // Zoom suave com a roda do mouse (Wheel) centrado na posição do cursor
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
-      const rect = canvas.getBoundingClientRect();
-      const mouseCanvasX = (e.clientX - rect.left) * (canvas.width / rect.width);
-      const mouseCanvasY = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const { canvasX: mouseCanvasX, canvasY: mouseCanvasY } = getCanvasCoordinates(e.clientX, e.clientY);
 
       const worldX = (mouseCanvasX - canvas.width / 2) / zoomLevel + panX;
       const worldY = (mouseCanvasY - canvas.height / 2) / zoomLevel + panY;

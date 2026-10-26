@@ -715,7 +715,7 @@
             • Sexo Real: 50% <span style="color:#fff59d;">♀ Fêmea (Amarelo Claro)</span> | 50% <span style="color:#d48800;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>6 a 10 filhotes</b> (média 8).<br>
             • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Busca comida em 5 cél.<br>
-            • 1 célula alimenta 1 rato por 3 dias (dividido entre N ratos).
+            • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos de várzea).
           </div>
           <div>
             <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
@@ -1664,7 +1664,8 @@
             const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
             const sharedBite = Math.min(biomass[curIdx] / nRats, baseRatePerHour * simDeltaHours);
             biomass[curIdx] = Math.max(0, biomass[curIdx] - sharedBite);
-            a.hunger = Math.max(0, a.hunger - sharedBite * 4.2);
+            // Capacidade de saciedade da biomassa comum reduzida para 10% (0.42) para forçar migração em direção aos grãos
+            a.hunger = Math.max(0, a.hunger - sharedBite * 0.42);
           }
 
           // 2. Detecção de ameaça de predadores terrestres (gatos) e aéreos (harpias)
@@ -1819,9 +1820,9 @@
                   const isFlooded = (matId[nIdx] === MAT_WATER || surfaceWater[nIdx] > 0.15);
                   const floodPenalty = isFlooded ? -80.0 : 0.0;
 
-                  // 3º ELEMENTO: Grãos têm peso 8.0x superior devido à alta densidade energética!
+                  // 3º ELEMENTO: Grãos fornecem saciedade e energia plena, enquanto a biomassa comum sacia apenas 10%
                   const grainVal = grains[nIdx] || 0.0;
-                  const score = (biomass[nIdx] * 1.2) + (grainVal * 8.5) + (moisture[nIdx] * 18.0) + floodPenalty;
+                  const score = (biomass[nIdx] * 0.12) + (grainVal * 8.5) + (moisture[nIdx] * 18.0) + floodPenalty;
 
                   if (score > bestScore) {
                     bestScore = score;

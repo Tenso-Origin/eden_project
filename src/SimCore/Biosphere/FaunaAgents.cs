@@ -365,12 +365,12 @@ public static class FaunaSystem
                     }
                 }
 
-                // 1 célula com 100 de biomassa alimenta 1 rato por 3 dias
+                // Capacidade de saciedade da biomassa comum reduzida para 10% (forçando migração ativa para grãos)
                 float bitePerDay = 33.33f / ratsInCell;
                 float bite = MathF.Min(chunk.Biomass[curCellIdx] / ratsInCell, (bitePerDay / 24.0f) * dt);
                 chunk.Biomass[curCellIdx] -= bite;
-                a.Hunger = MathF.Max(0f, a.Hunger - bite * 3.5f);
-                a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 10.0f);
+                a.Hunger = MathF.Max(0f, a.Hunger - bite * 0.35f); // 10% da taxa anterior (3.5f -> 0.35f)
+                a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 1.0f);   // 10% da taxa anterior
             }
 
             // =========================================================================

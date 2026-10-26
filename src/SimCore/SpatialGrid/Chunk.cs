@@ -26,6 +26,7 @@ public sealed class Chunk
     public float[] SuspendedSediment = new float[CellCount]; // Sedimento sólido carreado pelo fluxo (kg/m²)
     public float[] WaterDischarge = new float[CellCount];    // Vazão hídrica acumulada da bacia (Q)
     public float[] LakeWater = new float[CellCount];        // Volume estagnado em depressões endorreicas (lagos)
+    public float[] OrganicDetritus = new float[CellCount];  // Carcaças e matéria orgânica em decomposição (Tabela 4)
     public readonly float[] Elevation = new float[CellCount];
     public readonly float[] Biomass = new float[CellCount];
 
@@ -37,6 +38,7 @@ public sealed class Chunk
     public float[] NextSuspendedSediment = new float[CellCount];
     public float[] NextWaterDischarge = new float[CellCount];
     public float[] NextLakeWater = new float[CellCount];
+    public float[] NextOrganicDetritus = new float[CellCount];
 
     public Chunk(int chunkX, int chunkY)
     {
@@ -60,6 +62,7 @@ public sealed class Chunk
         Array.Copy(SuspendedSediment, NextSuspendedSediment, CellCount);
         Array.Copy(WaterDischarge, NextWaterDischarge, CellCount);
         Array.Copy(LakeWater, NextLakeWater, CellCount);
+        Array.Copy(OrganicDetritus, NextOrganicDetritus, CellCount);
     }
 
     /// <summary>
@@ -74,6 +77,7 @@ public sealed class Chunk
         (SuspendedSediment, NextSuspendedSediment) = (NextSuspendedSediment, SuspendedSediment);
         (WaterDischarge, NextWaterDischarge) = (NextWaterDischarge, WaterDischarge);
         (LakeWater, NextLakeWater) = (NextLakeWater, LakeWater);
+        (OrganicDetritus, NextOrganicDetritus) = (NextOrganicDetritus, OrganicDetritus);
     }
 
     /// <summary>
@@ -91,6 +95,7 @@ public sealed class Chunk
             LakeWater[i] = lakeWater;
             SuspendedSediment[i] = 0f;
             WaterDischarge[i] = 0f;
+            OrganicDetritus[i] = 0f;
 
             NextMaterialId[i] = matId;
             NextTemperature[i] = temp;
@@ -99,6 +104,7 @@ public sealed class Chunk
             NextLakeWater[i] = lakeWater;
             NextSuspendedSediment[i] = 0f;
             NextWaterDischarge[i] = 0f;
+            NextOrganicDetritus[i] = 0f;
         }
     }
 }

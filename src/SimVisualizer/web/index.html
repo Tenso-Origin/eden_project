@@ -451,6 +451,39 @@
         </div>
       </div>
 
+      <div class="side-card" style="border-left: 3px solid #2ea043;">
+        <h2>Homeostase e Dinâmica Trófica (Bases de Traits)</h2>
+        <div class="stats-grid">
+          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #3fb950;">
+            <div class="stat-label">ÍNDICE DE HOMEOSTASE ECOLÓGICA (LOTKA-VOLTERRA)</div>
+            <div id="statHomeostasis" class="stat-val" style="color:#3fb950; font-size:0.92rem; display:flex; align-items:center; justify-content:space-between;">
+              <span id="lblHomeostasisVal">95.0% (Equilíbrio Dinâmico)</span>
+              <span id="lblPredPreyRatio" style="font-size:0.75rem; color:var(--text-dim);">Razão 4.0:1</span>
+            </div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #58a6ff;">
+            <div class="stat-label">🐣 NASCIMENTOS TOTAIS</div>
+            <div id="statBirths" class="stat-val" style="color:#58a6ff;">0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #ff7b72;">
+            <div class="stat-label">⚔️ MORTES P/ PREDAÇÃO</div>
+            <div id="statPredDeaths" class="stat-val" style="color:#ff7b72;">0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #d29922;">
+            <div class="stat-label">🌾 MORTES P/ INANIÇÃO</div>
+            <div id="statStarvDeaths" class="stat-val" style="color:#d29922;">0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #8b949e;">
+            <div class="stat-label">⏳ SENESCÊNCIA NATURAL</div>
+            <div id="statSenescDeaths" class="stat-val" style="color:#8b949e;">0</div>
+          </div>
+          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #a371f7;">
+            <div class="stat-label">RECICLAGEM DE CARCAÇAS & NUTRIENTES</div>
+            <div id="statNutrientRecycle" class="stat-val" style="color:#a371f7; font-size:0.80rem;">Decomposição ativa nutrindo biomassa vegetal</div>
+          </div>
+        </div>
+      </div>
+
       <div class="side-card" style="border-left: 3px solid #58a6ff;">
         <h2>Opções Iniciais da Simulação</h2>
         <div style="display: flex; flex-direction: column; gap: 9px;">
@@ -636,6 +669,10 @@
     let globalErosionTotal = 0;
     let funKillsCount = 0; // Caças por diversão
     let hungryKillsCount = 0; // Caças por fome
+    let totalBirthsCount = 0; // Telemetria Tabela 5
+    let totalPredationDeaths = 0;
+    let totalStarvationDeaths = 0;
+    let totalSenescenceDeaths = 0;
     let isPlaying = false;
     let currentLayer = 'composite';
     let currentBrush = 'inspect';
@@ -664,6 +701,10 @@
       globalErosionTotal = 0;
       funKillsCount = 0;
       hungryKillsCount = 0;
+      totalBirthsCount = 0;
+      totalPredationDeaths = 0;
+      totalStarvationDeaths = 0;
+      totalSenescenceDeaths = 0;
       ratScent.fill(0);
       totalSimHours = 0.0;
       lastSimDay = 0;
@@ -1103,7 +1144,9 @@
             const maxCap = (a.species === 'rat') ? 500 : 90;
 
             if (curTotal < maxCap) {
-              for (let k = 0; k < litter; k++) {
+              const pupsToCreate = Math.min(litter, maxCap - curTotal);
+              totalBirthsCount += pupsToCreate;
+              for (let k = 0; k < pupsToCreate; k++) {
                 // Proporção sexual natural da espécie ao nascer
                 const pupSex = (a.species === 'rat') 
                   ? (Math.random() < 0.50 ? 'male' : 'female') 
@@ -1135,6 +1178,7 @@
 
         // Morte por senescência (expectativa de vida atingida)
         if (a.ageInDays >= a.maxLifespan) {
+          totalSenescenceDeaths++;
           applyDeathDecomposition(a.x, a.y);
           continue;
         }
@@ -1158,6 +1202,7 @@
         }
 
         if (a.hp <= 0) {
+          if (a.hunger >= 85) totalStarvationDeaths++;
           applyDeathDecomposition(a.x, a.y);
           continue;
         }
@@ -1393,19 +1438,25 @@
               targetX = closestPrey.x;
               targetY = closestPrey.y;
 
-              // Bote de caça
+              // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
               if (closestDist < 1.4) {
-                closestPrey.hp = 0;
-                applyDeathDecomposition(closestPrey.x, closestPrey.y); // Boost vegetal imediato
+                const preyCellIdx = getIdx(Math.floor(closestPrey.x), Math.floor(closestPrey.y));
+                const inHighVegetation = (biomass[preyCellIdx] > 40.0);
+                // Holling: se a biomassa for densa, a presa tem 35% de chance de escapar para a toca
+                if (!inHighVegetation || Math.random() < 0.65) {
+                  closestPrey.hp = 0;
+                  totalPredationDeaths++;
+                  applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
 
-                if (isFunHunt && a.dailyFunKills < 2 && a.hunger <= 35) {
-                  // Abate lúdico por diversão (incrementa limite diário)
-                  a.dailyFunKills++;
-                  funKillsCount++;
-                } else {
-                  // Abate alimentar por fome
-                  a.hunger = Math.max(0, a.hunger - 70.0);
-                  hungryKillsCount++;
+                  if (isFunHunt && a.dailyFunKills < 2 && a.hunger <= 35) {
+                    // Abate lúdico por diversão (incrementa limite diário)
+                    a.dailyFunKills++;
+                    funKillsCount++;
+                  } else {
+                    // Abate alimentar por fome
+                    a.hunger = Math.max(0, a.hunger - 70.0);
+                    hungryKillsCount++;
+                  }
                 }
               }
             } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
@@ -1692,6 +1743,40 @@
       // Estatísticas de predação por diversão vs fome
       document.getElementById('statFunKills').innerText = funKillsCount;
       document.getElementById('statHungryKills').innerText = hungryKillsCount;
+
+      // Telemetria Trófica e Demográfica (Tabela 5)
+      const elBirths = document.getElementById('statBirths');
+      if (elBirths) elBirths.innerText = totalBirthsCount;
+      const elPredD = document.getElementById('statPredDeaths');
+      if (elPredD) elPredD.innerText = totalPredationDeaths;
+      const elStarvD = document.getElementById('statStarvDeaths');
+      if (elStarvD) elStarvD.innerText = totalStarvationDeaths;
+      const elSenescD = document.getElementById('statSenescDeaths');
+      if (elSenescD) elSenescD.innerText = totalSenescenceDeaths;
+
+      // Cálculo de Homeostase de Lotka-Volterra
+      const nRats = rats.length;
+      const nCats = cats.length;
+      const ratio = (nCats > 0) ? (nRats / nCats) : 0;
+      const elRatio = document.getElementById('lblPredPreyRatio');
+      if (elRatio) elRatio.innerText = `Razão: ${ratio.toFixed(1)}:1`;
+
+      let homeostasis = 100 - Math.min(100, Math.abs(ratio - 4.0) * 12.0);
+      if (nRats === 0 && nCats === 0) homeostasis = 0;
+      let statusStr = "Equilíbrio Dinâmico";
+      let statusColor = "#3fb950";
+      if (homeostasis < 50) {
+        statusStr = "Desequilíbrio Trófico";
+        statusColor = "#ff7b72";
+      } else if (homeostasis < 75) {
+        statusStr = "Oscilação Moderada";
+        statusColor = "#d29922";
+      }
+      const elHomeo = document.getElementById('lblHomeostasisVal');
+      if (elHomeo) {
+        elHomeo.innerText = `${homeostasis.toFixed(1)}% (${statusStr})`;
+        elHomeo.style.color = statusColor;
+      }
     }
 
     function inspectCell(x, y) {

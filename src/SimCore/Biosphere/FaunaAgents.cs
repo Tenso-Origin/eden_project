@@ -17,9 +17,20 @@ public enum AnimalSpecies : ushort
     Cat = 10 // Carnívoro: Vida ~14 anos, territorial, busca presas em até 15 células, alta saciedade
 }
 
+public enum AgentState : byte
+{
+    Foraging = 0,
+    Hunting  = 1,
+    Fleeing  = 2,
+    Mating   = 3,
+    Resting  = 4,
+    Drinking = 5,
+    Dead     = 6
+}
+
 /// <summary>
-/// FASE 5: Componente de agente animal para arquitetura ECS.
-/// Struct pura sem referências heap para alocação contígua em memória (Zero GC).
+/// TABELA 2: Agentes Individuais Ativos (ECS Entity Component).
+/// Struct contígua em memória sem ponteiros para o Garbage Collector (GC = 0).
 /// </summary>
 [StructLayout(LayoutKind.Sequential, Pack = 4)]
 public struct AnimalAgent
@@ -27,27 +38,27 @@ public struct AnimalAgent
     public uint EntityId;
     public ushort SpeciesId;
     public AnimalDiet Diet;
-    public byte Age;             // Idade em escala simplificada (anos)
+    public AgentState State;
 
-    // Estado fisiológico
+    // Estado Fisiológico Contínuo (Combustível Metabólico da Tabela 1)
     public float Health;         // 0.0 (Morto) a 100.0 (Cheio de vida)
     public float Hunger;         // 0.0 (Saciado) a 100.0 (Faminto)
     public float Thirst;         // 0.0 (Hidratado) a 100.0 (Desidratado)
-    public float Energy;         // 0.0 a 100.0
+    public float Energy;         // Reserva energética em Joules relativos (0.0 a MaxEnergy)
     public float MoveSpeed;      // Células por segundo (ex: 2.0f)
 
-    // Ciclo Biológico Realista (Rato vs Gato)
+    // Ciclo Biológico Realista (PanTHERIA / Add-my-Pet)
     public float AgeInDays;      // Idade acumulada em dias de simulação
-    public float MaxLifespanDays;// Expectativa máxima de vida (Rato: ~900 dias; Gato: ~5100 dias)
+    public float MaxLifespanDays;// Expectativa máxima de vida
     public float MatingCooldown; // Tempo até poder acasalar novamente
-    public byte SensoryRadius;   // Raio sensorial: 5 para ratos, 15 para gatos
-    public byte DailyFunKills;   // Caças lúdicas no dia (gato perde o interesse após a 2ª)
+    public byte SensoryRadius;   // Raio focal de visão direta
+    public byte DailyFunKills;   // Caças lúdicas no dia (gato perde o interesse lúdico após a 2ª)
     public byte Sex;             // 0 = Fêmea, 1 = Macho (proporção natural da espécie)
     public bool IsPregnant;      // Fêmea em período de gestação
-    public float GestationDaysRemaining; // Dias de gestação restantes (Rato: ~21d; Gato: ~64d)
-    public byte LitterSize;      // Média real de filhotes (Rato: 6 a 10; Gato: 3 a 5)
+    public float GestationDaysRemaining; // Dias de gestação restantes
+    public byte LitterSize;      // Média real de filhotes da ninhada
 
-    // Posição contínua no mundo
+    // Posição contínua e Cinética no Mundo
     public float PosX;
     public float PosY;
     public float VelocityX;
@@ -55,7 +66,7 @@ public struct AnimalAgent
 
     public bool IsFemale => Sex == 0;
     public bool IsMale => Sex == 1;
-    public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f); // Jovem adulto a partir de ~8% da vida
+    public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f);
     public bool IsReadyToMate => IsAdult && Hunger < 35.0f && MatingCooldown <= 0.0f && Health > 50.0f && (!IsFemale || !IsPregnant);
 
     public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f, byte? specificSex = null)
@@ -63,11 +74,10 @@ public struct AnimalAgent
         EntityId = id;
         SpeciesId = species;
         Diet = diet;
+        State = AgentState.Foraging;
         Health = 100f;
         Hunger = 20f;
         Thirst = 0f;
-        Energy = 100f;
-        MoveSpeed = speed;
         DailyFunKills = 0;
         PosX = x;
         PosY = y;
@@ -77,56 +87,54 @@ public struct AnimalAgent
         GestationDaysRemaining = 0f;
         LitterSize = 0;
 
-        // Configuração Biológica baseada em tempos reais
-        if (diet == AnimalDiet.Herbivore || species == (ushort)AnimalSpecies.Rat)
+        // Puxa os parâmetros biológicos reais diretamente do "DNA" da Espécie (Tabela 1)
+        ref readonly var def = ref SpeciesCatalog.GetSpecies(species);
+        Energy = def.MaxEnergyReserveJoules * 0.8f;
+        MoveSpeed = speed;
+        MaxLifespanDays = def.MaxLifespanDays;
+        SensoryRadius = def.VisualSensoryRadius;
+
+        // Proporção sexual natural da espécie
+        int femaleChance = (int)(def.FemaleRatioNatural * 100.0f);
+        Sex = specificSex ?? (byte)(Random.Shared.Next(100) < femaleChance ? 0 : 1);
+
+        // Inicia como jovem adulto saudável
+        if (species == SpeciesCatalog.IdRat)
         {
-            // RATO: Expectativa de vida ~2.5 anos (~912 dias). Adulto aos ~60 dias.
-            // Proporção sexual real: 50% machos, 50% fêmeas (1:1)
-            Sex = specificSex ?? (byte)(Random.Shared.Next(100) < 50 ? 1 : 0);
-            MaxLifespanDays = 912.5f;
-            AgeInDays = 75.0f; // Inicia jovem adulto
-            Age = 1;
-            SensoryRadius = 5; // Herbívoros procuram comida em até 5 células
+            AgeInDays = 75.0f;
             MatingCooldown = 15.0f;
         }
-        else
+        else // Gato
         {
-            // GATO: Expectativa de vida ~14 anos (~5110 dias). Adulto aos ~210 dias.
-            // Proporção sexual real: ~51% machos, 49% fêmeas
-            Sex = specificSex ?? (byte)(Random.Shared.Next(100) < 51 ? 1 : 0);
-            MaxLifespanDays = 5110.0f;
-            AgeInDays = 400.0f; // Inicia jovem adulto
-            Age = 1;
-            SensoryRadius = 15; // Predadores procuram em até 15 células
+            AgeInDays = 400.0f;
             MatingCooldown = 60.0f;
         }
     }
 }
 
 /// <summary>
-/// FASE 5: Sistema de Comportamento e Movimentação por Gradiente de Influência e Ciclo Biológico Real.
-/// Processa agentes animais em lote contíguo (Span).
+/// FASE 5: Motor de Dinâmica Populacional, Fisiologia Metabólica e Teia Trófica.
+/// Processa agentes animais em lote contíguo com Resposta Funcional de Holling Tipo II/III.
 /// </summary>
 public static class FaunaSystem
 {
-    // Taxas de metabolismo calibradas para estabilidade ecológica e saciedade realista
-    public const float RatHungerRate = 0.20f;     // Rato: queima saciedade moderadamente, alimenta-se com frequência
-    public const float CatHungerRate = 0.05f;     // Gato: queima lenta de carnívoro, alta saciedade prolongada por presa
-    public const float StarvationDamage = 0.6f;   // Dano suave de inanição dando tempo de forrageamento
-
-    public const byte CatHuntingZone = 15;        // Zona de caça e visão direta do gato: 15 células (preda por diversão)
-    public const byte CatOlfactoryRange = 45;     // Capacidade de farejar o cheiro do rato: 3x a zona de caça (45 células)
+    public const float StarvationDamage = 0.6f;   // Dano suave de inanição dando tempo de busca por alimento
+    public const byte CatHuntingZone = 15;        // Zona de caça direta do gato: 15 células (preda por diversão)
+    public const byte CatOlfactoryRange = 45;     // Alcance de faro: 3x a zona de caça (45 células)
 
     /// <summary>
-    /// Executa o tick fisiológico, tomada de decisão, caça por diversão/faro e reprodução.
+    /// Executa o tick fisiológico, a teia trófica de predação de Holling, decomposição e telemetria.
     /// </summary>
     public static void StepFauna(
         Span<AnimalAgent> agents,
         Chunk chunk,
         InfluenceMap influence,
-        float dt)
+        float dt,
+        EcosystemTelemetry? telemetry = null,
+        ulong currentTick = 0,
+        float currentSimHour = 0f)
     {
-        // 1. Predadores emitem perigo nos mapas de influência
+        // 1. Predadores projetam gradiente de perigo nos mapas de influência
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
@@ -140,19 +148,23 @@ public static class FaunaSystem
             }
         }
 
-        // 2. Processa fisiologia, alimentação, faro e movimento
+        // 2. Processa fisiologia, envelhecimento, faro, predação e reprodução
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
             if (a.Health <= 0f) continue;
 
-            // Envelhecimento biológico (tempo em dias)
+            ref readonly var speciesDef = ref SpeciesCatalog.GetSpecies(a.SpeciesId);
+
+            // Envelhecimento biológico em dias
             a.AgeInDays += dt * 0.1f;
             if (a.AgeInDays >= a.MaxLifespanDays)
             {
-                // Morte por senescência: fertiliza biomassa no solo
-                ApplyDeathDecomposition(chunk, (int)a.PosX, (int)a.PosY);
+                // Morte por senescência: fertiliza solo com carcaça orgânica
+                DepositCarryingDebris(chunk, (int)a.PosX, (int)a.PosY, speciesDef.AdultBodyMassGrams);
+                telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.DeathBySenescence, a.PosX, a.PosY);
                 a.Health = 0f;
+                a.State = AgentState.Dead;
                 continue;
             }
 
@@ -161,29 +173,34 @@ public static class FaunaSystem
                 a.MatingCooldown = MathF.Max(0f, a.MatingCooldown - dt);
             }
 
-            // Gestação biológica real (Rato: 21d, Ninhada: 6-10; Gato: 64d, Ninhada: 3-5)
+            // Ciclo de Gestação Real (Rato: 21d; Gato: 64d)
             if (a.IsFemale && a.IsPregnant)
             {
                 a.GestationDaysRemaining -= dt * 0.1f;
                 if (a.GestationDaysRemaining <= 0f)
                 {
-                    // Parto realizado: entra em período de amamentação/recuperação pós-parto
+                    // Parto: Fêmea dá à luz filhotes e entra em período de estro pós-parto
                     a.IsPregnant = false;
                     a.LitterSize = 0;
-                    a.MatingCooldown = (a.Diet == AnimalDiet.Herbivore) ? 18.0f : 50.0f;
+                    a.MatingCooldown = speciesDef.PostPartumCooldownDays;
+                    telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.Birth, a.PosX, a.PosY);
                 }
             }
 
-            // Metabolismo e Saciedade realista
-            float hungerRate = (a.Diet == AnimalDiet.Herbivore) ? RatHungerRate : CatHungerRate;
-            a.Hunger = MathF.Min(100f, a.Hunger + hungerRate * dt);
+            // Gasto Metabólico Basal (BMR derivado da Lei de Kleiber na Tabela 1)
+            float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * 0.25f;
+            a.Hunger = MathF.Min(100f, a.Hunger + bmrHourRate * dt);
+            a.Energy = MathF.Max(0f, a.Energy - (speciesDef.MovementCostPerMeter * dt));
 
+            // Dano por inanição severa
             if (a.Hunger >= 90f)
             {
                 a.Health = MathF.Max(0f, a.Health - StarvationDamage * dt);
                 if (a.Health <= 0f)
                 {
-                    ApplyDeathDecomposition(chunk, (int)a.PosX, (int)a.PosY);
+                    DepositCarryingDebris(chunk, (int)a.PosX, (int)a.PosY, speciesDef.AdultBodyMassGrams);
+                    telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.DeathByStarvation, a.PosX, a.PosY);
+                    a.State = AgentState.Dead;
                     continue;
                 }
             }
@@ -192,8 +209,9 @@ public static class FaunaSystem
             int curCellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
             int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
 
-            // Herbívoro alimentando-se: 1 célula cheia alimenta 1 rato por 3 dias.
-            // Se houver mais ratos na mesma célula, dividem a biomassa disponível.
+            // =========================================================================
+            // HERBIVORIA (RATO ALIMENTANDO-SE DA BIOMASSA VEGETAL - TABELA 3)
+            // =========================================================================
             if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f && chunk.Biomass[curCellIdx] > 0.5f)
             {
                 int ratsInCell = 1;
@@ -208,14 +226,67 @@ public static class FaunaSystem
                     }
                 }
 
-                // Taxa diária de 1 rato: 100 biomassa / 3 dias = 33.33/dia = ~1.388 por hora de simulação
+                // 1 célula com 100 de biomassa alimenta 1 rato por 3 dias
                 float bitePerDay = 33.33f / ratsInCell;
                 float bite = MathF.Min(chunk.Biomass[curCellIdx] / ratsInCell, (bitePerDay / 24.0f) * dt);
                 chunk.Biomass[curCellIdx] -= bite;
                 a.Hunger = MathF.Max(0f, a.Hunger - bite * 3.5f);
+                a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 10.0f);
             }
 
-            // Tomada de Decisão com faro, caça lúdica (máx 2/dia) e fuga de alagamento
+            // =========================================================================
+            // PREDAÇÃO COM RESPOSTA FUNCIONAL DE HOLLING TIPO II / III (GATO PREDA RATO)
+            // =========================================================================
+            if (a.Diet == AnimalDiet.Carnivore)
+            {
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref var prey = ref agents[j];
+                    if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f) continue;
+
+                    float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
+                    if (distSq <= 1.2f) // Alcance físico de contato
+                    {
+                        // Verifica se pode predar: por diversão se tiver < 2 caças no dia, ou por fome real
+                        bool willAttack = (a.DailyFunKills < 2) || (a.Hunger > 25.0f);
+                        if (willAttack)
+                        {
+                            if (SpeciesCatalog.TryGetInteraction(a.SpeciesId, prey.SpeciesId, out var interaction))
+                            {
+                                // Resposta de Holling: em locais de mata densa, presas encontram refúgio ecológico
+                                float refugeFactor = (chunk.Biomass[curCellIdx] > 40.0f) ? 0.65f : 1.0f;
+                                float effectiveSuccessRate = interaction.BaseCaptureSuccessRate * refugeFactor;
+
+                                if (Random.Shared.NextDouble() < effectiveSuccessRate)
+                                {
+                                    // Predação bem sucedida!
+                                    prey.Health = 0f;
+                                    prey.State = AgentState.Dead;
+                                    telemetry?.RecordEvent(currentTick, currentSimHour, prey.SpeciesId, EcologicalEventType.DeathByPredation, prey.PosX, prey.PosY);
+
+                                    // Se caçou por fome, absorve nutrientes e sacia-se
+                                    if (a.Hunger > 20.0f)
+                                    {
+                                        a.Hunger = MathF.Max(0f, a.Hunger - interaction.SatietyBoost);
+                                        a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + interaction.NutritionalYieldJoules);
+                                    }
+                                    else
+                                    {
+                                        a.DailyFunKills++;
+                                    }
+
+                                    // Carcaça restante fertiliza o solo com detrito orgânico
+                                    DepositCarryingDebris(chunk, (int)prey.PosX, (int)prey.PosY, 250f);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Tomada de Decisão com faro olfativo e fuga de alagamento
             float bestScore = EvaluateCellScore(curCellX, curCellY, in a, influence, agents, i);
             int targetX = curCellX;
             int targetY = curCellY;
@@ -241,14 +312,14 @@ public static class FaunaSystem
                 }
             }
 
-            // Movimento suave em direção ao alvo (animais atravessam água a 70% da velocidade, mas não permanecem nela)
+            // Movimentação suave (animais atravessam água a 70% da velocidade, mas não permanecem nela)
             float dirX = (targetX + 0.5f) - a.PosX;
             float dirY = (targetY + 0.5f) - a.PosY;
             float dist = MathF.Sqrt(dirX * dirX + dirY * dirY);
 
             if (dist > 0.05f)
             {
-                float speedModifier = (chunk.SurfaceWater[curCellIdx] > 0.2f) ? 0.7f : 1.0f;
+                float speedModifier = (chunk.SurfaceWater[curCellIdx] > 0.2f || chunk.LakeWater[curCellIdx] > 0.2f) ? 0.7f : 1.0f;
                 float stepDist = a.MoveSpeed * speedModifier * dt;
                 float moveX = (dirX / dist) * MathF.Min(dist, stepDist);
                 float moveY = (dirY / dist) * MathF.Min(dist, stepDist);
@@ -262,10 +333,12 @@ public static class FaunaSystem
     }
 
     /// <summary>
-    /// Boost de biomassa vegetal decorrente da decomposição do animal morto no solo.
+    /// Deposição de carcaça e matéria orgânica no solo (Tabela 4), impulsionando a regeneração da biomassa vegetal.
     /// </summary>
-    private static void ApplyDeathDecomposition(Chunk chunk, int centerX, int centerY)
+    private static void DepositCarryingDebris(Chunk chunk, int centerX, int centerY, float massGrams)
     {
+        float detritusContribution = massGrams * 0.04f; // Conversão em unidades de fertilidade
+
         for (int dy = -1; dy <= 1; dy++)
         {
             int ny = centerY + dy;
@@ -277,7 +350,8 @@ public static class FaunaSystem
                 if (nx < 0 || nx >= Chunk.Width) continue;
 
                 int idx = Chunk.GetIndex(nx, ny);
-                chunk.Biomass[idx] = MathF.Min(100f, chunk.Biomass[idx] + 35.0f);
+                chunk.OrganicDetritus[idx] += detritusContribution * 0.33f;
+                chunk.Biomass[idx] = MathF.Min(100f, chunk.Biomass[idx] + 25.0f);
             }
         }
     }
@@ -295,18 +369,16 @@ public static class FaunaSystem
         float danger = influence.DangerGradient[idx];
         float water = influence.WaterGradient[idx];
 
-        // Animais podem atravessar água, mas têm repulsão severa contra permanecer em terreno inundado!
+        // Repulsão severa contra solo alagado / inundado
         float floodPenalty = (water > 0.1f) ? -35.0f : 0f;
 
         if (agent.Diet == AnimalDiet.Herbivore)
         {
-            // Rato: Raio de busca 5 células, pastagem e fuga equilibrada
             float fearWeight = 8.0f;
             float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
-
             float score = (food * foodWeight) - (danger * fearWeight) + floodPenalty;
 
-            // Procura parceiro fértil do sexo oposto para acasalamento se estiver pronto
+            // Busca de parceiro fértil para acasalamento
             if (agent.IsReadyToMate)
             {
                 for (int i = 0; i < allAgents.Length; i++)
@@ -330,9 +402,8 @@ public static class FaunaSystem
         {
             float score = floodPenalty;
 
-            // Busca de presas (Ratos):
-            // 1. Na zona de caça (15 células): preda por diversão se tiver menos de 2 caças diárias (após a 2ª perde o interesse lúdico)!
-            // 2. Fora da zona de caça (até 45 células pelo faro): só caça se estiver com fome!
+            // 1. Zona de caça (15 células): predação se tiver < 2 caças no dia ou com fome
+            // 2. Faro químico (até 45 células): persegue se estiver com fome real
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
@@ -343,7 +414,6 @@ public static class FaunaSystem
 
                     if (d <= CatHuntingZone)
                     {
-                        // Se atingiu a 2ª caça no dia, perde o interesse a menos que esteja com fome real
                         if (agent.DailyFunKills < 2 || agent.Hunger > 30.0f)
                         {
                             score += (CatHuntingZone - d) * 4.5f;
@@ -351,14 +421,13 @@ public static class FaunaSystem
                     }
                     else if (d <= CatOlfactoryRange && agent.Hunger > 30.0f)
                     {
-                        // Fareja até 45 células, mas somente persegue se estiver com fome
                         float hungerFactor = agent.Hunger / 100.0f;
                         score += (CatOlfactoryRange - d) * 1.5f * hungerFactor;
                     }
                 }
             }
 
-            // Territorialidade: Repele outros gatos próximos se não estiver procurando acasalamento heterossexual
+            // Territorialidade felina
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
@@ -374,7 +443,7 @@ public static class FaunaSystem
                         }
                         else
                         {
-                            score -= (10.0f - d) * 4.0f; // Repulsão territorial
+                            score -= (10.0f - d) * 4.0f;
                         }
                     }
                 }

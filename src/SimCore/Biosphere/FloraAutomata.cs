@@ -42,7 +42,25 @@ public static class FloraAutomata
                 tempFactor = Math.Clamp(tempFactor, 0.1f, 1.0f);
 
                 // Solo mais fértil e úmido acelera o crescimento
-                float growth = tempFactor * moisture * 3.5f * dt;
+                float baseGrowth = tempFactor * moisture * 3.5f * dt;
+
+                // Ciclagem de Nutrientes (Decomposição de Carcaças e Matéria Orgânica)
+                float detritus = chunk.OrganicDetritus[i];
+                float fertilityBoost = 1.0f;
+                if (detritus > 0f)
+                {
+                    float decomp = detritus * 0.15f * dt;
+                    fertilityBoost += MathF.Min(2.0f, decomp * 0.8f);
+                    chunk.OrganicDetritus[i] = MathF.Max(0f, detritus - decomp);
+
+                    // Decomposição orgânica sobre rocha converte a superfície para solo fértil (IdSoil)
+                    if (matId == MaterialCatalog.IdStone && detritus > 5.0f)
+                    {
+                        chunk.NextMaterialId[i] = MaterialCatalog.IdSoil;
+                    }
+                }
+
+                float growth = baseGrowth * fertilityBoost;
 
                 // Capacidade de suporte logística: dM/dt = r * M * (1 - M / K)
                 float availableCapacity = MathF.Max(0.5f, 1.0f - (currentBiomass / MaxBiomass));

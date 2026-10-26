@@ -713,10 +713,10 @@
           <div style="margin-bottom:6px;">
             <b style="color:#ffea79;">🐁 Ratos (Herbívoros):</b><br>
             • Sexo Real: 50% <span style="color:#fff59d;">♀ Fêmea (Amarelo Claro)</span> | 50% <span style="color:#d48800;">♂ Macho (Escuro)</span>.<br>
-            • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>6 a 10 filhotes</b> (média 8).<br>
+            • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>8 a 13 filhotes</b> (média 10.5, +30% natalidade).<br>
             • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Busca grãos de várzea.<br>
             • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos).<br>
-            • <b>Tocas Maternais:</b> Fêmea prenhe cria toca na floresta após 3 dias; toca dá <b>imunidade total a ataques</b> e persiste até os filhotes completarem 60 dias.
+            • <b>Tocas e Refúgios:</b> Fêmea prenhe cria toca maternal onde estiver após 3 dias. Refúgios naturais (troncos, pedras, moitas) limitados a 10% dos ratos iniciais (75% floresta, 25% várzea). Ambos concedem <b>imunidade total a ataques</b>.
           </div>
           <div>
             <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
@@ -855,12 +855,12 @@
 
     // === SISTEMA DE REFÚGIOS NATURAIS E TOCAS MATERNAIS FLEXÍVEIS ===
     // Refúgios Naturais: Troncos caídos, espaços embaixo de pedras/rochas e moitas de vegetação densa
-    // 75% posicionados na floresta e 25% na várzea/gramíneas (concedem imunidade absoluta a ataques)
+    // Limitados estritamente a 10% da quantidade inicial de ratos (75% floresta, 25% várzea/gramíneas)
     let naturalRefuges = [];
 
-    function initNaturalRefuges() {
+    function initNaturalRefuges(initialRatCount = 180) {
       naturalRefuges = [];
-      const TOTAL_REFUGES = 160;
+      const TOTAL_REFUGES = Math.max(1, Math.round(initialRatCount * 0.10)); // Limite de 10% da quantidade inicial de ratos
       for (let i = 0; i < TOTAL_REFUGES; i++) {
         const inForest = (i < TOTAL_REFUGES * 0.75); // 75% na floresta, 25% na várzea
         for (let attempt = 0; attempt < 40; attempt++) {
@@ -1193,14 +1193,14 @@
         }
       }
 
-      // 5º ELEMENTO: Refúgios Naturais (Troncos, Rochas, Vegetação Densa - 75% Floresta, 25% Várzea)
-      initNaturalRefuges();
-
       // Povamento de Fauna: Predadores (Gatos) e Herbívoros (Ratos) dinâmicos
       const ratsInput = document.getElementById('initRatsInput');
       const catsInput = document.getElementById('initCatsInput');
       const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 180;
       const X_PREDATORS = catsInput ? Math.max(0, parseInt(catsInput.value) || 0) : 6;
+
+      // 5º ELEMENTO: Refúgios Naturais (limitados estritamente a 10% dos ratos iniciais: 75% Floresta, 25% Várzea)
+      initNaturalRefuges(HERBIVORES_COUNT);
 
       // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1) com Genoma Adaptativo e Ciclo Estral Real (4.5d)
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
@@ -1230,7 +1230,7 @@
             nests.push({ id: i + 1, motherId: i + 1, species: 'rat', name: 'Toca de Roedores (Maternal)', quality: 80, x: nestX, y: nestY });
           }
         }
-        const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0;
+        const litterSize = isPregnant ? (8 + Math.floor(Math.random() * 6)) : 0; // +30% natalidade (8 a 13 filhotes)
         const matingCooldown = isPregnant ? (gestationRemaining + 15.0) : (1.0 + Math.random() * 3.0);
         const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (0.8 / 4.5));
         const estrusDurationRemaining = inEstrusInit ? (Math.random() * 0.8) : 0.0;
@@ -1645,10 +1645,10 @@
           }
 
           if (a.gestationRemaining <= 0) {
-            // Parto da ninhada
+            // Parto da ninhada (+30% de natalidade para ratos: 8 a 13 filhotes)
             a.isPregnant = false;
             a.daysPregnant = 0.0;
-            const litter = a.litterSize || (a.species === 'rat' ? (6 + Math.floor(Math.random() * 5)) : (3 + Math.floor(Math.random() * 3)));
+            const litter = a.litterSize || (a.species === 'rat' ? (8 + Math.floor(Math.random() * 6)) : (3 + Math.floor(Math.random() * 3)));
             a.litterSize = 0;
 
             if (a.species === 'rat') {
@@ -1962,11 +1962,11 @@
                     female.isPregnant = true;
                     female.daysPregnant = 0.0;
                     female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
-                    female.litterSize = 6 + Math.floor(Math.random() * 5);
+                    female.litterSize = 8 + Math.floor(Math.random() * 6); // +30% taxa de natalidade (8 a 13 filhotes)
                     female.mateGenome = male.genome;
                     female.estrusDurationRemaining = 0.0;
                     female.estrusCycleTimer = female.gestationRemaining;
-                    female.matingCooldown = female.gestationRemaining + 15.0;
+                    female.matingCooldown = female.gestationRemaining + 11.5;
                   }
                 }
               }

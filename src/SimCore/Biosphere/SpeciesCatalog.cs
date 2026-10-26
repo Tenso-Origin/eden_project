@@ -52,6 +52,9 @@ public readonly struct SpeciesDef
     public readonly byte VisualSensoryRadius;       // Raio focal de visão direta em células
     public readonly byte OlfactorySensoryRadius;    // Raio de detecção química / faro em células (ex: 3x a visão no gato)
 
+    public byte MinLitterSize => (byte)Math.Max(1, (int)MathF.Round(MeanLitterSize * 0.75f));
+    public byte MaxLitterSize => (byte)Math.Max(1, (int)MathF.Round(MeanLitterSize * 1.30f));
+
     public SpeciesDef(
         ushort id, TrophicGuild guild, byte trophicLevel,
         float massGrams, float bmrWatts, float moveCost, float maxEnergy, float waterMl,
@@ -130,10 +133,10 @@ public static class SpeciesCatalog
     {
         // -------------------------------------------------------------------------
         // 1. ESPÉCIE: Rattus norvegicus (Rato-marrom / Herbívoro)
-        // Traços baseados em PanTHERIA & Add-my-Pet:
+        // Traços baseados em PanTHERIA & Add-my-Pet (com aumento de +30% na taxa de natalidade):
         // Massa: ~250g | BMR: ~1.4W | Vida: ~2.5 anos (912.5 dias) | Maturidade: ~60 dias
-        // Gestação: 21 dias | Ninhada média: 8 filhotes | Proporção sexual: 50% Fêmeas (1:1)
-        // Ciclo estral: cio regular a cada 4.5 dias (duração fértil de ~0.8 dias)
+        // Gestação: 21 dias | Ninhada média: ~10.4 filhotes (+30%) | Proporção sexual: 50% Fêmeas (1:1)
+        // Ciclo estral: cio regular a cada 3.5 dias (duração fértil de ~0.8 dias)
         // -------------------------------------------------------------------------
         _speciesRegistry[IdRat] = new SpeciesDef(
             id: IdRat,
@@ -147,11 +150,11 @@ public static class SpeciesCatalog
             maxLifespan: 912.5f,
             maturityDays: 60.0f,
             gestationDays: 21.0f,
-            litterSize: 8.0f,
-            reproCost: 90.0f,
+            litterSize: 10.4f,    // +30% na taxa de natalidade (média 10.4 filhotes, min 8 a max 14)
+            reproCost: 80.0f,
             femaleRatio: 0.50f,
-            postPartumCooldown: 15.0f,
-            estrusInterval: 4.5f,
+            postPartumCooldown: 11.5f, // Recuperação pós-parto acelerada (+30% fecundidade contínua)
+            estrusInterval: 3.5f,      // Ciclo estral mais frequente (+30% taxa de fertilidade)
             estrusDuration: 0.8f,
             minTemp: -5.0f,
             maxTemp: 38.0f,

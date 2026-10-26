@@ -242,8 +242,13 @@ public readonly struct NaturalRefuge
         Radius = radius;
     }
 
-    public static NaturalRefuge[] CreateAmazonRefuges(int count = 160)
+    /// <summary>
+    /// Gera os micro-abrigos naturais no bioma, limitados estritamente a 10% da quantidade inicial de ratos
+    /// (75% posicionados na floresta e 25% na várzea).
+    /// </summary>
+    public static NaturalRefuge[] CreateAmazonRefuges(int initialRatCount = 180)
     {
+        int count = Math.Max(1, (int)MathF.Round(initialRatCount * 0.10f)); // Limite estrito de 10% da quantidade inicial de ratos
         var refuges = new NaturalRefuge[count];
         int forestCount = (int)(count * 0.75f); // 75% na floresta densa
 
@@ -274,7 +279,7 @@ public static class FaunaSystem
     public const byte CatHuntingZone = 25;        // Zona de caça direta do gato: 25 células (dados reais de bote)
     public const byte CatOlfactoryRange = 90;     // Alcance de faro: 90 células (dados reais de faro felino)
 
-    public static readonly NaturalRefuge[] AmazonRefuges = NaturalRefuge.CreateAmazonRefuges(160);
+    public static readonly NaturalRefuge[] AmazonRefuges = NaturalRefuge.CreateAmazonRefuges(180); // Limite de 10% dos 180 ratos iniciais (18 refúgios)
 
     /// <summary>
     /// Avalia se o roedor/animal está protegido dentro de sua toca maternal ou em um refúgio natural

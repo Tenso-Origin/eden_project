@@ -714,15 +714,17 @@
             <b style="color:#ffea79;">🐁 Ratos (Herbívoros):</b><br>
             • Sexo Real: 50% <span style="color:#fff59d;">♀ Fêmea (Amarelo Claro)</span> | 50% <span style="color:#d48800;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>6 a 10 filhotes</b> (média 8).<br>
-            • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Busca comida em 5 cél.<br>
-            • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos de várzea).
+            • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Busca grãos de várzea.<br>
+            • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos).<br>
+            • <b>Tocas Maternais:</b> Fêmea prenhe cria toca na floresta após 3 dias; toca dá <b>imunidade total a ataques</b> e persiste até os filhotes completarem 60 dias.
           </div>
           <div>
             <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
             • Sexo Real: 49% <span style="color:#ff7b72;">♀ Fêmea (Vermelho Claro)</span> | 51% <span style="color:#991b1b;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>63 a 67 dias</b> | Ninhada: <b>3 a 5 filhotes</b> (média 4).<br>
             • Vida: ~14 anos (5110 dias). Adulto aos 210 dias.<br>
-            • Caça lúdica: Máx. 2 caçadas/dia por diversão; após isso só caça se faminto.
+            • <b>Covis Maternais:</b> Gata prenhe cria covil na floresta após 3 dias; persiste até os filhotes completarem 210 dias.<br>
+            • Caça lúdica: Máx. 2 caçadas/dia por diversão; presas em tocas têm imunidade.
           </div>
         </div>
       </div>
@@ -850,6 +852,85 @@
     let animals = [];
 
     function getIdx(x, y) { return y * CHUNK_SIZE + x; }
+
+    // === SISTEMA DINÂMICO DE TOCAS E COVIS MATERNAIS COM IMUNIDADE ===
+    // 90% das tocas situam-se na floresta densa (fora do anel de várzea) e 10% nas bordas
+    function findForestNestLocation(species) {
+      const preferDeepForest = (Math.random() < 0.90);
+      for (let attempt = 0; attempt < 40; attempt++) {
+        let nx, ny;
+        if (currentScenario === 'amazon') {
+          const angle = Math.random() * Math.PI * 2;
+          // Lago até 50.5m, várzea até 200m. Floresta densa a partir de R > 195m!
+          const r = preferDeepForest 
+            ? (195.0 + Math.random() * 45.0)  // 90% na floresta densa
+            : (145.0 + Math.random() * 40.0); // 10% nas bordas da várzea
+          nx = 256.0 + Math.cos(angle) * r;
+          ny = 256.0 + Math.sin(angle) * r;
+        } else {
+          nx = 35 + Math.random() * (CHUNK_SIZE - 70);
+          ny = 35 + Math.random() * (CHUNK_SIZE - 70);
+        }
+        nx = Math.max(10, Math.min(CHUNK_SIZE - 10, nx));
+        ny = Math.max(10, Math.min(CHUNK_SIZE - 10, ny));
+        const idx = getIdx(Math.floor(nx), Math.floor(ny));
+        if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.10) {
+          return { x: nx, y: ny };
+        }
+      }
+      return { x: 256.0 + 205.0, y: 256.0 };
+    }
+
+    // Verifica se um animal está protegido dentro de uma toca/covil seguro (imunidade a ataques)
+    function isProtectedInBurrow(animal) {
+      if (animal.hasNest && Math.hypot(animal.x - animal.nestX, animal.y - animal.nestY) <= 3.0) {
+        return true;
+      }
+      for (let ni = 0; ni < nests.length; ni++) {
+        const n = nests[ni];
+        if (n.species === animal.species && Math.hypot(n.x - animal.x, n.y - animal.y) <= 3.0) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // Atualiza o ciclo de vida efêmero/maternal das tocas e covis
+    // Só existem tocas enquanto as mães estiverem prenhas e até seus filhotes atingirem a maturidade
+    function updateNestLifecycles() {
+      const RAT_MATURITY_AGE = 60.0;
+      const CAT_MATURITY_AGE = 210.0;
+      const survivingNests = [];
+
+      for (let ni = 0; ni < nests.length; ni++) {
+        const nest = nests[ni];
+        // O ninho permanente do casal de harpias amazônicas na copa da samaúma persiste
+        if (nest.species === 'harpy') {
+          survivingNests.push(nest);
+          continue;
+        }
+
+        const mId = nest.motherId;
+        const mother = animals.find(a => a.id === mId && a.hp > 0);
+        const maturityAge = (nest.species === 'rat') ? RAT_MATURITY_AGE : CAT_MATURITY_AGE;
+
+        const isMotherPregnant = (mother && mother.isPregnant);
+        const hasImmaturePups = animals.some(a => a.motherId === mId && a.hp > 0 && a.ageInDays < maturityAge);
+
+        if (isMotherPregnant || hasImmaturePups) {
+          survivingNests.push(nest);
+        } else {
+          // Ninhada atingiu a maturidade (filhotes adultos) ou mãe/filhotes pereceram: toca é abandonada!
+          if (mother) mother.hasNest = false;
+          for (let ai = 0; ai < animals.length; ai++) {
+            if (animals[ai].motherId === mId) {
+              animals[ai].hasNest = false;
+            }
+          }
+        }
+      }
+      nests = survivingNests;
+    }
 
     // === INICIALIZAÇÃO GEOGRÁFICA 512x512 ===
     // Escada de Altitudes contínua do Sudeste (-100m) ao Noroeste (+2000m) com Sulcos Estriados (±3m)
@@ -1089,7 +1170,23 @@
 
         const sex = (i % 2 === 0) ? 'female' : 'male';
         const isPregnant = (sex === 'female' && Math.random() < 0.35);
-        const gestationRemaining = isPregnant ? (1.0 + Math.random() * 20.0) : 0.0;
+        let daysPregnant = 0.0;
+        let gestationRemaining = 0.0;
+        let hasNest = false;
+        let nestX = rx, nestY = ry;
+
+        if (isPregnant) {
+          daysPregnant = 1.0 + Math.random() * 20.0;
+          gestationRemaining = Math.max(0.5, 22.0 - daysPregnant);
+          // Fêmeas prenhas com mais de 3 dias criam toca na floresta (90% no interior da mata)
+          if (daysPregnant >= 3.0) {
+            const loc = findForestNestLocation('rat');
+            hasNest = true;
+            nestX = loc.x;
+            nestY = loc.y;
+            nests.push({ id: i + 1, motherId: i + 1, species: 'rat', name: 'Toca de Roedores (Maternal)', quality: 80, x: nestX, y: nestY });
+          }
+        }
         const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0;
         const matingCooldown = isPregnant ? (gestationRemaining + 15.0) : (1.0 + Math.random() * 3.0);
         const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (0.8 / 4.5));
@@ -1104,19 +1201,13 @@
           generation: 0
         };
 
-        const hasNest = isPregnant || Math.random() < 0.40;
-        const nestX = rx + (Math.random() - 0.5) * 6.0;
-        const nestY = ry + (Math.random() - 0.5) * 6.0;
-        if (hasNest) {
-          nests.push({ id: i + 1, x: nestX, y: nestY, species: 'rat', name: 'Toca de Roedores', quality: 80 });
-        }
-
         animals.push({
           id: i + 1,
           species: 'rat',
           diet: 'herbivore',
           sex: sex,
           isPregnant: isPregnant,
+          daysPregnant: daysPregnant,
           gestationRemaining: gestationRemaining,
           litterSize: litterSize,
           estrusCycleTimer: estrusCycleTimer,
@@ -1149,20 +1240,29 @@
         }
 
         const sex = (i < maleCatsCount) ? 'male' : 'female';
-        const isPregnant = (sex === 'female' && Math.random() < 0.50);
-        const gestationRemaining = isPregnant ? (4.0 + Math.random() * 55.0) : 0.0;
+        const isPregnant = (sex === 'female' && Math.random() < 0.45);
+        let daysPregnant = 0.0;
+        let gestationRemaining = 0.0;
+        let hasNest = false;
+        let nestX = gx, nestY = gy;
+
+        if (isPregnant) {
+          daysPregnant = 1.0 + Math.random() * 60.0;
+          gestationRemaining = Math.max(1.0, 65.0 - daysPregnant);
+          // Gatas prenhas com mais de 3 dias criam covil na floresta
+          if (daysPregnant >= 3.0) {
+            const loc = findForestNestLocation('cat');
+            hasNest = true;
+            nestX = loc.x;
+            nestY = loc.y;
+            nests.push({ id: 1000 + i, motherId: 1000 + i, species: 'cat', name: 'Covil Felino (Maternal)', quality: 85, x: nestX, y: nestY });
+          }
+        }
         const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0;
         const matingCooldown = isPregnant ? (gestationRemaining + 45.0) : (5.0 + Math.random() * 15.0);
         const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (5.0 / 18.0));
         const estrusDurationRemaining = inEstrusInit ? (Math.random() * 5.0) : 0.0;
         const estrusCycleTimer = isPregnant ? gestationRemaining : (inEstrusInit ? 0.0 : Math.random() * 18.0);
-
-        const hasNest = isPregnant || Math.random() < 0.50;
-        const nestX = gx + (Math.random() - 0.5) * 8.0;
-        const nestY = gy + (Math.random() - 0.5) * 8.0;
-        if (hasNest) {
-          nests.push({ id: 1000 + i, x: nestX, y: nestY, species: 'cat', name: 'Covil Felino', quality: 85 });
-        }
 
         animals.push({
           id: 1000 + i,
@@ -1170,6 +1270,7 @@
           diet: 'carnivore',
           sex: sex,
           isPregnant: isPregnant,
+          daysPregnant: daysPregnant,
           gestationRemaining: gestationRemaining,
           litterSize: litterSize,
           estrusCycleTimer: estrusCycleTimer,
@@ -1480,10 +1581,30 @@
 
         // Gestação biológica real (Rato: 21 a 23 dias; Gato: 63 a 67 dias)
         if (a.sex === 'female' && a.isPregnant) {
+          a.daysPregnant = (a.daysPregnant || 0.0) + simDeltaDays;
           a.gestationRemaining -= simDeltaDays;
+
+          // HABILIDADE MATERNA: após 3 dias de gestação, fêmea prenha constrói toca/covil seguro na floresta
+          if (a.daysPregnant >= 3.0 && !a.hasNest) {
+            const loc = findForestNestLocation(a.species);
+            a.hasNest = true;
+            a.nestX = loc.x;
+            a.nestY = loc.y;
+            nests.push({
+              id: a.id,
+              motherId: a.id,
+              species: a.species,
+              name: (a.species === 'rat' ? 'Toca de Roedores (Maternal)' : 'Covil Felino (Maternal)'),
+              quality: (a.species === 'rat' ? 80 : 85),
+              x: loc.x,
+              y: loc.y
+            });
+          }
+
           if (a.gestationRemaining <= 0) {
             // Parto da ninhada
             a.isPregnant = false;
+            a.daysPregnant = 0.0;
             const litter = a.litterSize || (a.species === 'rat' ? (6 + Math.floor(Math.random() * 5)) : (3 + Math.floor(Math.random() * 3)));
             a.litterSize = 0;
 
@@ -1532,24 +1653,33 @@
                   };
                 }
 
+                // Filhotes nascem protegidos DENTRO da toca da mãe
+                const spawnX = a.hasNest ? a.nestX + (Math.random() - 0.5) * 1.5 : a.x;
+                const spawnY = a.hasNest ? a.nestY + (Math.random() - 0.5) * 1.5 : a.y;
+
                 newOffspring.push({
                   id: Date.now() + Math.random(),
                   species: a.species,
                   diet: a.diet,
                   sex: pupSex,
                   isPregnant: false,
+                  daysPregnant: 0,
                   gestationRemaining: 0,
                   litterSize: 0,
                   estrusCycleTimer: (a.species === 'rat' ? 4.5 : 18.0),
                   estrusDurationRemaining: 0.0,
-                  x: Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (Math.random() - 0.5) * 1.5)),
-                  y: Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (Math.random() - 0.5) * 1.5)),
+                  x: Math.max(2, Math.min(CHUNK_SIZE - 3, spawnX)),
+                  y: Math.max(2, Math.min(CHUNK_SIZE - 3, spawnY)),
+                  hasNest: a.hasNest,
+                  nestX: a.nestX,
+                  nestY: a.nestY,
+                  motherId: a.id, // Vincula à toca materna até atingir maturidade (60d ratos, 210d gatos)
                   hp: 100,
-                  hunger: 20,
+                  hunger: 10,
                   speed: a.speed,
                   ageInDays: 0,
                   maxLifespan: a.maxLifespan,
-                  matingCooldown: (a.species === 'rat' ? 25.0 : 60.0),
+                  matingCooldown: (a.species === 'rat' ? 60.0 : 210.0),
                   sensoryRadius: a.sensoryRadius,
                   dailyFunKills: 0,
                   genome: pupGenome,
@@ -1701,10 +1831,20 @@
           }
 
           if (dangerCount > 0) {
-            // Evasão com viés cinemático de refúgio (Holling): atração por cobertura vegetal densa (árvores) ou ninho
+            // Evasão ativa de predador: se tiver toca na floresta, foge prioritariamente para a toca segura!
             let refugeBiasX = 0, refugeBiasY = 0;
             const refugeAffinity = a.genome ? a.genome.refugeAffinity : 0.45;
-            if (refugeAffinity > 0.15) {
+
+            if (a.hasNest) {
+              const toNestX = a.nestX - a.x;
+              const toNestY = a.nestY - a.y;
+              const distNest = Math.hypot(toNestX, toNestY);
+              if (distNest > 0.6) {
+                // Vetor forte de corrida de volta para a toca segura na floresta
+                refugeBiasX = (toNestX / distNest) * 4.5;
+                refugeBiasY = (toNestY / distNest) * 4.5;
+              }
+            } else if (refugeAffinity > 0.15) {
               let maxBio = 0;
               for (let dy = -3; dy <= 3; dy++) {
                 const ny = curY + dy;
@@ -1722,14 +1862,8 @@
               }
             }
 
-            // Se o ninho estiver próximo, foge prioritariamente para o ninho seguro!
-            if (a.hasNest && Math.hypot(a.nestX - a.x, a.nestY - a.y) < 25.0) {
-              refugeBiasX = (a.nestX - a.x);
-              refugeBiasY = (a.nestY - a.y);
-            }
-
-            targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 1.6);
-            targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 1.6);
+            targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 2.2);
+            targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 2.2);
 
             // Arrancada anaeróbica (SprintBurst) e aprendizado por experiência em perigo iminente
             if (closestCatDist < 3.8 && a.genome) {
@@ -1783,20 +1917,14 @@
                     const male = (a.sex === 'male') ? a : closestMate;
                     male.matingCooldown = 12.0;
                     female.isPregnant = true;
+                    female.daysPregnant = 0.0;
                     female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
                     female.litterSize = 6 + Math.floor(Math.random() * 5);
                     female.mateGenome = male.genome;
                     female.estrusDurationRemaining = 0.0;
                     female.estrusCycleTimer = female.gestationRemaining;
                     female.matingCooldown = female.gestationRemaining + 15.0;
-
-                    // Estabelece ninho conjunto se ainda não possuir
-                    if (!female.hasNest) {
-                      female.hasNest = true;
-                      female.nestX = female.x;
-                      female.nestY = female.y;
-                      nests.push({ id: female.id, x: female.x, y: female.y, species: 'rat', name: 'Toca de Roedores', quality: 80 });
-                    }
+                    // A toca segura será construída na floresta após 3 dias de gestação (daysPregnant >= 3)
                   }
                 }
               }
@@ -1889,6 +2017,7 @@
 
                 male.matingCooldown = 30.0; // Cooldown do macho
                 female.isPregnant = true;
+                female.daysPregnant = 0.0;
                 female.gestationRemaining = 64.0 + (Math.random() - 0.5) * 4.0; // Gestação real: 63 a 67 dias
                 female.litterSize = 3 + Math.floor(Math.random() * 3); // Ninhada real: 3 a 5 filhotes (média 4)
                 female.estrusDurationRemaining = 0.0;
@@ -1925,6 +2054,9 @@
             for (let j = 0; j < animals.length; j++) {
               const prey = animals[j];
               if (prey.species === 'rat' && prey.hp > 0) {
+                // IMUNIDADE DE TOCA: se o rato estiver abrigado dentro de uma toca, felinos não podem atacá-lo!
+                if (isProtectedInBurrow(prey)) continue;
+
                 const d = Math.hypot(prey.x - a.x, prey.y - a.y);
                 if (d <= CAT_HUNTING_ZONE) {
                   if (!isInHuntingZone || d < closestDist) {
@@ -1975,22 +2107,27 @@
 
               // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
               if (closestDist < 1.4) {
-                const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
-                const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
+                // Se a presa conseguiu alcançar e entrar na toca: imunidade absoluta!
+                if (isProtectedInBurrow(closestPrey)) {
+                  a.currentSprintBoost = 1.0;
+                } else {
+                  const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
+                  const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
 
-                if (Math.random() >= escapeChance) {
-                  closestPrey.hp = 0;
-                  totalPredationDeaths++;
-                  applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
+                  if (Math.random() >= escapeChance) {
+                    closestPrey.hp = 0;
+                    totalPredationDeaths++;
+                    applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
 
-                  // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
-                  a.hunger = Math.max(0, a.hunger - 90.0);
+                    // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
+                    a.hunger = Math.max(0, a.hunger - 90.0);
 
-                  if (isFunHunt && a.dailyFunKills < 2) {
-                    a.dailyFunKills++;
-                    funKillsCount++;
-                  } else {
-                    hungryKillsCount++;
+                    if (isFunHunt && a.dailyFunKills < 2) {
+                      a.dailyFunKills++;
+                      funKillsCount++;
+                    } else {
+                      hungryKillsCount++;
+                    }
                   }
                 }
               }
@@ -2123,7 +2260,7 @@
 
               for (let ai = 0; ai < animals.length; ai++) {
                 const prey = animals[ai];
-                if (prey.hp <= 0) continue;
+                if (prey.hp <= 0 || isProtectedInBurrow(prey)) continue;
 
                 const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
                 if (pX < 0 || pX >= CHUNK_SIZE || pY < 0 || pY >= CHUNK_SIZE) continue;
@@ -2159,7 +2296,7 @@
           // 5. Mergulho Rasante de Ataque (Dive Attack)
           else if (h.state === 'dive') {
             const prey = h.target;
-            if (!prey || prey.hp <= 0) {
+            if (!prey || prey.hp <= 0 || isProtectedInBurrow(prey)) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2169,8 +2306,8 @@
             const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
             const pIdx = getIdx(Math.max(0, Math.min(CHUNK_SIZE - 1, pX)), Math.max(0, Math.min(CHUNK_SIZE - 1, pY)));
 
-            // SE A PRESA FUGIR PARA A FLORESTA DENSA OU ÁGUA: ABORTA MERGULHO!
-            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15) {
+            // SE A PRESA FUGIR PARA A FLORESTA DENSA, ÁGUA OU TOCA: ABORTA MERGULHO!
+            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrow(prey)) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2191,6 +2328,14 @@
 
             // Bote no alvo
             if (distHoriz < 1.8 && h.z < 2.5) {
+              // Verifica mais uma vez se a presa atingiu a segurança da toca
+              if (isProtectedInBurrow(prey)) {
+                h.state = 'patrol';
+                h.target = null;
+                h.z = 38.0;
+                continue;
+              }
+
               if (prey.species === 'rat') {
                 // RATO: 90% de sucesso
                 if (Math.random() < 0.90) {
@@ -2230,6 +2375,9 @@
           }
         }
       }
+
+      // === ATUALIZAÇÃO DO CICLO DE VIDA EFÊMERO/MATERNAL DE TOCAS E COVIS ===
+      updateNestLifecycles();
     }
 
     // === RENDERIZADOR ULTRARRÁPIDO 512x512 VIA DIRECT UINT32 BUFFER (60 FPS) ===
@@ -2503,6 +2651,17 @@
           ctx.strokeStyle = (a.species === 'cat') ? 'rgba(255, 64, 129, 0.95)' : 'rgba(255, 152, 0, 0.95)';
           ctx.lineWidth = 1.4;
           ctx.stroke();
+        }
+
+        // Escudo visual de imunidade subterrânea ativa quando protegido na toca/covil
+        if (isProtectedInBurrow(a)) {
+          ctx.beginPath();
+          ctx.arc(px, py, rad + 2.2, 0, Math.PI * 2);
+          ctx.strokeStyle = '#38bdf8'; // Ciano luminoso: Imunidade a ataques ativa
+          ctx.lineWidth = 1.0;
+          ctx.setLineDash([2, 2]);
+          ctx.stroke();
+          ctx.setLineDash([]);
         }
       }
 

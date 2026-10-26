@@ -133,6 +133,9 @@ public struct AnimalAgent
     public bool HasNest;
     public float NestPosX;
     public float NestPosY;
+    public float DaysPregnant;
+    public uint MotherId;
+    public bool IsSafeInBurrow => HasNest && (MathF.Pow(PosX - NestPosX, 2) + MathF.Pow(PosY - NestPosY, 2) <= 9.0f);
 
     public bool IsFemale => Sex == 0;
     public bool IsMale => Sex == 1;
@@ -303,11 +306,28 @@ public static class FaunaSystem
             // Ciclo de Gestação Real (Rato: 21d; Gato: 64d)
             if (a.IsFemale && a.IsPregnant)
             {
-                a.GestationDaysRemaining -= dt * 0.1f;
+                float gestProgress = dt * 0.1f;
+                a.GestationDaysRemaining -= gestProgress;
+                a.DaysPregnant += gestProgress;
+
+                // Concede habilidade de criar tocas na floresta após 3 dias de gestação
+                if (a.DaysPregnant >= 3.0f && !a.HasNest)
+                {
+                    float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+                    // 90% na floresta densa (r entre 195 e 240) e 10% na orla
+                    float radius = (Random.Shared.NextSingle() < 0.90f)
+                        ? (195.0f + Random.Shared.NextSingle() * 45.0f)
+                        : (180.0f + Random.Shared.NextSingle() * 15.0f);
+                    a.HasNest = true;
+                    a.NestPosX = Math.Clamp(256.0f + MathF.Cos(angle) * radius, 10f, 502f);
+                    a.NestPosY = Math.Clamp(256.0f + MathF.Sin(angle) * radius, 10f, 502f);
+                }
+
                 if (a.GestationDaysRemaining <= 0f)
                 {
                     // Parto: Fêmea dá à luz filhotes
                     a.IsPregnant = false;
+                    a.DaysPregnant = 0f;
                     a.LitterSize = 0;
                     a.MatingCooldown = speciesDef.PostPartumCooldownDays;
                     if (a.SpeciesId == SpeciesCatalog.IdRat)
@@ -391,6 +411,7 @@ public static class FaunaSystem
                             ref var male = ref (a.IsMale ? ref a : ref partner);
 
                             female.IsPregnant = true;
+                            female.DaysPregnant = 0f;
                             female.GestationDaysRemaining = speciesDef.GestationPeriodDays + ((Random.Shared.NextSingle() - 0.5f) * 2.0f);
                             female.LitterSize = (byte)Random.Shared.Next(speciesDef.MinLitterSize, speciesDef.MaxLitterSize + 1);
                             female.MateGenome = male.Genome; // Retém genoma paterno para recombinação mendeliana no parto
@@ -411,7 +432,7 @@ public static class FaunaSystem
                 {
                     if (i == j) continue;
                     ref var prey = ref agents[j];
-                    if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f) continue;
+                    if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f || prey.IsSafeInBurrow) continue;
 
                     float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
                     if (distSq <= 1.44f) // Alcance físico de bote (1.2 células)
@@ -614,11 +635,16 @@ public static class FaunaSystem
             float fearWeight = 8.0f * (effectiveAlert / 12.0f);
             float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
 
-            // Busca Ativa de Refúgio (Holling): sob perigo, atração potente por vegetação densa para camuflagem
+            // Busca Ativa de Refúgio (Holling e Toca Segura): sob perigo, atração potente pela toca na floresta e vegetação densa
             float refugeBonus = 0f;
             if (danger > 8.0f)
             {
                 refugeBonus = (food * 4.0f) * agent.Genome.RefugeAffinity;
+                if (agent.HasNest)
+                {
+                    float dNest = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
+                    refugeBonus += MathF.Max(0f, (200.0f - dNest) * 0.25f) * 4.5f;
+                }
             }
 
             float score = (food * foodWeight) - (danger * fearWeight) + refugeBonus + floodPenalty;
@@ -653,13 +679,13 @@ public static class FaunaSystem
         {
             float score = floodPenalty;
 
-            // 1. Zona de caça (15 células): predação se tiver < 2 caças no dia ou com fome
+            // 1. Zona de caça (15 células): predação se tiver < 2 caças no dia ou com fome (ignora presas imunes em tocas)
             // 2. Faro químico (até 45 células): persegue se estiver com fome real
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
                 ref readonly var other = ref allAgents[i];
-                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f)
+                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f && !other.IsSafeInBurrow)
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
 

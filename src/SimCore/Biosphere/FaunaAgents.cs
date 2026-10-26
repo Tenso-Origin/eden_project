@@ -112,6 +112,11 @@ public struct AnimalAgent
     public float GestationDaysRemaining; // Dias de gestação restantes
     public byte LitterSize;      // Média real de filhotes da ninhada
 
+    // Ciclos Reprodutivos Biológicos Reais e Estro (PanTHERIA / Add-my-Pet)
+    public float EstrusCycleTimer;        // Temporizador até o próximo ciclo fértil (interestro)
+    public float EstrusDurationRemaining; // Dias restantes do cio receptivo ativo
+    public float PounceBoostCooldown;     // Cooldown da arrancada anaeróbica de emboscada felina
+
     // Genética Evolutiva e Inteligência Hereditária
     public RatGenome Genome;
     public RatGenome MateGenome; // Genoma do parceiro retido na fêmea para recombinação no parto
@@ -125,7 +130,11 @@ public struct AnimalAgent
     public bool IsFemale => Sex == 0;
     public bool IsMale => Sex == 1;
     public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f);
-    public bool IsReadyToMate => IsAdult && Hunger < 35.0f && MatingCooldown <= 0.0f && Health > 50.0f && (!IsFemale || !IsPregnant);
+    public bool IsInEstrus => IsFemale && IsAdult && !IsPregnant && EstrusDurationRemaining > 0f && Health > 50f;
+    public bool IsReadyToMate => IsAdult && Health > 50.0f && (
+        (IsFemale && IsInEstrus && Hunger < 50.0f) ||
+        (IsMale && Hunger < 55.0f && MatingCooldown <= 0.0f)
+    );
 
     public AnimalAgent(uint id, ushort species, AnimalDiet diet, float x, float y, float speed = 2.0f, byte? specificSex = null, ushort initialGen = 0)
     {
@@ -144,6 +153,7 @@ public struct AnimalAgent
         IsPregnant = false;
         GestationDaysRemaining = 0f;
         LitterSize = 0;
+        PounceBoostCooldown = 0f;
         Genome = RatGenome.CreateDefault(initialGen);
         MateGenome = Genome;
 
@@ -157,6 +167,18 @@ public struct AnimalAgent
         // Proporção sexual natural da espécie
         int femaleChance = (int)(def.FemaleRatioNatural * 100.0f);
         Sex = specificSex ?? (byte)(Random.Shared.Next(100) < femaleChance ? 0 : 1);
+
+        // Ciclos de estro escalonados de forma natural para fêmeas iniciais
+        if (Sex == 0)
+        {
+            EstrusCycleTimer = Random.Shared.NextSingle() * def.EstrusIntervalDays;
+            EstrusDurationRemaining = (Random.Shared.NextSingle() < 0.35f) ? (Random.Shared.NextSingle() * def.EstrusDurationDays) : 0f;
+        }
+        else
+        {
+            EstrusCycleTimer = 0f;
+            EstrusDurationRemaining = 0f;
+        }
 
         // Inicia como jovem adulto saudável
         if (species == SpeciesCatalog.IdRat)
@@ -233,23 +255,64 @@ public static class FaunaSystem
                 a.MatingCooldown = MathF.Max(0f, a.MatingCooldown - dt);
             }
 
+            // Ciclo de Estro e Sazonalidade Biológica das Fêmeas (PanTHERIA / Add-my-Pet)
+            if (a.IsFemale && a.IsAdult && !a.IsPregnant)
+            {
+                if (a.EstrusDurationRemaining > 0f)
+                {
+                    // Cio ativo (janela fértil receptiva)
+                    a.EstrusDurationRemaining = MathF.Max(0f, a.EstrusDurationRemaining - dt * 0.1f);
+                    if (a.EstrusDurationRemaining <= 0f)
+                    {
+                        // Fim do cio: inicia período de interestro até o próximo ciclo
+                        a.EstrusCycleTimer = speciesDef.EstrusIntervalDays;
+                    }
+                }
+                else
+                {
+                    // Contagem regressiva até o próximo estro
+                    a.EstrusCycleTimer = MathF.Max(0f, a.EstrusCycleTimer - dt * 0.1f);
+                    if (a.EstrusCycleTimer <= 0f)
+                    {
+                        a.EstrusDurationRemaining = speciesDef.EstrusDurationDays;
+                    }
+                }
+            }
+
+            // Cooldown da arrancada anaeróbica de emboscada felina
+            if (a.PounceBoostCooldown > 0f)
+            {
+                a.PounceBoostCooldown = MathF.Max(0f, a.PounceBoostCooldown - dt);
+            }
+
             // Ciclo de Gestação Real (Rato: 21d; Gato: 64d)
             if (a.IsFemale && a.IsPregnant)
             {
                 a.GestationDaysRemaining -= dt * 0.1f;
                 if (a.GestationDaysRemaining <= 0f)
                 {
-                    // Parto: Fêmea dá à luz filhotes e entra em período de estro pós-parto
+                    // Parto: Fêmea dá à luz filhotes
                     a.IsPregnant = false;
                     a.LitterSize = 0;
                     a.MatingCooldown = speciesDef.PostPartumCooldownDays;
+                    if (a.SpeciesId == SpeciesCatalog.IdRat)
+                    {
+                        // Roedores: estro pós-parto fértil imediato (~1 dia) se bem nutrida
+                        a.EstrusDurationRemaining = 1.0f;
+                    }
+                    else
+                    {
+                        // Felinos: anestro de lactação (45-50 dias amamentando filhotes)
+                        a.EstrusCycleTimer = speciesDef.PostPartumCooldownDays;
+                        a.EstrusDurationRemaining = 0f;
+                    }
                     telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.Birth, a.PosX, a.PosY);
                 }
             }
 
             // Gasto Metabólico Basal (BMR derivado da Lei de Kleiber na Tabela 1 - PanTHERIA)
-            // Roedores queimam ~0.08 a 0.10/hora, permitindo ciclos de forrageamento sustentáveis
-            float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * (a.Diet == AnimalDiet.Herbivore ? 0.08f : 0.04f);
+            // Roedores queimam ~0.08/hora; Felinos de 4kg queimam ~0.025/hora (8 a 10 dias de autonomia calórica por presa)
+            float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * (a.Diet == AnimalDiet.Herbivore ? 0.08f : 0.025f);
             a.Hunger = MathF.Min(100f, a.Hunger + bmrHourRate * dt);
             a.Energy = MathF.Max(0f, a.Energy - (speciesDef.MovementCostPerMeter * dt));
 
@@ -452,6 +515,30 @@ public static class FaunaSystem
                         a.Genome.EpigeneticBonus = MathF.Min(4.0f, a.Genome.EpigeneticBonus + 0.12f * dt);
                     }
                 }
+                else if (a.Diet == AnimalDiet.Carnivore)
+                {
+                    // Arrancada Explosiva de Emboscada (Pounce Burst): salta para ~3.78 cél/s ao encurralar presas (< 4.5 células)
+                    bool nearPrey = false;
+                    for (int j = 0; j < agents.Length; j++)
+                    {
+                        if (i == j) continue;
+                        ref readonly var prey = ref agents[j];
+                        if (prey.Diet == AnimalDiet.Herbivore && prey.Health > 0f)
+                        {
+                            float dSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
+                            if (dSq <= 20.25f) // < 4.5 células
+                            {
+                                nearPrey = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (nearPrey && (a.DailyFunKills < 2 || a.Hunger > 25.0f))
+                    {
+                        speedModifier *= 1.35f; // Pounce Burst supera o sprint da presa em campo aberto
+                    }
+                }
 
                 float stepDist = a.MoveSpeed * speedModifier * dt;
                 float moveX = (dirX / dist) * MathF.Min(dist, stepDist);
@@ -521,19 +608,25 @@ public static class FaunaSystem
 
             float score = (food * foodWeight) - (danger * fearWeight) + refugeBonus + floodPenalty;
 
-            // Busca de parceiro fértil para acasalamento
+            // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários até 20 células)
             if (agent.IsReadyToMate)
             {
                 for (int i = 0; i < allAgents.Length; i++)
                 {
                     if (i == selfIdx) continue;
                     ref readonly var other = ref allAgents[i];
-                    if (other.SpeciesId == agent.SpeciesId && other.Sex != agent.Sex && other.IsReadyToMate)
+                    if (other.SpeciesId == agent.SpeciesId && other.Sex != agent.Sex)
                     {
-                        float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
-                        if (d <= agent.SensoryRadius)
+                        bool isPairReceptive = (agent.IsFemale && agent.IsInEstrus && other.IsMale && other.Hunger < 50f) ||
+                                               (agent.IsMale && other.IsFemale && other.IsInEstrus && agent.Hunger < 50f);
+
+                        if (isPairReceptive)
                         {
-                            score += MathF.Max(0f, (agent.SensoryRadius - d) * 3.0f);
+                            float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
+                            if (d <= 20.0f)
+                            {
+                                score += MathF.Max(0f, (20.0f - d) * 3.5f);
+                            }
                         }
                     }
                 }
@@ -570,7 +663,8 @@ public static class FaunaSystem
                 }
             }
 
-            // Territorialidade felina
+            // Comunicação e Chamado Acústico / Feromônio de Acasalamento (até 45 células)
+            // Gatas em cio emitem chamados que suprimem a territorialidade agressiva dos machos
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
@@ -578,16 +672,22 @@ public static class FaunaSystem
                 if (other.Diet == AnimalDiet.Carnivore && other.Health > 0f)
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
-                    if (d <= 10.0f)
+
+                    if (other.Sex != agent.Sex)
                     {
-                        if (agent.IsReadyToMate && other.IsReadyToMate && other.Sex != agent.Sex)
+                        bool isPairReceptive = (agent.IsFemale && agent.IsInEstrus && other.IsMale && other.Hunger < 55f) ||
+                                               (agent.IsMale && other.IsFemale && other.IsInEstrus && agent.Hunger < 55f);
+
+                        if (isPairReceptive && d <= 45.0f)
                         {
-                            score += (15.0f - d) * 2.5f;
+                            // Forte atração reprodutiva acústica/química
+                            score += (45.0f - d) * 3.8f;
                         }
-                        else
-                        {
-                            score -= (10.0f - d) * 4.0f;
-                        }
+                    }
+                    else if (d <= 10.0f)
+                    {
+                        // Repulsão territorial quando do mesmo sexo ou sem fêmea receptiva
+                        score -= (10.0f - d) * 3.5f;
                     }
                 }
             }

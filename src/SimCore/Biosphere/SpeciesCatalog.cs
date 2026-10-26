@@ -35,7 +35,7 @@ public readonly struct SpeciesDef
     public readonly float MaxEnergyReserveJoules;    // Capacidade máxima de reserva energética de gordura/glicogênio
     public readonly float DailyWaterRequirementMl;   // Necessidade hídrica diária por peso corporal
 
-    // --- Ciclo de Vida e Senescência ---
+    // --- Ciclo Reprodutivo Realista e Estro (PanTHERIA / Add-my-Pet) ---
     public readonly float MaxLifespanDays;          // Expectativa máxima de vida (Rato: ~912d / 2.5a; Gato: ~5110d / 14a)
     public readonly float SexualMaturityDays;        // Idade de início da maturidade reprodutiva (Rato: ~60d; Gato: ~210d)
     public readonly float GestationPeriodDays;       // Período de gestação real (Rato: ~21d; Gato: ~64d)
@@ -43,6 +43,8 @@ public readonly struct SpeciesDef
     public readonly float ReproductionEnergyCost;    // Gasto energético exigido da mãe para conceber e desmamar
     public readonly float FemaleRatioNatural;        // Proporção sexual biológica de fêmeas (Rato: 0.50; Gato: 0.49)
     public readonly float PostPartumCooldownDays;    // Período de estro/recuperação pós-parto
+    public readonly float EstrusIntervalDays;        // Intervalo cíclico regular entre cios (Rato: 4.5d; Gato: 18.0d)
+    public readonly float EstrusDurationDays;        // Duração da janela fértil receptiva de cio (Rato: 0.8d; Gato: 5.0d)
 
     // --- Nicho Ecológico e Sensores ---
     public readonly float MinOptimalTemp;           // Temperatura mínima suportada confortavelmente (°C)
@@ -55,6 +57,7 @@ public readonly struct SpeciesDef
         float massGrams, float bmrWatts, float moveCost, float maxEnergy, float waterMl,
         float maxLifespan, float maturityDays, float gestationDays, float litterSize,
         float reproCost, float femaleRatio, float postPartumCooldown,
+        float estrusInterval, float estrusDuration,
         float minTemp, float maxTemp, byte visualRadius, byte olfactoryRadius)
     {
         SpeciesId = id;
@@ -72,6 +75,8 @@ public readonly struct SpeciesDef
         ReproductionEnergyCost = reproCost;
         FemaleRatioNatural = femaleRatio;
         PostPartumCooldownDays = postPartumCooldown;
+        EstrusIntervalDays = estrusInterval;
+        EstrusDurationDays = estrusDuration;
         MinOptimalTemp = minTemp;
         MaxOptimalTemp = maxTemp;
         VisualSensoryRadius = visualRadius;
@@ -126,7 +131,7 @@ public static class SpeciesCatalog
         // Traços baseados em PanTHERIA & Add-my-Pet:
         // Massa: ~250g | BMR: ~1.4W | Vida: ~2.5 anos (912.5 dias) | Maturidade: ~60 dias
         // Gestação: 21 dias | Ninhada média: 8 filhotes | Proporção sexual: 50% Fêmeas (1:1)
-        // Olfato biológico agudo: detecta biomassa/umidade em até 20 células!
+        // Ciclo estral: cio regular a cada 4.5 dias (duração fértil de ~0.8 dias)
         // -------------------------------------------------------------------------
         _speciesRegistry[IdRat] = new SpeciesDef(
             id: IdRat,
@@ -144,6 +149,8 @@ public static class SpeciesCatalog
             reproCost: 90.0f,
             femaleRatio: 0.50f,
             postPartumCooldown: 15.0f,
+            estrusInterval: 4.5f,
+            estrusDuration: 0.8f,
             minTemp: -5.0f,
             maxTemp: 38.0f,
             visualRadius: 8,
@@ -155,6 +162,7 @@ public static class SpeciesCatalog
         // Traços baseados em PanTHERIA & Add-my-Pet:
         // Massa: ~4200g | BMR: ~12.5W | Vida: ~14 anos (5110 dias) | Maturidade: ~210 dias
         // Gestação: 64 dias | Ninhada média: 4 filhotes | Proporção sexual: 49% Fêmeas / 51% Machos
+        // Ciclo estral: cio a cada 18 dias com duração de 5 dias (chamado acústico e feromônio)
         // -------------------------------------------------------------------------
         _speciesRegistry[IdCat] = new SpeciesDef(
             id: IdCat,
@@ -172,6 +180,8 @@ public static class SpeciesCatalog
             reproCost: 280.0f,
             femaleRatio: 0.49f,
             postPartumCooldown: 50.0f,
+            estrusInterval: 18.0f,
+            estrusDuration: 5.0f,
             minTemp: -8.0f,
             maxTemp: 42.0f,
             visualRadius: 15,
@@ -193,14 +203,14 @@ public static class SpeciesCatalog
                 satietyBoost: 25.0f
             ),
 
-            // Gato consome Rato (Predação de Carnívoro com Resposta de Holling)
+            // Gato consome Rato (Predação com Saciedade Calórica Realista da Lei de Kleiber)
             new TrophicInteraction(
                 predatorId: IdCat,
                 preyId: IdRat,
-                nutritionalYield: 320.0f, // 1 presa alimenta o gato com alta saciedade prolongada
-                captureSuccess: 0.72f,    // 72% de chance de êxito no bote
-                handlingTime: 1.5f,       // Tempo de imobilização e consumo
-                satietyBoost: 80.0f
+                nutritionalYield: 650.0f, // 1 rato (250g) sustenta o felino por vários dias
+                captureSuccess: 0.75f,    // Bote de emboscada felina
+                handlingTime: 0.5f,
+                satietyBoost: 85.0f       // Saciedade farta que restaura o predador
             )
         };
     }

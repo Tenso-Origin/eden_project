@@ -794,7 +794,7 @@
       const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 180;
       const X_PREDATORS = catsInput ? Math.max(0, parseInt(catsInput.value) || 0) : 6;
 
-      // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1) com Genoma Adaptativo
+      // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1) com Genoma Adaptativo e Ciclo Estral Real (4.5d)
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
         const rx = 40 + Math.random() * (CHUNK_SIZE - 120);
         const ry = 40 + Math.random() * (CHUNK_SIZE - 120);
@@ -803,7 +803,11 @@
         const isPregnant = (sex === 'female' && Math.random() < 0.35);
         const gestationRemaining = isPregnant ? (1.0 + Math.random() * 20.0) : 0.0;
         const litterSize = isPregnant ? (6 + Math.floor(Math.random() * 5)) : 0; // Ninhada real: 6 a 10 filhotes
-        const matingCooldown = isPregnant ? (gestationRemaining + 18.0) : (5.0 + Math.random() * 15.0);
+        const matingCooldown = isPregnant ? (gestationRemaining + 15.0) : (1.0 + Math.random() * 3.0);
+        // Ciclo estral do rato: a cada 4.5 dias com janela fértil de ~0.8 dias (PanTHERIA)
+        const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (0.8 / 4.5));
+        const estrusDurationRemaining = inEstrusInit ? (Math.random() * 0.8) : 0.0;
+        const estrusCycleTimer = isPregnant ? gestationRemaining : (inEstrusInit ? 0.0 : Math.random() * 4.5);
 
         const initGenome = {
           alertRadius: 12.0 + (Math.random() * 4.0 - 2.0),
@@ -821,10 +825,12 @@
           isPregnant: isPregnant,
           gestationRemaining: gestationRemaining,
           litterSize: litterSize,
+          estrusCycleTimer: estrusCycleTimer,
+          estrusDurationRemaining: estrusDurationRemaining,
           x: rx,
           y: ry,
           hp: 100,
-          hunger: 20 + Math.random() * 20,
+          hunger: 15 + Math.random() * 15,
           speed: 2.2,
           ageInDays: 75.0 + Math.random() * 20.0,
           maxLifespan: 912.5,
@@ -837,15 +843,21 @@
       }
 
       // Predadores (Gatos) - Proporção sexual natural: 49% fêmeas, 51% machos
+      // Gestação escalonada inicial para continuidade geracional e evitar extinção aos 26 dias
       const maleCatsCount = Math.round(X_PREDATORS * 0.51);
       for (let i = 0; i < X_PREDATORS; i++) {
         const gx = 60 + Math.random() * (CHUNK_SIZE - 140);
         const gy = 60 + Math.random() * (CHUNK_SIZE - 140);
         const sex = (i < maleCatsCount) ? 'male' : 'female';
-        const isPregnant = (sex === 'female' && Math.random() < 0.20);
-        const gestationRemaining = isPregnant ? (10.0 + Math.random() * 50.0) : 0.0;
+        // 50% das fêmeas adultas iniciam prenhes com tempo escalonado (4 a 55 dias)
+        const isPregnant = (sex === 'female' && Math.random() < 0.50);
+        const gestationRemaining = isPregnant ? (4.0 + Math.random() * 55.0) : 0.0;
         const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0; // Ninhada real: 3 a 5 filhotes
-        const matingCooldown = isPregnant ? (gestationRemaining + 50.0) : (15.0 + Math.random() * 40.0);
+        const matingCooldown = isPregnant ? (gestationRemaining + 45.0) : (5.0 + Math.random() * 15.0);
+        // Ciclo estral do gato: ciclo de 18 dias com janela de cio receptivo de 5 dias (PanTHERIA)
+        const inEstrusInit = (!isPregnant && sex === 'female' && Math.random() < (5.0 / 18.0));
+        const estrusDurationRemaining = inEstrusInit ? (Math.random() * 5.0) : 0.0;
+        const estrusCycleTimer = isPregnant ? gestationRemaining : (inEstrusInit ? 0.0 : Math.random() * 18.0);
 
         animals.push({
           id: 1000 + i,
@@ -855,10 +867,12 @@
           isPregnant: isPregnant,
           gestationRemaining: gestationRemaining,
           litterSize: litterSize,
+          estrusCycleTimer: estrusCycleTimer,
+          estrusDurationRemaining: estrusDurationRemaining,
           x: gx,
           y: gy,
           hp: 100,
-          hunger: 15 + Math.random() * 15,
+          hunger: 5 + Math.random() * 10,
           speed: 2.8,
           ageInDays: 400.0 + Math.random() * 60.0,
           maxLifespan: 5110.0,
@@ -1156,7 +1170,18 @@
             a.isPregnant = false;
             const litter = a.litterSize || (a.species === 'rat' ? (6 + Math.floor(Math.random() * 5)) : (3 + Math.floor(Math.random() * 3)));
             a.litterSize = 0;
-            a.matingCooldown = (a.species === 'rat') ? 18.0 : 50.0; // Período de desmame e lactação
+
+            if (a.species === 'rat') {
+              // Ratos: estro pós-parto fértil imediato (~1 dia) se saudável (PanTHERIA)
+              a.matingCooldown = 15.0;
+              a.estrusDurationRemaining = 1.0;
+              a.estrusCycleTimer = 0.0;
+            } else {
+              // Felinos: anestro de lactação durante o cuidado da ninhada (45 a 50 dias)
+              a.matingCooldown = 45.0;
+              a.estrusDurationRemaining = 0.0;
+              a.estrusCycleTimer = 45.0;
+            }
 
             const curTotal = animals.filter(x => x.species === a.species).length;
             const maxCap = (a.species === 'rat') ? 500 : 90;
@@ -1199,6 +1224,8 @@
                   isPregnant: false,
                   gestationRemaining: 0,
                   litterSize: 0,
+                  estrusCycleTimer: (a.species === 'rat' ? 4.5 : 18.0),
+                  estrusDurationRemaining: 0.0,
                   x: Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (Math.random() - 0.5) * 1.5)),
                   y: Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (Math.random() - 0.5) * 1.5)),
                   hp: 100,
@@ -1225,8 +1252,8 @@
         }
 
         // Metabolismo e saciedade calibrados com PanTHERIA e Add-my-Pet
-        // Roedores queimam ~0.09/hora (suportando forrageamento real de múltiplos dias)
-        const hungerRate = (a.species === 'rat') ? 0.09 : 0.04;
+        // Roedores queimam ~0.09/h; Felinos de 4.2kg queimam ~0.025/h (Lei de Kleiber: 8 a 10 dias de autonomia por presa)
+        const hungerRate = (a.species === 'rat') ? 0.09 : 0.025;
         a.hunger = Math.min(100, a.hunger + hungerRate * dt);
 
         if (a.hunger >= 90) {
@@ -1255,7 +1282,35 @@
         }
 
         const isAdult = a.ageInDays >= (a.maxLifespan * 0.08);
-        const isReadyToMate = isAdult && a.hunger < 45 && a.matingCooldown <= 0 && (!a.isPregnant);
+
+        // Ciclo estral regular (PanTHERIA / Add-my-Pet): fêmeas ciclam regularmente estro e interestro
+        if (a.sex === 'female' && isAdult) {
+          if (a.isPregnant) {
+            a.estrusDurationRemaining = 0.0;
+            a.estrusCycleTimer = a.gestationRemaining;
+          } else {
+            if (a.estrusDurationRemaining > 0) {
+              a.estrusDurationRemaining = Math.max(0, a.estrusDurationRemaining - simDeltaDays);
+              if (a.estrusDurationRemaining <= 0) {
+                // Fim da janela fértil receptiva: inicia período de interestro
+                a.estrusCycleTimer = (a.species === 'rat') ? 4.5 : 18.0;
+              }
+            } else {
+              a.estrusCycleTimer = Math.max(0, (a.estrusCycleTimer || 0) - simDeltaDays);
+              if (a.estrusCycleTimer <= 0) {
+                // Entrada em estro (cio fértil)
+                a.estrusDurationRemaining = (a.species === 'rat') ? 0.8 : 5.0;
+              }
+            }
+          }
+        }
+
+        const isInEstrus = (a.sex === 'female' && isAdult && !a.isPregnant && (a.estrusDurationRemaining > 0) && a.hp > 50);
+        // Prontidão reprodutiva: fêmea exige cio fértil ativo; macho busca ativamente fêmeas no estro
+        const isReadyToMate = isAdult && (!a.isPregnant) && a.matingCooldown <= 0 && (
+          (a.sex === 'female' && isInEstrus && a.hunger < 50) ||
+          (a.sex === 'male' && a.hunger < 55)
+        );
 
         let targetX = a.x;
         let targetY = a.y;
@@ -1352,18 +1407,20 @@
             } else {
               let mateTargetFound = false;
 
-              // Busca de parceiro fértil (somente se não estiver faminto)
-              if (isReadyToMate && a.hunger < 40 && animals.length < 500) {
+              // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários até 20 células)
+              if (isReadyToMate && a.hunger < 50 && animals.length < 500) {
                 let closestMate = null;
-                let closestDist = 8.0;
+                let closestDist = 20.0;
 
                 for (let j = 0; j < animals.length; j++) {
                   if (i === j) continue;
                   const other = animals[j];
                   if (other.species === 'rat' && other.hp > 0 && other.sex !== a.sex) {
-                    const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
-                    const otherReady = otherAdult && other.hunger < 50 && other.matingCooldown <= 0 && (!other.isPregnant);
-                    if (otherReady) {
+                    const otherInEstrus = (other.sex === 'female' && other.estrusDurationRemaining > 0);
+                    const isPairReceptive = (a.sex === 'female' && isInEstrus && other.sex === 'male' && other.hunger < 55 && other.matingCooldown <= 0) ||
+                                           (a.sex === 'male' && other.sex === 'female' && otherInEstrus && !other.isPregnant && other.hunger < 55 && other.matingCooldown <= 0);
+
+                    if (isPairReceptive) {
                       const d = Math.hypot(other.x - a.x, other.y - a.y);
                       if (d < closestDist) {
                         closestDist = d;
@@ -1381,11 +1438,13 @@
                   if (closestDist < 1.5) {
                     const female = (a.sex === 'female') ? a : closestMate;
                     const male = (a.sex === 'male') ? a : closestMate;
-                    male.matingCooldown = 15.0;
+                    male.matingCooldown = 12.0;
                     female.isPregnant = true;
                     female.gestationRemaining = 21.0 + (Math.random() - 0.5) * 2.0;
                     female.litterSize = 6 + Math.floor(Math.random() * 5); // 6 a 10 filhotes
                     female.mateGenome = male.genome; // Retém genoma paterno para recombinação mendeliana no parto!
+                    female.estrusDurationRemaining = 0.0; // Encerra estro receptivo ao emprenhar
+                    female.estrusCycleTimer = female.gestationRemaining;
                     female.matingCooldown = female.gestationRemaining + 15.0;
                   }
                 }
@@ -1436,58 +1495,74 @@
         }
         }
 
-        // === COMPORTAMENTO DO GATO (PREDADOR COM FARO E LIMITE DE 2 CAÇADAS LÚDICAS/DIA) ===
+        // === COMPORTAMENTO DO GATO (PREDADOR COM FARO, POUNCE BURST E CICLO ESTRAL) ===
         else if (a.species === 'cat') {
-          // 1. Territorialidade: repele outros gatos no raio de 10 células
-          let territoryRepulsionX = 0, territoryRepulsionY = 0, rivalCount = 0;
-          for (let j = 0; j < animals.length; j++) {
-            if (i === j) continue;
-            const other = animals[j];
-            if (other.species === 'cat' && other.hp > 0) {
-              const d = Math.hypot(other.x - a.x, other.y - a.y);
-              if (d < 10.0 && (!isReadyToMate || other.matingCooldown > 0)) {
-                territoryRepulsionX += (a.x - other.x) / (d + 0.1);
-                territoryRepulsionY += (a.y - other.y) / (d + 0.1);
-                rivalCount++;
-              }
-            }
-          }
+          a.currentSprintBoost = 1.0;
 
-          // 2. Acasalamento heterossexual de Gatos
+          // 1. Comunicação e Chamado Acústico / Feromônio de Acasalamento (até 45 células)
+          // Gatas em cio emitem chamados que atraem machos e suprimem a repulsão territorial
           let mateFound = false;
-          if (isReadyToMate && rivalCount === 0 && animals.filter(x => x.species === 'cat').length < 80) {
+          let closestMate = null;
+          let closestMateDist = 45.0;
+
+          if (isReadyToMate && animals.filter(x => x.species === 'cat').length < 80) {
             for (let j = 0; j < animals.length; j++) {
               if (i === j) continue;
               const other = animals[j];
               if (other.species === 'cat' && other.hp > 0 && other.sex !== a.sex) {
-                const otherAdult = other.ageInDays >= (other.maxLifespan * 0.08);
-                const otherReady = otherAdult && other.hunger < 50 && other.matingCooldown <= 0 && (!other.isPregnant);
-                if (otherReady) {
+                const otherInEstrus = (other.sex === 'female' && other.estrusDurationRemaining > 0);
+                const isPairReceptive = (a.sex === 'female' && isInEstrus && other.sex === 'male' && other.hunger < 55 && other.matingCooldown <= 0) ||
+                                       (a.sex === 'male' && other.sex === 'female' && otherInEstrus && !other.isPregnant && other.hunger < 55 && other.matingCooldown <= 0);
+
+                if (isPairReceptive) {
                   const d = Math.hypot(other.x - a.x, other.y - a.y);
-                  if (d < CAT_HUNTING_ZONE) {
-                    targetX = other.x;
-                    targetY = other.y;
-                    mateFound = true;
-
-                    if (d < 1.8) {
-                      const female = (a.sex === 'female') ? a : other;
-                      const male = (a.sex === 'male') ? a : other;
-
-                      male.matingCooldown = 35.0; // Cooldown do macho
-                      female.isPregnant = true;
-                      female.gestationRemaining = 64.0 + (Math.random() - 0.5) * 4.0; // Gestação real: 63 a 67 dias
-                      female.litterSize = 3 + Math.floor(Math.random() * 3); // Ninhada real: 3 a 5 filhotes (média 4)
-                      female.matingCooldown = female.gestationRemaining + 50.0;
-                    }
-                    break;
+                  if (d < closestMateDist) {
+                    closestMateDist = d;
+                    closestMate = other;
                   }
+                }
+              }
+            }
+
+            if (closestMate) {
+              targetX = closestMate.x;
+              targetY = closestMate.y;
+              mateFound = true;
+
+              if (closestMateDist < 1.8) {
+                const female = (a.sex === 'female') ? a : closestMate;
+                const male = (a.sex === 'male') ? a : closestMate;
+
+                male.matingCooldown = 30.0; // Cooldown do macho
+                female.isPregnant = true;
+                female.gestationRemaining = 64.0 + (Math.random() - 0.5) * 4.0; // Gestação real: 63 a 67 dias
+                female.litterSize = 3 + Math.floor(Math.random() * 3); // Ninhada real: 3 a 5 filhotes (média 4)
+                female.estrusDurationRemaining = 0.0;
+                female.estrusCycleTimer = female.gestationRemaining;
+                female.matingCooldown = female.gestationRemaining + 45.0;
+              }
+            }
+          }
+
+          // 2. Territorialidade: só repele se NÃO estiver atraído pelo chamado de fêmea receptiva
+          let territoryRepulsionX = 0, territoryRepulsionY = 0, rivalCount = 0;
+          if (!mateFound) {
+            for (let j = 0; j < animals.length; j++) {
+              if (i === j) continue;
+              const other = animals[j];
+              if (other.species === 'cat' && other.hp > 0) {
+                const d = Math.hypot(other.x - a.x, other.y - a.y);
+                if (d < 10.0) {
+                  territoryRepulsionX += (a.x - other.x) / (d + 0.1);
+                  territoryRepulsionY += (a.y - other.y) / (d + 0.1);
+                  rivalCount++;
                 }
               }
             }
           }
 
           // 3. CAÇA: DIVERSÃO NA ZONA DE CAÇA (15 cél) VS FOME FORA DELA COM FARO (45 cél)
-          // REGRA SOLICITADA: O gato perde o interesse após a 2ª caçada no dia!
+          // E ARRANCADA DE EMBOSCADA FELINA (Pounce Burst) para compensar sprint da presa
           if (!mateFound) {
             let closestPrey = null;
             let closestDist = 99999;
@@ -1520,13 +1595,12 @@
                 // Na zona de caça (15 cél): caça por diversão apenas até a 2ª caçada diária!
                 if (a.dailyFunKills < 2) {
                   shouldHunt = true;
-                  isFunHunt = true; // Diversão / lúdico
-                } else if (a.hunger > 35) {
-                  // Perdeu o interesse por brincadeira após a 2ª caçada! Só persegue se estiver faminto.
+                  isFunHunt = true;
+                } else if (a.hunger > 30) {
                   shouldHunt = true;
                   isFunHunt = false;
                 }
-              } else if (a.hunger > 35) {
+              } else if (a.hunger > 30) {
                 // Fora da zona de caça (farejado até 45 cél): caça guiada estritamente pela fome
                 shouldHunt = true;
                 isFunHunt = false;
@@ -1537,12 +1611,17 @@
               targetX = closestPrey.x;
               targetY = closestPrey.y;
 
+              const preyCellIdx = getIdx(Math.floor(closestPrey.x), Math.floor(closestPrey.y));
+              const inHighVegetation = (biomass[preyCellIdx] > 35.0);
+
+              // Arrancada Explosiva de Emboscada (Pounce Burst): salta para 1.35x (~3.78 cél/s) quando a presa está a <= 4.5 células em campo aberto
+              if (closestDist <= 4.5 && !inHighVegetation) {
+                a.currentSprintBoost = 1.35;
+              }
+
               // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
               if (closestDist < 1.4) {
-                const preyCellIdx = getIdx(Math.floor(closestPrey.x), Math.floor(closestPrey.y));
-                const inHighVegetation = (biomass[preyCellIdx] > 35.0);
                 const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
-                // Quanto maior a aptidão genética com refúgio, maior a chance de se camuflar e escapar
                 const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
 
                 if (Math.random() >= escapeChance) {
@@ -1550,13 +1629,13 @@
                   totalPredationDeaths++;
                   applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
 
-                  if (isFunHunt && a.dailyFunKills < 2 && a.hunger <= 35) {
-                    // Abate lúdico por diversão (incrementa limite diário)
+                  // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
+                  a.hunger = Math.max(0, a.hunger - 90.0);
+
+                  if (isFunHunt && a.dailyFunKills < 2) {
                     a.dailyFunKills++;
                     funKillsCount++;
                   } else {
-                    // Abate alimentar por fome
-                    a.hunger = Math.max(0, a.hunger - 70.0);
                     hungryKillsCount++;
                   }
                 }
@@ -1776,12 +1855,19 @@
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Halo visual de gestação para fêmeas prenhes
+        // Halo visual de gestação ou cio para fêmeas
         if (a.isPregnant) {
           ctx.beginPath();
           ctx.arc(px, py, rad + 1.8, 0, Math.PI * 2);
           ctx.strokeStyle = (a.species === 'cat') ? 'rgba(255, 182, 193, 0.85)' : 'rgba(255, 255, 224, 0.85)';
           ctx.lineWidth = 1.2;
+          ctx.stroke();
+        } else if (a.sex === 'female' && a.estrusDurationRemaining > 0) {
+          // Halo de cio fértil (receptividade estral)
+          ctx.beginPath();
+          ctx.arc(px, py, rad + 2.2, 0, Math.PI * 2);
+          ctx.strokeStyle = (a.species === 'cat') ? 'rgba(255, 64, 129, 0.95)' : 'rgba(255, 152, 0, 0.95)';
+          ctx.lineWidth = 1.4;
           ctx.stroke();
         }
       }
@@ -1825,20 +1911,22 @@
       document.getElementById('statAvgTemp').innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
       document.getElementById('statErosion').innerText = (globalErosionTotal * 12.5).toFixed(1) + " m³";
 
-      // Censo de Fauna por sexo e prenhez
+      // Censo de Fauna por sexo, prenhez e estro cíclico
       const rats = animals.filter(a => a.species === 'rat');
       const ratsF = rats.filter(a => a.sex === 'female').length;
       const ratsM = rats.filter(a => a.sex === 'male').length;
       const pregRats = rats.filter(a => a.isPregnant).length;
+      const estrusRats = rats.filter(a => a.sex === 'female' && a.estrusDurationRemaining > 0).length;
 
       const cats = animals.filter(a => a.species === 'cat');
       const catsF = cats.filter(a => a.sex === 'female').length;
       const catsM = cats.filter(a => a.sex === 'male').length;
       const pregCats = cats.filter(a => a.isPregnant).length;
+      const estrusCats = cats.filter(a => a.sex === 'female' && a.estrusDurationRemaining > 0).length;
 
       document.getElementById('statRats').innerText = `${rats.length} (♀${ratsF} | ♂${ratsM})`;
       document.getElementById('statCats').innerText = `${cats.length} (♀${catsF} | ♂${catsM})`;
-      document.getElementById('statPregnant').innerText = `${pregRats} ratas (21d) | ${pregCats} gatas (64d)`;
+      document.getElementById('statPregnant').innerText = `${pregRats} ratas prenhes (${estrusRats} em cio) | ${pregCats} gatas prenhes (${estrusCats} em cio)`;
 
       // Cume e Abismo
       document.getElementById('statPeak').innerText = elevation[getIdx(0, 0)].toFixed(1) + " m";
@@ -1932,9 +2020,14 @@
         const names = nearbyAnimals.map(a => {
           const sp = (a.species === 'rat') ? '🐁 Rato' : '🐈 Gato';
           const sx = (a.sex === 'female') ? '♀' : '♂';
-          const preg = a.isPregnant ? ` [Prenhe: ${a.gestationRemaining.toFixed(1)}d rest., Ninhada: ${a.litterSize}]` : '';
+          let estrusStr = '';
+          if (a.sex === 'female') {
+            if (a.isPregnant) estrusStr = ` [Prenhe: ${a.gestationRemaining.toFixed(1)}d rest., Ninhada: ${a.litterSize}]`;
+            else if (a.estrusDurationRemaining > 0) estrusStr = ` 🔥[EM CIO: ${a.estrusDurationRemaining.toFixed(1)}d]`;
+            else estrusStr = ` [Cio em ${(a.estrusCycleTimer || 0).toFixed(1)}d]`;
+          }
           const genStr = a.genome ? ` [Gen: G${a.genome.generation}, Alerta: ${(a.genome.alertRadius + (a.genome.epigeneticBonus || 0)).toFixed(1)}c]` : '';
-          return `${sp} ${sx}${preg}${genStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
+          return `${sp} ${sx}${estrusStr}${genStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
         }).join(', ');
         document.getElementById('inspFauna').innerText = names;
       } else {
@@ -1975,6 +2068,8 @@
           isPregnant: false,
           gestationRemaining: 0,
           litterSize: 0,
+          estrusCycleTimer: (sex === 'female' ? Math.random() * 4.5 : 0),
+          estrusDurationRemaining: 0,
           x: x + 0.5,
           y: y + 0.5,
           hp: 100,
@@ -2004,14 +2099,16 @@
           isPregnant: false,
           gestationRemaining: 0,
           litterSize: 0,
+          estrusCycleTimer: (sex === 'female' ? Math.random() * 18.0 : 0),
+          estrusDurationRemaining: 0,
           x: x + 0.5,
           y: y + 0.5,
           hp: 100,
-          hunger: 15,
+          hunger: 10,
           speed: 2.8,
           ageInDays: 400.0,
           maxLifespan: 5110.0,
-          matingCooldown: 50.0,
+          matingCooldown: 40.0,
           sensoryRadius: 15,
           dailyFunKills: 0
         });

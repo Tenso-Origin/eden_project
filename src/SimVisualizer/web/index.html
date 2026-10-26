@@ -449,6 +449,56 @@
         </div>
       </div>
 
+      <div class="side-card" style="border-left: 3px solid #58a6ff;">
+        <h2>Opções Iniciais da Simulação</h2>
+        <div style="display: flex; flex-direction: column; gap: 9px;">
+          <div>
+            <label style="font-size:0.68rem; color:var(--text-dim); display:block; margin-bottom:3px; font-family:'JetBrains Mono', monospace; font-weight:600;">PRESET DE POPULAÇÃO:</label>
+            <select id="popPreset" style="width:100%; background:#141922; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-family:inherit; font-size:0.77rem; cursor:pointer;">
+              <option value="default" selected>🌱 Padrão (35 Gatos / 140 Ratos - 1:4)</option>
+              <option value="sparse">🌵 Baixa Densidade (12 Gatos / 48 Ratos)</option>
+              <option value="dense">🌳 Alta Densidade (60 Gatos / 240 Ratos)</option>
+              <option value="herbivores">🐁 Santuário Herbívoro (0 Gatos / 200 Ratos)</option>
+              <option value="predators">🐈 Domínio de Predadores (50 Gatos / 80 Ratos)</option>
+              <option value="super">⚡ Superpopulação (100 Gatos / 400 Ratos)</option>
+              <option value="custom">⚙️ Personalizado (Sliders Livres)</option>
+            </select>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+            <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:0.68rem; color:#ffea79; font-weight:600; font-family:'JetBrains Mono', monospace;">🐁 RATOS</span>
+                <span id="lblRatsVal" style="font-size:0.72rem; color:#ffea79; font-family:'JetBrains Mono', monospace; font-weight:700;">140</span>
+              </div>
+              <input type="number" id="initRatsInput" min="0" max="600" value="140" style="width:100%; background:#0a0e14; color:#ffea79; border:1px solid rgba(255,234,121,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
+              <input type="range" id="initRatsSlider" min="0" max="600" value="140" step="1" style="width:100%; margin-top:5px; accent-color:#ffea79; cursor:pointer;">
+            </div>
+            <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:0.68rem; color:#ff6b6b; font-weight:600; font-family:'JetBrains Mono', monospace;">🐈 GATOS</span>
+                <span id="lblCatsVal" style="font-size:0.72rem; color:#ff6b6b; font-family:'JetBrains Mono', monospace; font-weight:700;">35</span>
+              </div>
+              <input type="number" id="initCatsInput" min="0" max="200" value="35" style="width:100%; background:#0a0e14; color:#ff6b6b; border:1px solid rgba(255,107,107,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
+              <input type="range" id="initCatsSlider" min="0" max="200" value="35" step="1" style="width:100%; margin-top:5px; accent-color:#ff6b6b; cursor:pointer;">
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.71rem; color:var(--text-dim); padding:0 2px;">
+            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+              <input type="checkbox" id="chkLockRatio" checked style="accent-color:var(--accent); cursor:pointer;">
+              <span>Travar proporção 4:1 (Ratos = 4x Gatos)</span>
+            </label>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
+            <button id="btnApplyAndStart" class="primary" style="justify-content:center; padding:7px 4px; font-size:0.77rem; font-weight:600;">
+              🚀 Iniciar Simulação
+            </button>
+            <button id="btnApplyPopOnly" style="justify-content:center; padding:7px 4px; font-size:0.77rem; font-weight:600;">
+              ↺ Resetar População
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="side-card">
         <h2>Inspetor de Célula (512x512)</h2>
         <div class="inspector-box" id="inspectorContent">
@@ -686,10 +736,12 @@
         }
       }
 
-      // Povamento de Fauna: 35 Predadores (Gatos) e 140 Herbívoros (Ratos)
+      // Povamento de Fauna: Predadores (Gatos) e Herbívoros (Ratos) dinâmicos
       // Proporções sexuais e biologia reprodutiva baseadas na realidade
-      const X_PREDATORS = 35;
-      const HERBIVORES_COUNT = 4 * X_PREDATORS; // 140
+      const ratsInput = document.getElementById('initRatsInput');
+      const catsInput = document.getElementById('initCatsInput');
+      const HERBIVORES_COUNT = ratsInput ? Math.max(0, parseInt(ratsInput.value) || 0) : 140;
+      const X_PREDATORS = catsInput ? Math.max(0, parseInt(catsInput.value) || 0) : 35;
 
       // Herbívoros (Ratos) - Proporção sexual estrita 50:50 (1:1)
       for (let i = 0; i < HERBIVORES_COUNT; i++) {
@@ -723,11 +775,12 @@
         });
       }
 
-      // Predadores (Gatos) - Proporção sexual natural: 49% fêmeas (17), 51% machos (18)
+      // Predadores (Gatos) - Proporção sexual natural: 49% fêmeas, 51% machos
+      const maleCatsCount = Math.round(X_PREDATORS * 0.51);
       for (let i = 0; i < X_PREDATORS; i++) {
         const gx = 60 + Math.random() * (CHUNK_SIZE - 140);
         const gy = 60 + Math.random() * (CHUNK_SIZE - 140);
-        const sex = (i < 18) ? 'male' : 'female';
+        const sex = (i < maleCatsCount) ? 'male' : 'female';
         const isPregnant = (sex === 'female' && Math.random() < 0.20);
         const gestationRemaining = isPregnant ? (10.0 + Math.random() * 50.0) : 0.0;
         const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0; // Ninhada real: 3 a 5 filhotes
@@ -1847,6 +1900,144 @@
         currentBrush = this.dataset.brush;
       });
     });
+
+    // === GESTÃO E SINCRONIZAÇÃO DE OPÇÕES INICIAIS DE POPULAÇÃO ===
+    const ratsInput = document.getElementById('initRatsInput');
+    const ratsSlider = document.getElementById('initRatsSlider');
+    const lblRatsVal = document.getElementById('lblRatsVal');
+    const catsInput = document.getElementById('initCatsInput');
+    const catsSlider = document.getElementById('initCatsSlider');
+    const lblCatsVal = document.getElementById('lblCatsVal');
+    const chkLockRatio = document.getElementById('chkLockRatio');
+    const popPreset = document.getElementById('popPreset');
+
+    function setRatsUI(val) {
+      if (ratsInput) ratsInput.value = val;
+      if (ratsSlider) ratsSlider.value = val;
+      if (lblRatsVal) lblRatsVal.innerText = val;
+    }
+
+    function setCatsUI(val) {
+      if (catsInput) catsInput.value = val;
+      if (catsSlider) catsSlider.value = val;
+      if (lblCatsVal) lblCatsVal.innerText = val;
+    }
+
+    if (popPreset) {
+      popPreset.addEventListener('change', () => {
+        const p = popPreset.value;
+        if (p === 'default') {
+          setRatsUI(140); setCatsUI(35);
+          if (chkLockRatio) chkLockRatio.checked = true;
+        } else if (p === 'sparse') {
+          setRatsUI(48); setCatsUI(12);
+          if (chkLockRatio) chkLockRatio.checked = true;
+        } else if (p === 'dense') {
+          setRatsUI(240); setCatsUI(60);
+          if (chkLockRatio) chkLockRatio.checked = true;
+        } else if (p === 'herbivores') {
+          if (chkLockRatio) chkLockRatio.checked = false;
+          setRatsUI(200); setCatsUI(0);
+        } else if (p === 'predators') {
+          if (chkLockRatio) chkLockRatio.checked = false;
+          setRatsUI(80); setCatsUI(50);
+        } else if (p === 'super') {
+          setRatsUI(400); setCatsUI(100);
+          if (chkLockRatio) chkLockRatio.checked = true;
+        }
+      });
+    }
+
+    if (ratsSlider) {
+      ratsSlider.addEventListener('input', () => {
+        const rVal = parseInt(ratsSlider.value) || 0;
+        setRatsUI(rVal);
+        if (chkLockRatio && chkLockRatio.checked) {
+          const cVal = Math.round(rVal / 4);
+          setCatsUI(cVal);
+        }
+        if (popPreset) popPreset.value = 'custom';
+      });
+    }
+
+    if (ratsInput) {
+      ratsInput.addEventListener('input', () => {
+        const rVal = Math.max(0, parseInt(ratsInput.value) || 0);
+        if (ratsSlider) ratsSlider.value = Math.min(600, rVal);
+        if (lblRatsVal) lblRatsVal.innerText = rVal;
+        if (chkLockRatio && chkLockRatio.checked) {
+          const cVal = Math.round(rVal / 4);
+          setCatsUI(cVal);
+        }
+        if (popPreset) popPreset.value = 'custom';
+      });
+    }
+
+    if (catsSlider) {
+      catsSlider.addEventListener('input', () => {
+        const cVal = parseInt(catsSlider.value) || 0;
+        setCatsUI(cVal);
+        if (chkLockRatio && chkLockRatio.checked) {
+          const rVal = cVal * 4;
+          setRatsUI(rVal);
+        }
+        if (popPreset) popPreset.value = 'custom';
+      });
+    }
+
+    if (catsInput) {
+      catsInput.addEventListener('input', () => {
+        const cVal = Math.max(0, parseInt(catsInput.value) || 0);
+        if (catsSlider) catsSlider.value = Math.min(200, cVal);
+        if (lblCatsVal) lblCatsVal.innerText = cVal;
+        if (chkLockRatio && chkLockRatio.checked) {
+          const rVal = cVal * 4;
+          setRatsUI(rVal);
+        }
+        if (popPreset) popPreset.value = 'custom';
+      });
+    }
+
+    if (chkLockRatio) {
+      chkLockRatio.addEventListener('change', () => {
+        if (chkLockRatio.checked && catsInput) {
+          const cVal = parseInt(catsInput.value) || 0;
+          setRatsUI(cVal * 4);
+        }
+      });
+    }
+
+    const btnApplyAndStart = document.getElementById('btnApplyAndStart');
+    if (btnApplyAndStart) {
+      btnApplyAndStart.addEventListener('click', () => {
+        initWorld();
+        tickCount = 0;
+        totalSimHours = 0;
+        timeOfDay = 12.0;
+        lastSimDay = 0;
+        isPlaying = true;
+        const btnPlay = document.getElementById('btnPlay');
+        if (btnPlay) {
+          btnPlay.innerText = "⏸ Pausar";
+          btnPlay.classList.add('active');
+        }
+        updateStats();
+        render();
+      });
+    }
+
+    const btnApplyPopOnly = document.getElementById('btnApplyPopOnly');
+    if (btnApplyPopOnly) {
+      btnApplyPopOnly.addEventListener('click', () => {
+        initWorld();
+        tickCount = 0;
+        totalSimHours = 0;
+        timeOfDay = 12.0;
+        lastSimDay = 0;
+        updateStats();
+        render();
+      });
+    }
 
     // Inicialização
     initWorld();

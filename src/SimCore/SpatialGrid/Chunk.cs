@@ -27,6 +27,7 @@ public sealed class Chunk
     public float[] WaterDischarge = new float[CellCount];    // Vazão hídrica acumulada da bacia (Q)
     public float[] LakeWater = new float[CellCount];        // Volume estagnado em depressões endorreicas (lagos)
     public float[] OrganicDetritus = new float[CellCount];  // Carcaças e matéria orgânica em decomposição (Tabela 4)
+    public float[] Grains = new float[CellCount];           // Arroz Silvestre da Várzea (Oryza glumaepatula) em kg/m²
     public readonly float[] Elevation = new float[CellCount];
     public readonly float[] Biomass = new float[CellCount];
 
@@ -39,6 +40,7 @@ public sealed class Chunk
     public float[] NextWaterDischarge = new float[CellCount];
     public float[] NextLakeWater = new float[CellCount];
     public float[] NextOrganicDetritus = new float[CellCount];
+    public float[] NextGrains = new float[CellCount];
 
     public Chunk(int chunkX, int chunkY)
     {
@@ -63,6 +65,7 @@ public sealed class Chunk
         Array.Copy(WaterDischarge, NextWaterDischarge, CellCount);
         Array.Copy(LakeWater, NextLakeWater, CellCount);
         Array.Copy(OrganicDetritus, NextOrganicDetritus, CellCount);
+        Array.Copy(Grains, NextGrains, CellCount);
     }
 
     /// <summary>
@@ -78,6 +81,7 @@ public sealed class Chunk
         (WaterDischarge, NextWaterDischarge) = (NextWaterDischarge, WaterDischarge);
         (LakeWater, NextLakeWater) = (NextLakeWater, LakeWater);
         (OrganicDetritus, NextOrganicDetritus) = (NextOrganicDetritus, OrganicDetritus);
+        (Grains, NextGrains) = (NextGrains, Grains);
     }
 
     /// <summary>
@@ -96,6 +100,7 @@ public sealed class Chunk
             SuspendedSediment[i] = 0f;
             WaterDischarge[i] = 0f;
             OrganicDetritus[i] = 0f;
+            Grains[i] = 0f;
 
             NextMaterialId[i] = matId;
             NextTemperature[i] = temp;
@@ -105,6 +110,7 @@ public sealed class Chunk
             NextSuspendedSediment[i] = 0f;
             NextWaterDischarge[i] = 0f;
             NextOrganicDetritus[i] = 0f;
+            NextGrains[i] = 0f;
         }
     }
 }

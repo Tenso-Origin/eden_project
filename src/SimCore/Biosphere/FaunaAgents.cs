@@ -325,11 +325,44 @@ public static class FaunaSystem
 
                 if (a.GestationDaysRemaining <= 0f)
                 {
-                    // Parto: Fêmea dá à luz filhotes
+                    // Parto: Fêmea dá à luz filhotes diretamente em sua toca segura na floresta
                     a.IsPregnant = false;
                     a.DaysPregnant = 0f;
+                    byte litter = (a.LitterSize > 0) ? a.LitterSize : (byte)Random.Shared.Next(speciesDef.MinLitterSize, speciesDef.MaxLitterSize + 1);
                     a.LitterSize = 0;
                     a.MatingCooldown = speciesDef.PostPartumCooldownDays;
+
+                    // Aloca os filhotes nos slots disponíveis do pool ECS sem garbage collection
+                    int spawned = 0;
+                    for (int k = 0; k < agents.Length && spawned < litter; k++)
+                    {
+                        if (agents[k].Health <= 0f)
+                        {
+                            agents[k] = new AnimalAgent(
+                                id: (uint)(currentTick * 1000 + k),
+                                species: a.SpeciesId,
+                                diet: a.Diet,
+                                x: a.HasNest ? a.NestPosX : a.PosX,
+                                y: a.HasNest ? a.NestPosY : a.PosY,
+                                speed: (a.SpeciesId == SpeciesCatalog.IdRat ? 2.2f : 1.8f)
+                            )
+                            {
+                                AgeInDays = 0f,
+                                MotherId = a.EntityId,
+                                HasNest = a.HasNest,
+                                NestPosX = a.NestPosX,
+                                NestPosY = a.NestPosY,
+                                Sex = (byte)(Random.Shared.NextDouble() < 0.5 ? 0 : 1),
+                                Health = 100f,
+                                Hunger = 20f,
+                                Genome = (a.SpeciesId == SpeciesCatalog.IdRat)
+                                    ? RatGenome.Recombine(in a.Genome, in a.MateGenome)
+                                    : default
+                            };
+                            spawned++;
+                        }
+                    }
+
                     if (a.SpeciesId == SpeciesCatalog.IdRat)
                     {
                         // Roedores: estro pós-parto fértil imediato (~1 dia) se bem nutrida
@@ -342,6 +375,35 @@ public static class FaunaSystem
                         a.EstrusDurationRemaining = 0f;
                     }
                     telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.Birth, a.PosX, a.PosY);
+                }
+            }
+
+            // =========================================================================
+            // CICLO DE VIDA EFÊMERO DE TOCAS E COVIS (REGRA MATERNAL)
+            // As tocas só existem enquanto as mães estiverem prenhas e até seus filhotes atingirem a maturidade
+            // =========================================================================
+            if (a.MotherId > 0 && a.IsAdult && a.HasNest)
+            {
+                // Filhote atinge a idade adulta: deixa o ninho/toca materna
+                a.HasNest = false;
+            }
+
+            if (a.IsFemale && a.HasNest && !a.IsPregnant)
+            {
+                // Verifica se a mãe ainda possui algum filhote imaturo vivo sob seus cuidados
+                bool hasImmaturePups = false;
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (agents[j].Health > 0f && agents[j].MotherId == a.EntityId && !agents[j].IsAdult)
+                    {
+                        hasImmaturePups = true;
+                        break;
+                    }
+                }
+                if (!hasImmaturePups)
+                {
+                    // Ninhada atingiu a maturidade reprodutiva (ou pereceu): toca na floresta é desfeita!
+                    a.HasNest = false;
                 }
             }
 
@@ -369,28 +431,40 @@ public static class FaunaSystem
             int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
 
             // =========================================================================
-            // HERBIVORIA (RATO ALIMENTANDO-SE DA BIOMASSA VEGETAL - TABELA 3)
+            // HERBIVORIA (RATO ALIMENTANDO-SE DE GRÃOS DE VÁRZEA OU BIOMASSA COMUM)
             // =========================================================================
-            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f && chunk.Biomass[curCellIdx] > 0.5f)
+            if (a.Diet == AnimalDiet.Herbivore && a.Hunger > 5f)
             {
-                int ratsInCell = 1;
-                for (int j = 0; j < agents.Length; j++)
+                // 1. Prioridade Absoluta: Consumo de Grãos Amazônicos de Várzea (Oryza glumaepatula)
+                if (chunk.Grains[curCellIdx] > 0.5f)
                 {
-                    if (i == j) continue;
-                    ref readonly var other = ref agents[j];
-                    if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f &&
-                        (int)other.PosX == curCellX && (int)other.PosY == curCellY)
-                    {
-                        ratsInCell++;
-                    }
+                    float grainBite = MathF.Min(chunk.Grains[curCellIdx], (25.0f / 24.0f) * dt);
+                    chunk.Grains[curCellIdx] -= grainBite;
+                    // Grão altamente calórico: 4x rendimento calórico e saciedade rápida (Tabela 3)
+                    a.Hunger = MathF.Max(0f, a.Hunger - grainBite * 2.2f);
+                    a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + grainBite * 8.0f);
                 }
+                // 2. Consumo de Biomassa Vegetal Comum (Saciedade reduzida para 10% para forçar forrageamento de grãos)
+                else if (chunk.Biomass[curCellIdx] > 0.5f)
+                {
+                    int ratsInCell = 1;
+                    for (int j = 0; j < agents.Length; j++)
+                    {
+                        if (i == j) continue;
+                        ref readonly var other = ref agents[j];
+                        if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f &&
+                            (int)other.PosX == curCellX && (int)other.PosY == curCellY)
+                        {
+                            ratsInCell++;
+                        }
+                    }
 
-                // Capacidade de saciedade da biomassa comum reduzida para 10% (forçando migração ativa para grãos)
-                float bitePerDay = 33.33f / ratsInCell;
-                float bite = MathF.Min(chunk.Biomass[curCellIdx] / ratsInCell, (bitePerDay / 24.0f) * dt);
-                chunk.Biomass[curCellIdx] -= bite;
-                a.Hunger = MathF.Max(0f, a.Hunger - bite * 0.35f); // 10% da taxa anterior (3.5f -> 0.35f)
-                a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 1.0f);   // 10% da taxa anterior
+                    float bitePerDay = 33.33f / ratsInCell;
+                    float bite = MathF.Min(chunk.Biomass[curCellIdx] / ratsInCell, (bitePerDay / 24.0f) * dt);
+                    chunk.Biomass[curCellIdx] -= bite;
+                    a.Hunger = MathF.Max(0f, a.Hunger - bite * 0.35f); // 10% da saciedade anterior
+                    a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 1.0f);
+                }
             }
 
             // =========================================================================
@@ -474,6 +548,47 @@ public static class FaunaSystem
                                     DepositCarryingDebris(chunk, (int)prey.PosX, (int)prey.PosY, 250f);
                                     break;
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // =========================================================================
+            // PREDAÇÃO AÉREA DE TOPO (HARPIA AMAZÔNICA / GAVIÃO-REAL - TABELA 3)
+            // =========================================================================
+            if (a.Diet == AnimalDiet.AvianApex)
+            {
+                // A Harpia patrulha o espaço aéreo e mergulha sobre presas terrestres desprotegidas
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref var prey = ref agents[j];
+                    if (prey.Health <= 0f) continue;
+                    // IMUNIDADE SUBTERRÂNEA: Presa dentro da toca é inatingível por predadores aéreos!
+                    if (prey.IsSafeInBurrow) continue;
+
+                    if (prey.Diet != AnimalDiet.Herbivore && prey.Diet != AnimalDiet.Carnivore) continue;
+
+                    float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
+                    if (distSq <= 6.25f && a.Hunger > 15.0f) // Alcance de rasante de impacto (2.5 células)
+                    {
+                        if (SpeciesCatalog.TryGetInteraction(a.SpeciesId, prey.SpeciesId, out var interaction))
+                        {
+                            // O dossel da floresta densa oferece refúgio vegetal (30% de eficácia); em várzea/gramíneas, rasante letal
+                            float canopyCover = chunk.Biomass[curCellIdx] > 45.0f ? 0.35f : 1.0f;
+                            float captureRate = interaction.BaseCaptureSuccessRate * canopyCover;
+
+                            if (Random.Shared.NextDouble() < captureRate)
+                            {
+                                prey.Health = 0f;
+                                prey.State = AgentState.Dead;
+                                telemetry?.RecordEvent(currentTick, currentSimHour, prey.SpeciesId, EcologicalEventType.DeathByPredation, prey.PosX, prey.PosY);
+
+                                a.Hunger = MathF.Max(0f, a.Hunger - interaction.SatietyBoost);
+                                a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + interaction.NutritionalYieldJoules);
+                                DepositCarryingDebris(chunk, (int)prey.PosX, (int)prey.PosY, (prey.SpeciesId == SpeciesCatalog.IdRat ? 250f : 4200f));
+                                break;
                             }
                         }
                     }
@@ -729,6 +844,26 @@ public static class FaunaSystem
                     {
                         // Repulsão territorial quando do mesmo sexo ou sem fêmea receptiva
                         score -= (10.0f - d) * 3.5f;
+                    }
+                }
+            }
+
+            return score;
+        }
+        else // AnimalDiet.AvianApex (Harpia Amazônica)
+        {
+            // Visão aérea telescópica de 50 células com atração sobre presas terrestres desprotegidas
+            float score = 0f;
+            for (int i = 0; i < allAgents.Length; i++)
+            {
+                if (i == selfIdx) continue;
+                ref readonly var other = ref allAgents[i];
+                if (other.Health > 0f && (other.Diet == AnimalDiet.Herbivore || other.Diet == AnimalDiet.Carnivore) && !other.IsSafeInBurrow)
+                {
+                    float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
+                    if (d <= 50.0f)
+                    {
+                        score += (50.0f - d) * 2.2f * (agent.Hunger / 100.0f);
                     }
                 }
             }

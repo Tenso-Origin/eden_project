@@ -68,6 +68,16 @@ public static class FloraAutomata
 
                 chunk.Biomass[i] = Math.Clamp(currentBiomass + actualGrowth, 0f, MaxBiomass);
 
+                // Dinâmica de Grãos Silvestres de Várzea (Oryza glumaepatula - Tabela 3)
+                // Espécie pioneira de várzea: floresce em solos úmidos e margens (moisture > 0.30f e água rasa < 0.25m)
+                if (moisture > 0.30f && chunk.SurfaceWater[i] < 0.25f && temp >= 18f && temp <= 36f)
+                {
+                    float currentGrains = chunk.Grains[i];
+                    const float maxGrainCapacity = 60.0f; // Até 60 kg/m² de espigas maduras
+                    float grainGrowth = (moisture * 1.5f) * dt * (1.0f - currentGrains / maxGrainCapacity);
+                    chunk.Grains[i] = Math.Clamp(currentGrains + MathF.Max(0f, grainGrowth), 0f, maxGrainCapacity);
+                }
+
                 // A vegetação transpira e absorve umidade do solo
                 float moistureUsed = actualGrowth * MoistureConsumptionRate;
                 chunk.Moisture[i] = MathF.Max(0f, moisture - moistureUsed);

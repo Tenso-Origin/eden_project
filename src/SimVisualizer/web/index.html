@@ -853,43 +853,83 @@
 
     function getIdx(x, y) { return y * CHUNK_SIZE + x; }
 
-    // === SISTEMA DINÂMICO DE TOCAS E COVIS MATERNAIS COM IMUNIDADE ===
-    // 90% das tocas situam-se na floresta densa (fora do anel de várzea) e 10% nas bordas
-    function findForestNestLocation(species) {
-      const preferDeepForest = (Math.random() < 0.90);
-      for (let attempt = 0; attempt < 40; attempt++) {
-        let nx, ny;
-        if (currentScenario === 'amazon') {
-          const angle = Math.random() * Math.PI * 2;
-          // Lago até 50.5m, várzea até 200m. Floresta densa a partir de R > 195m!
-          const r = preferDeepForest 
-            ? (195.0 + Math.random() * 45.0)  // 90% na floresta densa
-            : (145.0 + Math.random() * 40.0); // 10% nas bordas da várzea
-          nx = 256.0 + Math.cos(angle) * r;
-          ny = 256.0 + Math.sin(angle) * r;
-        } else {
-          nx = 35 + Math.random() * (CHUNK_SIZE - 70);
-          ny = 35 + Math.random() * (CHUNK_SIZE - 70);
+    // === SISTEMA DE REFÚGIOS NATURAIS E TOCAS MATERNAIS FLEXÍVEIS ===
+    // Refúgios Naturais: Troncos caídos, espaços embaixo de pedras/rochas e moitas de vegetação densa
+    // 75% posicionados na floresta e 25% na várzea/gramíneas (concedem imunidade absoluta a ataques)
+    let naturalRefuges = [];
+
+    function initNaturalRefuges() {
+      naturalRefuges = [];
+      const TOTAL_REFUGES = 160;
+      for (let i = 0; i < TOTAL_REFUGES; i++) {
+        const inForest = (i < TOTAL_REFUGES * 0.75); // 75% na floresta, 25% na várzea
+        for (let attempt = 0; attempt < 40; attempt++) {
+          let rx, ry;
+          if (currentScenario === 'amazon') {
+            const angle = Math.random() * Math.PI * 2;
+            const r = inForest
+              ? (195.0 + Math.random() * 45.0)  // 75% na floresta densa (R > 195m)
+              : (58.0 + Math.random() * 135.0); // 25% na várzea / gramíneas (R: 58m a 193m)
+            rx = 256.0 + Math.cos(angle) * r;
+            ry = 256.0 + Math.sin(angle) * r;
+          } else {
+            rx = 30 + Math.random() * (CHUNK_SIZE - 60);
+            ry = 30 + Math.random() * (CHUNK_SIZE - 60);
+          }
+          rx = Math.max(10, Math.min(CHUNK_SIZE - 10, rx));
+          ry = Math.max(10, Math.min(CHUNK_SIZE - 10, ry));
+          const idx = getIdx(Math.floor(rx), Math.floor(ry));
+          if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
+            const typeRoll = Math.random();
+            const type = typeRoll < 0.40 ? 'log' : (typeRoll < 0.75 ? 'rock' : 'brush');
+            naturalRefuges.push({
+              id: i + 1,
+              x: rx,
+              y: ry,
+              type: type,
+              radius: 2.5
+            });
+            break;
+          }
         }
-        nx = Math.max(10, Math.min(CHUNK_SIZE - 10, nx));
-        ny = Math.max(10, Math.min(CHUNK_SIZE - 10, ny));
+      }
+    }
+
+    // Fêmeas prenhas agora NÃO precisam sair da zona de grama: criam a toca no local onde estão ou nas proximidades imediatas!
+    function findLocalNestLocation(animal) {
+      for (let attempt = 0; attempt < 25; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * 4.0; // Raio imediato de até 4 metros
+        const nx = Math.max(8, Math.min(CHUNK_SIZE - 9, animal.x + Math.cos(angle) * dist));
+        const ny = Math.max(8, Math.min(CHUNK_SIZE - 9, animal.y + Math.sin(angle) * dist));
         const idx = getIdx(Math.floor(nx), Math.floor(ny));
-        if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.10) {
+        if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
           return { x: nx, y: ny };
         }
       }
-      return { x: 256.0 + 205.0, y: 256.0 };
+      return { x: animal.x, y: animal.y };
     }
 
-    // Verifica se um animal está protegido dentro de uma toca/covil seguro (imunidade a ataques)
-    function isProtectedInBurrow(animal) {
+    // Verifica se um animal está protegido dentro de uma toca/covil OU em um refúgio natural (imunidade a predadores)
+    function isProtectedInBurrowOrRefuge(animal) {
+      // 1. Toca maternal própria ativa (raio <= 3.0m)
       if (animal.hasNest && Math.hypot(animal.x - animal.nestX, animal.y - animal.nestY) <= 3.0) {
         return true;
       }
+      // 2. Qualquer toca ativa da mesma espécie (raio <= 3.0m)
       for (let ni = 0; ni < nests.length; ni++) {
         const n = nests[ni];
         if (n.species === animal.species && Math.hypot(n.x - animal.x, n.y - animal.y) <= 3.0) {
           return true;
+        }
+      }
+      // 3. Refúgio Natural (troncos caídos, pedras, vegetação densa) - Protege roedores (raio <= 2.5m)
+      if (animal.species === 'rat') {
+        for (let ri = 0; ri < naturalRefuges.length; ri++) {
+          const r = naturalRefuges[ri];
+          if (Math.hypot(r.x - animal.x, r.y - animal.y) <= r.radius) {
+            return true;
+          }
         }
       }
       return false;
@@ -1153,6 +1193,9 @@
         }
       }
 
+      // 5º ELEMENTO: Refúgios Naturais (Troncos, Rochas, Vegetação Densa - 75% Floresta, 25% Várzea)
+      initNaturalRefuges();
+
       // Povamento de Fauna: Predadores (Gatos) e Herbívoros (Ratos) dinâmicos
       const ratsInput = document.getElementById('initRatsInput');
       const catsInput = document.getElementById('initCatsInput');
@@ -1178,9 +1221,9 @@
         if (isPregnant) {
           daysPregnant = 1.0 + Math.random() * 20.0;
           gestationRemaining = Math.max(0.5, 22.0 - daysPregnant);
-          // Fêmeas prenhas com mais de 3 dias criam toca na floresta (90% no interior da mata)
+          // Fêmeas prenhas com mais de 3 dias criam toca no local onde estão (sem exigir floresta!)
           if (daysPregnant >= 3.0) {
-            const loc = findForestNestLocation('rat');
+            const loc = findLocalNestLocation({ x: rx, y: ry });
             hasNest = true;
             nestX = loc.x;
             nestY = loc.y;
@@ -1249,9 +1292,9 @@
         if (isPregnant) {
           daysPregnant = 1.0 + Math.random() * 60.0;
           gestationRemaining = Math.max(1.0, 65.0 - daysPregnant);
-          // Gatas prenhas com mais de 3 dias criam covil na floresta
+          // Gatas prenhas com mais de 3 dias criam covil no local onde estão
           if (daysPregnant >= 3.0) {
-            const loc = findForestNestLocation('cat');
+            const loc = findLocalNestLocation({ x: gx, y: gy });
             hasNest = true;
             nestX = loc.x;
             nestY = loc.y;
@@ -1567,9 +1610,9 @@
         if (ratScent[i+3] > 0) ratScent[i+3] = Math.max(0, ratScent[i+3] - scentDecayRate);
       }
 
-      // Constantes de alcance do Gato
-      const CAT_HUNTING_ZONE = 15; // Zona de caça direta (preda por diversão até 2x/dia)
-      const CAT_OLFACTORY_RANGE = 45; // Faro de cheiro (3x a zona de caça = 45 células)
+      // Constantes de alcance do Gato calibradas com dados reais (PanTHERIA / Felis catus)
+      const CAT_HUNTING_ZONE = 25; // Percepção visual e auditiva direta de caça (25 metros)
+      const CAT_OLFACTORY_RANGE = 90; // Faro químico de presas e trilha de odor (90 metros)
 
       for (let i = 0; i < animals.length; i++) {
         const a = animals[i];
@@ -1584,9 +1627,9 @@
           a.daysPregnant = (a.daysPregnant || 0.0) + simDeltaDays;
           a.gestationRemaining -= simDeltaDays;
 
-          // HABILIDADE MATERNA: após 3 dias de gestação, fêmea prenha constrói toca/covil seguro na floresta
+          // HABILIDADE MATERNA: após 3 dias de gestação, fêmea prenha constrói toca/covil onde estiver (sem exigir floresta!)
           if (a.daysPregnant >= 3.0 && !a.hasNest) {
-            const loc = findForestNestLocation(a.species);
+            const loc = findLocalNestLocation(a);
             a.hasNest = true;
             a.nestX = loc.x;
             a.nestY = loc.y;
@@ -1831,35 +1874,35 @@
           }
 
           if (dangerCount > 0) {
-            // Evasão ativa de predador: se tiver toca na floresta, foge prioritariamente para a toca segura!
+            // Evasão ativa de predador: busca o refúgio seguro mais próximo (sua toca OU refúgio natural de tronco/pedra/vegetação)
             let refugeBiasX = 0, refugeBiasY = 0;
             const refugeAffinity = a.genome ? a.genome.refugeAffinity : 0.45;
 
+            let bestShelterX = null, bestShelterY = null, minShelterDist = 999.0;
+            // 1. Toca própria
             if (a.hasNest) {
-              const toNestX = a.nestX - a.x;
-              const toNestY = a.nestY - a.y;
-              const distNest = Math.hypot(toNestX, toNestY);
-              if (distNest > 0.6) {
-                // Vetor forte de corrida de volta para a toca segura na floresta
-                refugeBiasX = (toNestX / distNest) * 4.5;
-                refugeBiasY = (toNestY / distNest) * 4.5;
+              const dNest = Math.hypot(a.nestX - a.x, a.nestY - a.y);
+              bestShelterX = a.nestX;
+              bestShelterY = a.nestY;
+              minShelterDist = dNest;
+            }
+            // 2. Refúgios Naturais (troncos caídos, fendas de pedras, moitas densas)
+            for (let ri = 0; ri < naturalRefuges.length; ri++) {
+              const ref = naturalRefuges[ri];
+              const dRef = Math.hypot(ref.x - a.x, ref.y - a.y);
+              if (dRef < minShelterDist) {
+                minShelterDist = dRef;
+                bestShelterX = ref.x;
+                bestShelterY = ref.y;
               }
-            } else if (refugeAffinity > 0.15) {
-              let maxBio = 0;
-              for (let dy = -3; dy <= 3; dy++) {
-                const ny = curY + dy;
-                if (ny < 0 || ny >= CHUNK_SIZE) continue;
-                for (let dx = -3; dx <= 3; dx++) {
-                  const nx = curX + dx;
-                  if (nx < 0 || nx >= CHUNK_SIZE) continue;
-                  const bVal = biomass[getIdx(nx, ny)];
-                  if (bVal > 30.0 && bVal > maxBio) {
-                    maxBio = bVal;
-                    refugeBiasX = dx;
-                    refugeBiasY = dy;
-                  }
-                }
-              }
+            }
+
+            if (bestShelterX !== null && minShelterDist > 0.6) {
+              // Vetor forte de corrida anaeróbica de volta para a toca ou refúgio natural seguro
+              const toShelterX = bestShelterX - a.x;
+              const toShelterY = bestShelterY - a.y;
+              refugeBiasX = (toShelterX / minShelterDist) * 4.5;
+              refugeBiasY = (toShelterY / minShelterDist) * 4.5;
             }
 
             targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 2.2);
@@ -1878,16 +1921,16 @@
               targetX = a.x + floodEscapeX * 3.0;
               targetY = a.y + floodEscapeY * 3.0;
             } else if (a.isPregnant && a.gestationRemaining < 2.5 && a.hasNest) {
-              // MECÂNICA DE NINHO: Fêmea prenhe perto do parto retorna ao ninho seguro na floresta
+              // MECÂNICA DE NINHO: Fêmea prenhe perto do parto retorna ao ninho seguro
               targetX = a.nestX;
               targetY = a.nestY;
             } else {
               let mateTargetFound = false;
 
-              // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários até 20 células)
+              // Busca de parceiro fértil durante o ciclo de estro (feromônios ampliados para dados reais: 50 metros)
               if (isReadyToMate && a.hunger < 50 && animals.length < 500) {
                 let closestMate = null;
-                let closestDist = 20.0;
+                let closestDist = 50.0; // Raio real de percepção olfativa e vocal de parceiros (50 metros)
 
                 for (let j = 0; j < animals.length; j++) {
                   if (i === j) continue;
@@ -1924,22 +1967,20 @@
                     female.estrusDurationRemaining = 0.0;
                     female.estrusCycleTimer = female.gestationRemaining;
                     female.matingCooldown = female.gestationRemaining + 15.0;
-                    // A toca segura será construída na floresta após 3 dias de gestação (daysPregnant >= 3)
                   }
                 }
               }
 
-            // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO!
-            // INTELIGÊNCIA DOS HERBÍVOROS: sabem que os grãos de várzea são muito mais saborosos e calóricos!
+            // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO (Raio real de faro: 40 metros)!
             if (!mateTargetFound) {
               let bestScore = -999;
               let bestX = curX, bestY = curY;
-              const searchRadius = 14;
+              const searchRadius = 40; // Dados reais: faro de sementes e grãos a até 40 metros
 
-              for (let dy = -searchRadius; dy <= searchRadius; dy += 2) {
+              for (let dy = -searchRadius; dy <= searchRadius; dy += 3) {
                 const ny = curY + dy;
                 if (ny < 0 || ny >= CHUNK_SIZE) continue;
-                for (let dx = -searchRadius; dx <= searchRadius; dx += 2) {
+                for (let dx = -searchRadius; dx <= searchRadius; dx += 3) {
                   const nx = curX + dx;
                   if (nx < 0 || nx >= CHUNK_SIZE) continue;
                   if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
@@ -1981,11 +2022,11 @@
         else if (a.species === 'cat') {
           a.currentSprintBoost = 1.0;
 
-          // 1. Comunicação e Chamado Acústico / Feromônio de Acasalamento (até 45 células)
+          // 1. Comunicação e Chamado Acústico / Feromônio de Acasalamento (ampliado com dados reais: até 100 metros)
           // Gatas em cio emitem chamados que atraem machos e suprimem a repulsão territorial
           let mateFound = false;
           let closestMate = null;
-          let closestMateDist = 45.0;
+          let closestMateDist = 100.0; // Dados reais de vocalização felina (100 metros)
 
           if (isReadyToMate && animals.filter(x => x.species === 'cat').length < 80) {
             for (let j = 0; j < animals.length; j++) {
@@ -2044,7 +2085,7 @@
             }
           }
 
-          // 3. CAÇA: DIVERSÃO NA ZONA DE CAÇA (15 cél) VS FOME FORA DELA COM FARO (45 cél)
+          // 3. CAÇA: DIVERSÃO NA ZONA DE CAÇA (25 cél) VS FOME FORA DELA COM FARO (90 cél)
           // E ARRANCADA DE EMBOSCADA FELINA (Pounce Burst) para compensar sprint da presa
           if (!mateFound) {
             let closestPrey = null;
@@ -2054,8 +2095,8 @@
             for (let j = 0; j < animals.length; j++) {
               const prey = animals[j];
               if (prey.species === 'rat' && prey.hp > 0) {
-                // IMUNIDADE DE TOCA: se o rato estiver abrigado dentro de uma toca, felinos não podem atacá-lo!
-                if (isProtectedInBurrow(prey)) continue;
+                // IMUNIDADE DE TOCA E REFÚGIO: se o rato estiver abrigado na toca ou refúgio natural (tronco/pedra), felinos não atacam!
+                if (isProtectedInBurrowOrRefuge(prey)) continue;
 
                 const d = Math.hypot(prey.x - a.x, prey.y - a.y);
                 if (d <= CAT_HUNTING_ZONE) {
@@ -2078,7 +2119,7 @@
 
             if (closestPrey) {
               if (isInHuntingZone) {
-                // Na zona de caça (15 cél): caça por diversão apenas até a 2ª caçada diária!
+                // Na zona de caça (25 cél): caça por diversão apenas até a 2ª caçada diária!
                 if (a.dailyFunKills < 2) {
                   shouldHunt = true;
                   isFunHunt = true;
@@ -2087,7 +2128,7 @@
                   isFunHunt = false;
                 }
               } else if (a.hunger > 30) {
-                // Fora da zona de caça (farejado até 45 cél): caça guiada estritamente pela fome
+                // Fora da zona de caça (farejado até 90 cél): caça guiada estritamente pela fome
                 shouldHunt = true;
                 isFunHunt = false;
               }
@@ -2107,8 +2148,8 @@
 
               // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
               if (closestDist < 1.4) {
-                // Se a presa conseguiu alcançar e entrar na toca: imunidade absoluta!
-                if (isProtectedInBurrow(closestPrey)) {
+                // Se a presa conseguiu alcançar e entrar na toca ou refúgio natural: imunidade absoluta!
+                if (isProtectedInBurrowOrRefuge(closestPrey)) {
                   a.currentSprintBoost = 1.0;
                 } else {
                   const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
@@ -2260,7 +2301,7 @@
 
               for (let ai = 0; ai < animals.length; ai++) {
                 const prey = animals[ai];
-                if (prey.hp <= 0 || isProtectedInBurrow(prey)) continue;
+                if (prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey)) continue;
 
                 const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
                 if (pX < 0 || pX >= CHUNK_SIZE || pY < 0 || pY >= CHUNK_SIZE) continue;
@@ -2271,8 +2312,9 @@
                 const isGrasslandZone = (matId[pIdx] !== MAT_WATER && surfaceWater[pIdx] < 0.10 && biomass[pIdx] >= 15.0 && biomass[pIdx] <= 55.0);
                 if (!isGrasslandZone) continue;
 
+                // Visão telescópica ampliada com base nos dados reais de rapinas: até 150 metros
                 const distToPrey = Math.hypot(prey.x - h.x, prey.y - h.y);
-                if (distToPrey > 90.0) continue;
+                if (distToPrey > 150.0) continue;
 
                 // Inteligência para Sobrevivência da Espécie:
                 // Se HP < 50, a harpia RECUSA caçar gatos (risco de ferimento por revide)
@@ -2296,7 +2338,7 @@
           // 5. Mergulho Rasante de Ataque (Dive Attack)
           else if (h.state === 'dive') {
             const prey = h.target;
-            if (!prey || prey.hp <= 0 || isProtectedInBurrow(prey)) {
+            if (!prey || prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey)) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2306,8 +2348,8 @@
             const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
             const pIdx = getIdx(Math.max(0, Math.min(CHUNK_SIZE - 1, pX)), Math.max(0, Math.min(CHUNK_SIZE - 1, pY)));
 
-            // SE A PRESA FUGIR PARA A FLORESTA DENSA, ÁGUA OU TOCA: ABORTA MERGULHO!
-            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrow(prey)) {
+            // SE A PRESA FUGIR PARA A FLORESTA DENSA, ÁGUA, TOCA OU REFÚGIO NATURAL: ABORTA MERGULHO!
+            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrowOrRefuge(prey)) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2328,8 +2370,8 @@
 
             // Bote no alvo
             if (distHoriz < 1.8 && h.z < 2.5) {
-              // Verifica mais uma vez se a presa atingiu a segurança da toca
-              if (isProtectedInBurrow(prey)) {
+              // Verifica mais uma vez se a presa atingiu a segurança da toca ou refúgio
+              if (isProtectedInBurrowOrRefuge(prey)) {
                 h.state = 'patrol';
                 h.target = null;
                 h.z = 38.0;
@@ -2536,6 +2578,37 @@
         ctx.strokeRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
       }
 
+      // Renderização sobreposta de Refúgios Naturais (Troncos Caídos, Pedras e Vegetação Densa - 75% Floresta, 25% Várzea)
+      for (let ri = 0; ri < naturalRefuges.length; ri++) {
+        const ref = naturalRefuges[ri];
+        ctx.beginPath();
+        if (ref.type === 'log') {
+          // Tronco caído: elipse marrom amadeirada com anéis de casca
+          ctx.ellipse(ref.x, ref.y, 3.2, 1.3, 0.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#5c3a21';
+          ctx.strokeStyle = '#382314';
+          ctx.lineWidth = 0.8;
+          ctx.fill();
+          ctx.stroke();
+        } else if (ref.type === 'rock') {
+          // Espaço sob pedras / fendas: rocha cinza ardósia
+          ctx.arc(ref.x, ref.y, 2.3, 0, Math.PI * 2);
+          ctx.fillStyle = '#64748b';
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 0.8;
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          // Vegetação densa / moita impenetrável: esmeralda escuro
+          ctx.arc(ref.x, ref.y, 2.7, 0, Math.PI * 2);
+          ctx.fillStyle = '#14532d';
+          ctx.strokeStyle = '#16a34a';
+          ctx.lineWidth = 0.7;
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+
       // Renderização sobreposta de Ninhos e Refúgios
       for (let ni = 0; ni < nests.length; ni++) {
         const n = nests[ni];
@@ -2580,24 +2653,24 @@
 
         if (currentLayer === 'fauna' || currentLayer === 'scent') {
           if (a.species === 'rat') {
-            // Anel sensorial de 5 células para ratos
+            // Anel sensorial ampliado para dados reais: 15 células de visão / 40 células de faro
             ctx.beginPath();
-            ctx.arc(px, py, a.sensoryRadius, 0, Math.PI * 2);
+            ctx.arc(px, py, 15, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 235, 59, 0.4)';
             ctx.lineWidth = 1;
             ctx.stroke();
           } else if (a.species === 'cat') {
-            // Zona de caça direta (15 células, predação por diversão)
+            // Zona de caça direta ampliada (25 células, dados reais de bote/emboscada)
             ctx.beginPath();
-            ctx.arc(px, py, 15, 0, Math.PI * 2);
+            ctx.arc(px, py, 25, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(255, 77, 77, 0.45)';
             ctx.lineWidth = 1.2;
             ctx.stroke();
 
-            // Alcance de faro (45 células = 3x a zona de caça, caça se faminto)
+            // Alcance de faro ampliado (90 células = faro de longo alcance de presas)
             ctx.beginPath();
             ctx.setLineDash([4, 4]);
-            ctx.arc(px, py, 45, 0, Math.PI * 2);
+            ctx.arc(px, py, 90, 0, Math.PI * 2);
             ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
             ctx.lineWidth = 1;
             ctx.stroke();
@@ -2653,8 +2726,8 @@
           ctx.stroke();
         }
 
-        // Escudo visual de imunidade subterrânea ativa quando protegido na toca/covil
-        if (isProtectedInBurrow(a)) {
+        // Escudo visual de imunidade ativa quando protegido na toca OU em refúgio natural (tronco, pedra, moita)
+        if (isProtectedInBurrowOrRefuge(a)) {
           ctx.beginPath();
           ctx.arc(px, py, rad + 2.2, 0, Math.PI * 2);
           ctx.strokeStyle = '#38bdf8'; // Ciano luminoso: Imunidade a ataques ativa

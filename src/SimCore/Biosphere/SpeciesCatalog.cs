@@ -155,8 +155,8 @@ public static class SpeciesCatalog
             estrusDuration: 0.8f,
             minTemp: -5.0f,
             maxTemp: 38.0f,
-            visualRadius: 8,
-            olfactoryRadius: 20
+            visualRadius: 15,     // Visão de campo próximo
+            olfactoryRadius: 40   // Faro apurado de grãos e feromônios (40 metros)
         );
 
         // -------------------------------------------------------------------------
@@ -186,8 +186,8 @@ public static class SpeciesCatalog
             estrusDuration: 5.0f,
             minTemp: -8.0f,
             maxTemp: 42.0f,
-            visualRadius: 15,
-            olfactoryRadius: 45 // 3x a zona de caça visual direta
+            visualRadius: 25,     // Zona de caça direta e emboscada (25 metros)
+            olfactoryRadius: 90   // Faro de longo alcance de presas e parceiros (90 metros)
         );
 
         // -------------------------------------------------------------------------
@@ -195,7 +195,7 @@ public static class SpeciesCatalog
         // Traços reais (AVONET / PanTHERIA):
         // Massa: ~6500g (fêmea) / ~4800g (macho) | BMR: ~18.0W | Vida: ~35 anos (12775 dias)
         // Monogamia estrita (casal vitalício) | Ninhada: 1 a 2 ovos a cada 2 a 3 anos
-        // Visão telescópica aérea de altíssima resolução (raio visual de 50 células)
+        // Visão telescópica aérea de altíssima resolução (raio visual de 150 células)
         // -------------------------------------------------------------------------
         _speciesRegistry[IdHarpyEagle] = new SpeciesDef(
             id: IdHarpyEagle,
@@ -217,8 +217,8 @@ public static class SpeciesCatalog
             estrusDuration: 14.0f,
             minTemp: 12.0f,
             maxTemp: 42.0f,
-            visualRadius: 50, // Visão telescópica de ave de rapina
-            olfactoryRadius: 10
+            visualRadius: 150,    // Visão telescópica aérea de predador de topo (150 metros)
+            olfactoryRadius: 20
         );
 
         // -------------------------------------------------------------------------

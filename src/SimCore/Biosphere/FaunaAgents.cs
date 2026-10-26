@@ -213,14 +213,90 @@ public struct AnimalAgent
 }
 
 /// <summary>
+/// Tipos de micro-abrigos naturais no bioma que impedem a captura por predadores.
+/// </summary>
+public enum RefugeType : byte
+{
+    FallenLog = 0,       // Troncos de árvores caídos
+    RockCrevice = 1,     // Espaços embaixo de pedras e fendas rochosas
+    DenseVegetation = 2  // Moitas de vegetação densa impenetrável
+}
+
+/// <summary>
+/// Refúgio natural fixo no ecossistema (75% na floresta e 25% na várzea).
+/// Concede imunidade física contra predadores terrestres e aéreos aos roedores abrigados.
+/// </summary>
+[StructLayout(LayoutKind.Sequential, Pack = 4)]
+public readonly struct NaturalRefuge
+{
+    public readonly float PosX;
+    public readonly float PosY;
+    public readonly RefugeType Type;
+    public readonly float Radius;
+
+    public NaturalRefuge(float x, float y, RefugeType type, float radius = 2.5f)
+    {
+        PosX = x;
+        PosY = y;
+        Type = type;
+        Radius = radius;
+    }
+
+    public static NaturalRefuge[] CreateAmazonRefuges(int count = 160)
+    {
+        var refuges = new NaturalRefuge[count];
+        int forestCount = (int)(count * 0.75f); // 75% na floresta densa
+
+        for (int i = 0; i < count; i++)
+        {
+            bool inForest = (i < forestCount);
+            float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+            float radius = inForest
+                ? (195.0f + Random.Shared.NextSingle() * 45.0f)  // 75% na floresta densa (R > 195m)
+                : (58.0f + Random.Shared.NextSingle() * 135.0f); // 25% na várzea (R: 58m a 193m)
+
+            float x = Math.Clamp(256f + MathF.Cos(angle) * radius, 10f, 502f);
+            float y = Math.Clamp(256f + MathF.Sin(angle) * radius, 10f, 502f);
+            var type = (RefugeType)Random.Shared.Next(0, 3);
+            refuges[i] = new NaturalRefuge(x, y, type, 2.5f);
+        }
+        return refuges;
+    }
+}
+
+/// <summary>
 /// FASE 5: Motor de Dinâmica Populacional, Fisiologia Metabólica e Teia Trófica.
 /// Processa agentes animais em lote contíguo com Resposta Funcional de Holling Tipo II/III.
 /// </summary>
 public static class FaunaSystem
 {
     public const float StarvationDamage = 0.6f;   // Dano suave de inanição dando tempo de busca por alimento
-    public const byte CatHuntingZone = 15;        // Zona de caça direta do gato: 15 células (preda por diversão)
-    public const byte CatOlfactoryRange = 45;     // Alcance de faro: 3x a zona de caça (45 células)
+    public const byte CatHuntingZone = 25;        // Zona de caça direta do gato: 25 células (dados reais de bote)
+    public const byte CatOlfactoryRange = 90;     // Alcance de faro: 90 células (dados reais de faro felino)
+
+    public static readonly NaturalRefuge[] AmazonRefuges = NaturalRefuge.CreateAmazonRefuges(160);
+
+    /// <summary>
+    /// Avalia se o roedor/animal está protegido dentro de sua toca maternal ou em um refúgio natural
+    /// (troncos de árvores caídos, espaços embaixo de pedras ou vegetação densa que impedem predadores).
+    /// </summary>
+    public static bool IsProtectedInBurrowOrRefuge(in AnimalAgent animal)
+    {
+        if (animal.IsSafeInBurrow) return true;
+        if (animal.Diet != AnimalDiet.Herbivore) return false;
+
+        for (int r = 0; r < AmazonRefuges.Length; r++)
+        {
+            ref readonly var refg = ref AmazonRefuges[r];
+            float dx = animal.PosX - refg.PosX;
+            float dy = animal.PosY - refg.PosY;
+            if ((dx * dx + dy * dy) <= (refg.Radius * refg.Radius))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>
     /// Executa o tick fisiológico, a teia trófica de predação de Holling, decomposição e telemetria.
@@ -310,17 +386,12 @@ public static class FaunaSystem
                 a.GestationDaysRemaining -= gestProgress;
                 a.DaysPregnant += gestProgress;
 
-                // Concede habilidade de criar tocas na floresta após 3 dias de gestação
+                // Concede habilidade de criar tocas onde a fêmea estiver após 3 dias de gestação (inclusive na várzea/gramíneas)
                 if (a.DaysPregnant >= 3.0f && !a.HasNest)
                 {
-                    float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
-                    // 90% na floresta densa (r entre 195 e 240) e 10% na orla
-                    float radius = (Random.Shared.NextSingle() < 0.90f)
-                        ? (195.0f + Random.Shared.NextSingle() * 45.0f)
-                        : (180.0f + Random.Shared.NextSingle() * 15.0f);
                     a.HasNest = true;
-                    a.NestPosX = Math.Clamp(256.0f + MathF.Cos(angle) * radius, 10f, 502f);
-                    a.NestPosY = Math.Clamp(256.0f + MathF.Sin(angle) * radius, 10f, 502f);
+                    a.NestPosX = a.PosX;
+                    a.NestPosY = a.PosY;
                 }
 
                 if (a.GestationDaysRemaining <= 0f)
@@ -506,7 +577,7 @@ public static class FaunaSystem
                 {
                     if (i == j) continue;
                     ref var prey = ref agents[j];
-                    if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f || prey.IsSafeInBurrow) continue;
+                    if (prey.Diet != AnimalDiet.Herbivore || prey.Health <= 0f || IsProtectedInBurrowOrRefuge(in prey)) continue;
 
                     float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
                     if (distSq <= 1.44f) // Alcance físico de bote (1.2 células)
@@ -565,8 +636,8 @@ public static class FaunaSystem
                     if (i == j) continue;
                     ref var prey = ref agents[j];
                     if (prey.Health <= 0f) continue;
-                    // IMUNIDADE SUBTERRÂNEA: Presa dentro da toca é inatingível por predadores aéreos!
-                    if (prey.IsSafeInBurrow) continue;
+                    // IMUNIDADE: Presa dentro da toca ou abrigada em refúgio natural é inatingível!
+                    if (IsProtectedInBurrowOrRefuge(in prey)) continue;
 
                     if (prey.Diet != AnimalDiet.Herbivore && prey.Diet != AnimalDiet.Carnivore) continue;
 
@@ -750,21 +821,31 @@ public static class FaunaSystem
             float fearWeight = 8.0f * (effectiveAlert / 12.0f);
             float foodWeight = (agent.Hunger / 100.0f) * 4.0f;
 
-            // Busca Ativa de Refúgio (Holling e Toca Segura): sob perigo, atração potente pela toca na floresta e vegetação densa
+            // Busca Ativa de Refúgio (Holling, Toca Segura e Refúgios Naturais: troncos, pedras, moitas)
             float refugeBonus = 0f;
             if (danger > 8.0f)
             {
                 refugeBonus = (food * 4.0f) * agent.Genome.RefugeAffinity;
+                float bestRefugeDist = float.MaxValue;
                 if (agent.HasNest)
                 {
-                    float dNest = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
-                    refugeBonus += MathF.Max(0f, (200.0f - dNest) * 0.25f) * 4.5f;
+                    bestRefugeDist = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
+                }
+                for (int r = 0; r < AmazonRefuges.Length; r++)
+                {
+                    ref readonly var refg = ref AmazonRefuges[r];
+                    float d = MathF.Sqrt(MathF.Pow(refg.PosX - x, 2) + MathF.Pow(refg.PosY - y, 2));
+                    if (d < bestRefugeDist) bestRefugeDist = d;
+                }
+                if (bestRefugeDist < 200.0f)
+                {
+                    refugeBonus += (200.0f - bestRefugeDist) * 0.25f * 4.5f;
                 }
             }
 
             float score = (food * foodWeight) - (danger * fearWeight) + refugeBonus + floodPenalty;
 
-            // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários até 20 células)
+            // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários e USVs até 50 células)
             if (agent.IsReadyToMate)
             {
                 for (int i = 0; i < allAgents.Length; i++)
@@ -779,9 +860,9 @@ public static class FaunaSystem
                         if (isPairReceptive)
                         {
                             float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
-                            if (d <= 20.0f)
+                            if (d <= 50.0f)
                             {
-                                score += MathF.Max(0f, (20.0f - d) * 3.5f);
+                                score += MathF.Max(0f, (50.0f - d) * 3.5f);
                             }
                         }
                     }
@@ -790,17 +871,17 @@ public static class FaunaSystem
 
             return score;
         }
-        else // Carnívoro / Gato
+        else if (agent.Diet == AnimalDiet.Carnivore) // Carnívoro / Gato
         {
             float score = floodPenalty;
 
-            // 1. Zona de caça (15 células): predação se tiver < 2 caças no dia ou com fome (ignora presas imunes em tocas)
-            // 2. Faro químico (até 45 células): persegue se estiver com fome real
+            // 1. Zona de caça (25 células): predação se tiver < 2 caças no dia ou com fome (ignora presas imunes em tocas/refúgios)
+            // 2. Faro químico (até 90 células): persegue se estiver com fome real
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
                 ref readonly var other = ref allAgents[i];
-                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f && !other.IsSafeInBurrow)
+                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f && !IsProtectedInBurrowOrRefuge(in other))
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
 
@@ -819,7 +900,7 @@ public static class FaunaSystem
                 }
             }
 
-            // Comunicação e Chamado Acústico / Feromônio de Acasalamento (até 45 células)
+            // Comunicação e Chamado Acústico / Feromônio de Acasalamento (até 100 células)
             // Gatas em cio emitem chamados que suprimem a territorialidade agressiva dos machos
             for (int i = 0; i < allAgents.Length; i++)
             {
@@ -834,10 +915,10 @@ public static class FaunaSystem
                         bool isPairReceptive = (agent.IsFemale && agent.IsInEstrus && other.IsMale && other.Hunger < 55f) ||
                                                (agent.IsMale && other.IsFemale && other.IsInEstrus && agent.Hunger < 55f);
 
-                        if (isPairReceptive && d <= 45.0f)
+                        if (isPairReceptive && d <= 100.0f)
                         {
                             // Forte atração reprodutiva acústica/química
-                            score += (45.0f - d) * 3.8f;
+                            score += (100.0f - d) * 3.8f;
                         }
                     }
                     else if (d <= 10.0f)
@@ -852,18 +933,18 @@ public static class FaunaSystem
         }
         else // AnimalDiet.AvianApex (Harpia Amazônica)
         {
-            // Visão aérea telescópica de 50 células com atração sobre presas terrestres desprotegidas
+            // Visão aérea telescópica de 150 células com atração sobre presas terrestres desprotegidas
             float score = 0f;
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
                 ref readonly var other = ref allAgents[i];
-                if (other.Health > 0f && (other.Diet == AnimalDiet.Herbivore || other.Diet == AnimalDiet.Carnivore) && !other.IsSafeInBurrow)
+                if (other.Health > 0f && (other.Diet == AnimalDiet.Herbivore || other.Diet == AnimalDiet.Carnivore) && !IsProtectedInBurrowOrRefuge(in other))
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
-                    if (d <= 50.0f)
+                    if (d <= 150.0f)
                     {
-                        score += (50.0f - d) * 2.2f * (agent.Hunger / 100.0f);
+                        score += (150.0f - d) * 2.2f * (agent.Hunger / 100.0f);
                     }
                 }
             }

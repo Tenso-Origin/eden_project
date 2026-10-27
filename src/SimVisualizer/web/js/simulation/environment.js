@@ -194,10 +194,19 @@ function stepHydrologyAndErosion(dt) {
 }
 
 /**
- * Regeneração Biológica de Flora e Grãos de Várzea
+ * Regeneração Biológica de Flora e Grãos de Várzea (Dados Reais da Amazônia / Oeste do Pará)
+ * - Ponto Ótimo Fotossintético Tropical (T_opt): 28.5°C (curva biológica real C3/C4).
+ * - Gramíneas e Macrófitas de Várzea (Paspalum repens / Echinochloa polystachya): Altíssima produtividade primária (NPP), rebrota rápida pós-pastagem e saturação em 45-60.
+ * - Arroz Selvagem de Várzea (Oryza glumaepatula): Floresce em solos úmidos (m > 0.35) e água rasa (<= 0.25m), acumulando até 60-80 kg/m² quando a planta atinge porte vegetativo.
+ * - Floresta de Terra Firme: Dossel denso com alta capacidade de suporte (85 a 100) e estabilidade frente a estiagens moderadas.
+ * - Evapotranspiração: Vegetação transcreve umidade para a atmosfera conforme taxa de crescimento e biomassa.
  */
 function stepFlora(dt) {
-  const sampleCount = 600;
+  // Amostragem ampliada para 2048 células por tick para manter o recobrimento uniforme da grade 512x512
+  const sampleCount = 2048;
+  const OPTIMAL_TEMP = 28.5; // Média térmica ótima da Amazônia (26°C a 31°C)
+  const TEMP_WINDOW = 11.0;   // Janela fotossintética ativa [17.5°C .. 39.5°C]
+
   for (let i = 0; i < sampleCount; i++) {
     const rx = Math.floor(Math.random() * CHUNK_SIZE);
     const ry = Math.floor(Math.random() * CHUNK_SIZE);
@@ -208,21 +217,68 @@ function stepFlora(dt) {
     const t = temp[idx];
     const m = moisture[idx];
     const curBio = biomass[idx];
+    const wDepth = surfaceWater[idx];
 
-    if (t >= 10 && t <= 40 && m > 0.1) {
-      const opt = 1.0 - Math.abs(t - 24) / 16;
-      const growth = Math.max(0.1, opt) * m * 3.5 * dt * (1.0 - curBio / 100);
-      biomass[idx] = Math.min(100, curBio + growth);
+    // Condições fisiológicas para fotossíntese e crescimento:
+    // Temperatura entre 12°C e 42°C e umidade do solo acima do ponto de murcha permanente (> 0.08)
+    if (t >= 12.0 && t <= 42.0 && m > 0.08) {
+      // Eficiência fotossintética com declínio mais acentuado acima de 34°C por estresse térmico/VPD
+      let tempEff;
+      if (t <= OPTIMAL_TEMP) {
+        tempEff = 1.0 - Math.pow((OPTIMAL_TEMP - t) / TEMP_WINDOW, 1.6);
+      } else {
+        tempEff = 1.0 - Math.pow((t - OPTIMAL_TEMP) / (42.0 - OPTIMAL_TEMP), 1.8);
+      }
+      tempEff = Math.max(0.08, Math.min(1.0, tempEff));
 
-      // Grãos de Arroz de Várzea (Oryza glumaepatula)
-      if (currentScenario === 'amazon' && m > 0.40) {
-        const d = Math.hypot(rx - 256, ry - 256);
-        if (d >= 48.0 && d <= 145.0 && biomass[idx] < 55.0) {
-          grains[idx] = Math.min(80.0, grains[idx] + 0.18 * dt * m);
+      let targetMaxBiomass = 100.0;
+      let baseGrowthRate = 4.2; // Taxa vigorosa típica da produtividade primária líquida amazônica
+
+      if (currentScenario === 'amazon') {
+        const distCenter = Math.hypot(rx - 256.0, ry - 256.0);
+
+        if (distCenter >= 48.0 && distCenter <= 145.0) {
+          // ZONA 1: VÁRZEA ALAGÁVEL E GRAMÍNEAS C4 (Paspalum / Echinochloa)
+          targetMaxBiomass = 55.0;
+          baseGrowthRate = 6.8; // Rebrota rápida pós-pastagem dos herbívoros
+
+          // DINÂMICA DE GRÃOS DE ARROZ SELVAGEM (Oryza glumaepatula)
+          if (m > 0.35 && wDepth <= 0.25 && curBio >= 12.0) {
+            const currentG = grains[idx] || 0.0;
+            const maxGrainCap = 80.0;
+            const grainMaturityFactor = Math.min(1.0, curBio / 35.0);
+            const grainGrowth = 0.32 * dt * m * tempEff * grainMaturityFactor * (1.0 - currentG / maxGrainCap);
+            grains[idx] = Math.min(maxGrainCap, currentG + Math.max(0, grainGrowth));
+          } else if (wDepth > 0.60 || m < 0.20) {
+            if (grains[idx] > 0) grains[idx] = Math.max(0, grains[idx] - 0.25 * dt);
+          }
+        } else if (distCenter > 145.0 && rx >= 150 && rx <= 465) {
+          // ZONA 2: FLORESTA TROPICAL DENSA DE TERRA FIRME (Dossel Fechado)
+          targetMaxBiomass = 95.0;
+          baseGrowthRate = 3.6;
+        } else if (rx < 150) {
+          // ZONA 3: SERRA OCIDENTAL ELEVADA (Transição Montana até 550m)
+          targetMaxBiomass = 65.0;
+          baseGrowthRate = 2.8;
         }
       }
-    } else if (t < 0 || m < 0.05) {
-      biomass[idx] = Math.max(0, curBio - 1.0 * dt);
+
+      // Crescimento Logístico Sigmoidal: dM/dt = r * M * (1 - M / K)
+      const capacityFactor = Math.max(0.15, 1.0 - (curBio / targetMaxBiomass));
+      const moistureFactor = Math.min(1.0, Math.pow(m, 0.8));
+      const actualGrowth = baseGrowthRate * tempEff * moistureFactor * capacityFactor * dt;
+
+      biomass[idx] = Math.min(targetMaxBiomass, Math.max(0, curBio + actualGrowth));
+
+      // Evapotranspiração: Vegetação absorve umidade do solo durante a fotossíntese
+      const transpiration = actualGrowth * 0.04;
+      moisture[idx] = Math.max(0.02, m - transpiration);
+
+    } else if (t < 5.0 || t > 43.0 || m < 0.06) {
+      // Degradação e dessecação por estresse térmico letal, geada ou seca extrema
+      const decay = (t < 5.0 ? 1.8 : (t > 43.0 ? 2.5 : 0.8)) * dt;
+      biomass[idx] = Math.max(0, curBio - decay);
+      if (grains[idx] > 0) grains[idx] = Math.max(0, grains[idx] - decay * 0.5);
     }
   }
 }

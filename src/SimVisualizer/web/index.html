@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.4.0</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.4.1</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -847,6 +847,7 @@
     let totalBirthsCount = 0; // Telemetria Tabela 5
     let totalPredationDeaths = 0;
     let totalStarvationDeaths = 0;
+    let totalThirstDeaths = 0;
     let totalSenescenceDeaths = 0;
     let isPlaying = false;
     let currentLayer = 'composite';
@@ -897,6 +898,7 @@
         ambushPatience: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: tempo de espera na orla da várzea
         combatFerocity: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: poder de abate e revide contra harpia
         staminaEfficiency: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: economia anaeróbica no sprint
+        memoryRetention: 0.75 + (Math.random() * 0.20 - 0.10), // 0.65 a 0.85: retenção da memória espacial genética de caça
         generation: 0
       };
     }
@@ -910,6 +912,7 @@
         ambushPatience: Math.max(0.6, Math.min(2.2, (m.ambushPatience + f.ambushPatience) * 0.5 * (1.0 + mut()))),
         combatFerocity: Math.max(0.6, Math.min(2.2, (m.combatFerocity + f.combatFerocity) * 0.5 * (1.0 + mut()))),
         staminaEfficiency: Math.max(0.6, Math.min(2.2, (m.staminaEfficiency + f.staminaEfficiency) * 0.5 * (1.0 + mut()))),
+        memoryRetention: Math.max(0.40, Math.min(1.0, (m.memoryRetention + f.memoryRetention) * 0.5 * (1.0 + mut()))),
         generation: Math.max(m.generation || 0, f.generation || 0) + 1
       };
     }
@@ -1051,6 +1054,7 @@
       totalBirthsCount = 0;
       totalPredationDeaths = 0;
       totalStarvationDeaths = 0;
+      totalThirstDeaths = 0;
       totalSenescenceDeaths = 0;
       ratScent.fill(0);
       totalSimHours = 0.0;
@@ -1159,6 +1163,12 @@
             attackPower: 80.0,
             defensePower: 28.0,
             hunger: 15.0,
+            thirst: 5.0,
+            fatigue: 10.0,
+            isSleeping: false,
+            foodMemoryX: 256.0,
+            foodMemoryY: 256.0,
+            hasFoodMemory: false,
             state: 'patrol',
             target: null,
             diveSpeed: 0.0,
@@ -1180,6 +1190,12 @@
             attackPower: 80.0,
             defensePower: 28.0,
             hunger: 15.0,
+            thirst: 5.0,
+            fatigue: 10.0,
+            isSleeping: false,
+            foodMemoryX: 256.0,
+            foodMemoryY: 256.0,
+            hasFoodMemory: false,
             state: 'patrol',
             target: null,
             diveSpeed: 0.0,
@@ -1311,6 +1327,7 @@
           refugeAffinity: 0.45 + (Math.random() * 0.20 - 0.10),
           sprintBurst: 1.35 + (Math.random() * 0.20 - 0.10),
           epigeneticBonus: 0.0,
+          memoryRetention: 0.70 + (Math.random() * 0.20 - 0.10),
           generation: 0
         };
 
@@ -1338,6 +1355,15 @@
           defensePower: 3.0,
           isCornered: false,
           hunger: 15 + Math.random() * 15,
+          thirst: 5.0 + Math.random() * 10.0,
+          fatigue: Math.random() * 20.0,
+          isSleeping: false,
+          foodMemoryX: rx,
+          foodMemoryY: ry,
+          hasFoodMemory: false,
+          breath: 7.0,
+          maxBreath: 7.0,
+          isDiving: false,
           speed: 2.2,
           ageInDays: 75.0 + Math.random() * 20.0,
           maxLifespan: 912.5,
@@ -1410,6 +1436,18 @@
           catGenome: createDefaultCatGenome(),
           mateCatGenome: createDefaultCatGenome(),
           hunger: 5 + Math.random() * 10,
+          thirst: 5.0 + Math.random() * 10.0,
+          fatigue: Math.random() * 20.0,
+          isSleeping: false,
+          foodMemoryX: gx,
+          foodMemoryY: gy,
+          hasFoodMemory: false,
+          chaseTimer: 0.0,
+          chaseAbandonCooldown: 0.0,
+          targetPreyId: null,
+          breath: 0.0,
+          maxBreath: 0.0,
+          isDiving: false,
           speed: 2.8,
           ageInDays: 400.0 + Math.random() * 60.0,
           maxLifespan: 5110.0,
@@ -1767,20 +1805,23 @@
 
                 if (a.species === 'rat') {
                   // Recombinação Genética (Crossover Mendeliano) + Herança Epigenética + Mutação
-                  const motherGen = a.genome || { alertRadius: 12.0, refugeAffinity: 0.45, sprintBurst: 1.35, epigeneticBonus: 0, generation: 0 };
+                  const motherGen = a.genome || { alertRadius: 12.0, refugeAffinity: 0.45, sprintBurst: 1.35, epigeneticBonus: 0, memoryRetention: 0.70, generation: 0 };
                   const fatherGen = a.mateGenome || motherGen;
                   const baseAlert = (motherGen.alertRadius + fatherGen.alertRadius) * 0.5 + ((motherGen.epigeneticBonus || 0) + (fatherGen.epigeneticBonus || 0)) * 0.15;
                   const baseRefuge = (motherGen.refugeAffinity + fatherGen.refugeAffinity) * 0.5;
                   const baseSprint = (motherGen.sprintBurst + fatherGen.sprintBurst) * 0.5;
+                  const baseMemory = ((motherGen.memoryRetention || 0.70) + (fatherGen.memoryRetention || 0.70)) * 0.5;
                   const mutAlert = (Math.random() * 0.10 - 0.05) * baseAlert;
                   const mutRefuge = (Math.random() * 0.10 - 0.05) * baseRefuge;
                   const mutSprint = (Math.random() * 0.10 - 0.05) * baseSprint;
+                  const mutMemory = (Math.random() * 0.10 - 0.05) * baseMemory;
 
                   pupGenome = {
                     alertRadius: Math.max(8.0, Math.min(26.0, baseAlert + mutAlert)),
                     refugeAffinity: Math.max(0.10, Math.min(1.0, baseRefuge + mutRefuge)),
                     sprintBurst: Math.max(1.15, Math.min(2.0, baseSprint + mutSprint)),
                     epigeneticBonus: 0.0,
+                    memoryRetention: Math.max(0.40, Math.min(1.0, baseMemory + mutMemory)),
                     generation: Math.max(motherGen.generation || 0, fatherGen.generation || 0) + 1
                   };
                 } else if (a.species === 'cat') {
@@ -1817,6 +1858,18 @@
                   defensePower: (a.species === 'rat' ? 3.0 : 14.0),
                   isCornered: false,
                   hunger: 10,
+                  thirst: 5.0,
+                  fatigue: 0.0,
+                  isSleeping: false,
+                  foodMemoryX: a.hasFoodMemory ? a.foodMemoryX : a.x,
+                  foodMemoryY: a.hasFoodMemory ? a.foodMemoryY : a.y,
+                  hasFoodMemory: !!a.hasFoodMemory,
+                  chaseTimer: 0.0,
+                  chaseAbandonCooldown: 0.0,
+                  targetPreyId: null,
+                  breath: (a.species === 'rat' ? 7.0 : 0.0),
+                  maxBreath: (a.species === 'rat' ? 7.0 : 0.0),
+                  isDiving: false,
                   speed: a.speed,
                   ageInDays: 0,
                   maxLifespan: a.maxLifespan,
@@ -1840,6 +1893,46 @@
           continue;
         }
 
+        // Inicialização de segurança dos atributos de fisiologia
+        if (a.thirst === undefined) a.thirst = 5.0;
+        if (a.fatigue === undefined) a.fatigue = 10.0;
+        if (a.isSleeping === undefined) a.isSleeping = false;
+        if (a.foodMemoryX === undefined) { a.foodMemoryX = a.x; a.foodMemoryY = a.y; a.hasFoodMemory = false; }
+        if (a.chaseTimer === undefined) a.chaseTimer = 0.0;
+        if (a.chaseAbandonCooldown === undefined) a.chaseAbandonCooldown = 0.0;
+        if (a.breath === undefined) { a.maxBreath = (a.species === 'rat' ? 7.0 : 0.0); a.breath = a.maxBreath; a.isDiving = false; }
+
+        if (a.chaseAbandonCooldown > 0) a.chaseAbandonCooldown = Math.max(0, a.chaseAbandonCooldown - dt);
+
+        // Fisiologia de Fadiga e Sono
+        if (a.isSleeping) {
+          a.fatigue = Math.max(0, a.fatigue - 12.0 * dt);
+          a.stamina = Math.min(a.maxStamina || 100.0, (a.stamina || 100.0) + 20.0 * dt);
+          if (isProtectedInBurrowOrRefuge(a)) {
+            a.hp = Math.min(100, a.hp + 2.5 * dt); // Regeneração de HP na segurança da toca
+          }
+          if (a.fatigue <= 10.0) {
+            a.isSleeping = false; // Desperta revigorado
+          }
+          // Reflexo de Sobressalto de Adrenalina: se predador colado (< 4.5m), acorda assustado
+          if (a.species === 'rat') {
+            for (let j = 0; j < animals.length; j++) {
+              const pred = animals[j];
+              if (pred.species === 'cat' && pred.hp > 0 && Math.hypot(pred.x - a.x, pred.y - a.y) < 4.5) {
+                a.isSleeping = false;
+                a.fatigue = 50.0;
+                break;
+              }
+            }
+          }
+        } else {
+          const fatigueRate = (a.species === 'rat') ? 0.08 : 0.06;
+          a.fatigue = Math.min(100, a.fatigue + fatigueRate * dt);
+          if (a.fatigue >= 80.0 && (isProtectedInBurrowOrRefuge(a) || a.fatigue >= 95.0)) {
+            a.isSleeping = true;
+          }
+        }
+
         // Metabolismo e saciedade calibrados com PanTHERIA e Add-my-Pet
         // Roedores queimam ~0.09/h; Felinos de 4.2kg queimam ~0.025/h (Lei de Kleiber: 8 a 10 dias de autonomia por presa)
         const hungerRate = (a.species === 'rat') ? 0.09 : 0.025;
@@ -1853,6 +1946,17 @@
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
+        // Fisiologia de Sede e Hidratação (Água Doce é Vital para Todo Ser Vivo)
+        const thirstRate = (a.species === 'rat') ? 0.12 : 0.05;
+        a.thirst = Math.min(100, a.thirst + thirstRate * dt);
+        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04);
+        if (inWaterOrBank) {
+          a.thirst = Math.max(0, a.thirst - 50.0 * dt); // Bebe água doce fresca
+        }
+        if (a.thirst >= 90) {
+          a.hp -= 1.4 * dt; // Dano crítico de desidratação (mata antes da fome)
+        }
+
         // Checagem de inundação: animais atravessam a água, mas não permanecem em terreno inundado
         const inWater = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.15);
         if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 18.0) {
@@ -1860,6 +1964,7 @@
         }
 
         if (a.hp <= 0) {
+          if (a.thirst >= 90) totalThirstDeaths++;
           if (a.hunger >= 85) totalStarvationDeaths++;
           applyDeathDecomposition(a.x, a.y);
           continue;
@@ -1926,13 +2031,6 @@
 
         // === COMPORTAMENTO DO RATO (HERBÍVORO - PANTHERIA / OPEN TRAITS) ===
         if (a.species === 'rat') {
-          // 1. Pastagem e Partilha de Alimento:
-          // 3º ELEMENTO: Se houver Grãos Amazônicos de Várzea (Oryza glumaepatula), consome com prioridade máxima pelo alto teor calórico!
-          if (a.hunger > 5 && grains[curIdx] > 0.5) {
-            const grainBite = Math.min(grains[curIdx], 2.8 * simDeltaHours);
-            grains[curIdx] = Math.max(0, grains[curIdx] - grainBite);
-            a.hunger = Math.max(0, a.hunger - grainBite * 18.0); // Boost imediato de saciedade calórica
-
           // Inicialização de segurança dos atributos de combate e fisiologia
           if (a.stamina === undefined) {
             a.stamina = 100.0;
@@ -1959,6 +2057,10 @@
             const grainBite = Math.min(grains[curIdx], 2.8 * simDeltaHours);
             grains[curIdx] = Math.max(0, grains[curIdx] - grainBite);
             a.hunger = Math.max(0, a.hunger - grainBite * 18.0); // Boost imediato de saciedade calórica
+            // Atualiza memória espacial genética de alimento
+            a.foodMemoryX = a.x;
+            a.foodMemoryY = a.y;
+            a.hasFoodMemory = true;
           } else if (a.hunger > 5 && biomass[curIdx] > 0.5) {
             const nRats = ratsInCell[curIdx] || 1;
             const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
@@ -1966,6 +2068,9 @@
             biomass[curIdx] = Math.max(0, biomass[curIdx] - sharedBite);
             // Capacidade de saciedade da biomassa comum reduzida para 10% (0.42) para forçar migração em direção aos grãos
             a.hunger = Math.max(0, a.hunger - sharedBite * 0.42);
+            a.foodMemoryX = a.x;
+            a.foodMemoryY = a.y;
+            a.hasFoodMemory = true;
           }
 
           // 2. Detecção de ameaça de predadores terrestres (gatos) e aéreos (harpias)
@@ -2137,11 +2242,11 @@
                 }
               }
 
-            // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO (Raio real de faro: 40 metros)!
+            // Se não encontrou parceiro OU está com fome: FORRAGEAMENTO ATIVO (Radar de faro ampliado: 65 metros)!
             if (!mateTargetFound) {
               let bestScore = -999;
               let bestX = curX, bestY = curY;
-              const searchRadius = 40; // Dados reais: faro de sementes e grãos a até 40 metros
+              const searchRadius = 65; // Radar ampliado para 65 metros para mitigar inanição
 
               for (let dy = -searchRadius; dy <= searchRadius; dy += 3) {
                 const ny = curY + dy;
@@ -2167,14 +2272,58 @@
                 }
               }
 
-              // COMPORTAMENTO DE SAÍDA DO LUGAR (FORA DOS 10M DA TOCA/REFÚGIO):
-              // Se a célula atual está sem biomassa (< 3) e sem grãos (< 0.5) devido à área de 10m limpa,
-              // o roedor ativamente marcha em linha reta para fora da zona limpa em direção à pastagem aberta!
-              const isInClearedDepletedZone = (biomass[curIdx] < 3.0 && grains[curIdx] < 0.5);
+              // MEMÓRIA ESPACIAL GENÉTICA DE ALIMENTO (Recorre à memória de pastagem rica anterior)
+              let memoryBiasX = 0, memoryBiasY = 0, hasMemGoal = false;
+              if (a.hunger > 20 && a.hasFoodMemory) {
+                const dMem = Math.hypot(a.foodMemoryX - a.x, a.foodMemoryY - a.y);
+                if (dMem > 2.0 && dMem < 120.0) {
+                  const memRetention = (a.genome && a.genome.memoryRetention) || 0.70;
+                  memoryBiasX = ((a.foodMemoryX - a.x) / dMem) * 6.5 * memRetention;
+                  memoryBiasY = ((a.foodMemoryY - a.y) / dMem) * 6.5 * memRetention;
+                  hasMemGoal = true;
+                } else if (dMem <= 2.0 && biomass[curIdx] < 3.0 && (grains[curIdx] || 0) < 0.5) {
+                  // Chegou ao local da memória mas a comida foi toda consumida: descarta memória
+                  a.hasFoodMemory = false;
+                }
+              }
 
-              if (bestScore > 5.0 && (bestX !== curX || bestY !== curY)) {
+              // Busca Ativa por Água Doce quando com Sede
+              let thirstBiasX = 0, thirstBiasY = 0, hasThirstGoal = false;
+              if (a.thirst > 40) {
+                const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
+                if (dLakeCenter > 52.0) {
+                  thirstBiasX = ((256.0 - a.x) / dLakeCenter) * 5.0;
+                  thirstBiasY = ((256.0 - a.y) / dLakeCenter) * 5.0;
+                  hasThirstGoal = true;
+                }
+              }
+
+              // Busca por Ninho/Refúgio quando Exausto de Sono
+              let sleepBiasX = 0, sleepBiasY = 0, hasSleepGoal = false;
+              if (a.fatigue > 65.0 && a.hasNest) {
+                const dNest = Math.hypot(a.nestX - a.x, a.nestY - a.y);
+                if (dNest > 2.0) {
+                  sleepBiasX = ((a.nestX - a.x) / dNest) * 5.5;
+                  sleepBiasY = ((a.nestY - a.y) / dNest) * 5.5;
+                  hasSleepGoal = true;
+                }
+              }
+
+              // COMPORTAMENTO DE SAÍDA DO LUGAR (FORA DOS 10M DA TOCA/REFÚGIO):
+              const isInClearedDepletedZone = (biomass[curIdx] < 3.0 && (grains[curIdx] || 0) < 0.5);
+
+              if (hasSleepGoal) {
+                targetX = a.x + sleepBiasX;
+                targetY = a.y + sleepBiasY;
+              } else if (hasThirstGoal && a.thirst > 55.0) {
+                targetX = a.x + thirstBiasX;
+                targetY = a.y + thirstBiasY;
+              } else if (bestScore > 5.0 && (bestX !== curX || bestY !== curY)) {
                 targetX = bestX;
                 targetY = bestY;
+              } else if (hasMemGoal) {
+                targetX = a.x + memoryBiasX;
+                targetY = a.y + memoryBiasY;
               } else if (isInClearedDepletedZone) {
                 // Força marcha exploratória contínua para fora do raio limpo
                 if (!a.wanderAngle) a.wanderAngle = Math.random() * Math.PI * 2;
@@ -2182,7 +2331,6 @@
                 targetY = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + Math.sin(a.wanderAngle) * 8.0));
               } else {
                 // PERAMBULAÇÃO EXPLORATÓRIA (LÉVY FLIGHT):
-                // O rato NUNCA fica parado esperando a fome subir: caminha ativamente explorando o mapa!
                 if (!a.wanderAngle) a.wanderAngle = Math.random() * Math.PI * 2;
                 a.wanderAngle += (Math.random() - 0.5) * 0.7; // Pequena deflexão angular
                 targetX = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + Math.cos(a.wanderAngle) * 5.0));
@@ -2190,7 +2338,6 @@
               }
             }
           }
-        }
         }
         }
 
@@ -2290,29 +2437,32 @@
           }
 
           // 3. CAÇA: DIVERSÃO NA ZONA DE CAÇA (25 cél) VS FOME FORA DELA COM FARO (90 cél)
-          // E ARRANCADA DE EMBOSCADA FELINA (Pounce Burst) para compensar sprint da presa
+          // E MECÂNICA DE PERDA DE INTERESSE / MUDANÇA DE ALVO (PREDADOR DE EMBOSCADA)
           if (!mateFound) {
             let closestPrey = null;
             let closestDist = 99999;
             let isInHuntingZone = false;
 
-            for (let j = 0; j < animals.length; j++) {
-              const prey = animals[j];
-              if (prey.species === 'rat' && prey.hp > 0) {
-                // IMUNIDADE DE TOCA E REFÚGIO: se o rato estiver abrigado na toca ou refúgio natural (tronco/pedra), felinos não atacam!
-                if (isProtectedInBurrowOrRefuge(prey)) continue;
+            // Só busca presas se NÃO estiver no cooldown de desinteresse
+            if (a.chaseAbandonCooldown <= 0) {
+              for (let j = 0; j < animals.length; j++) {
+                const prey = animals[j];
+                if (prey.species === 'rat' && prey.hp > 0) {
+                  // Se o rato estiver em toca, refúgio natural ou MERGULHADO sob a água: felinos não atacam!
+                  if (isProtectedInBurrowOrRefuge(prey) || prey.isDiving) continue;
 
-                const d = Math.hypot(prey.x - a.x, prey.y - a.y);
-                if (d <= CAT_HUNTING_ZONE) {
-                  if (!isInHuntingZone || d < closestDist) {
-                    closestDist = d;
-                    closestPrey = prey;
-                    isInHuntingZone = true;
-                  }
-                } else if (!isInHuntingZone && d <= CAT_OLFACTORY_RANGE) {
-                  if (d < closestDist) {
-                    closestDist = d;
-                    closestPrey = prey;
+                  const d = Math.hypot(prey.x - a.x, prey.y - a.y);
+                  if (d <= CAT_HUNTING_ZONE) {
+                    if (!isInHuntingZone || d < closestDist) {
+                      closestDist = d;
+                      closestPrey = prey;
+                      isInHuntingZone = true;
+                    }
+                  } else if (!isInHuntingZone && d <= CAT_OLFACTORY_RANGE) {
+                    if (d < closestDist) {
+                      closestDist = d;
+                      closestPrey = prey;
+                    }
                   }
                 }
               }
@@ -2321,7 +2471,7 @@
             let shouldHunt = false;
             let isFunHunt = false;
 
-            if (closestPrey) {
+            if (closestPrey && a.chaseAbandonCooldown <= 0) {
               if (isInHuntingZone) {
                 // Na zona de caça (25 cél): caça por diversão apenas até a 2ª caçada diária!
                 if (a.dailyFunKills < 2) {
@@ -2335,6 +2485,25 @@
                 // Fora da zona de caça (farejado até 90 cél): caça guiada estritamente pela fome
                 shouldHunt = true;
                 isFunHunt = false;
+              }
+            }
+
+            if (shouldHunt && closestPrey) {
+              // Monitora tempo de perseguição contínua do mesmo alvo
+              if (a.targetPreyId !== closestPrey.id) {
+                a.targetPreyId = closestPrey.id;
+                a.chaseTimer = 0.0;
+              }
+              a.chaseTimer += dt;
+
+              // REGRA: PERDA DE INTERESSE OU MUDANÇA DE ALVO (PREDADOR DE EMBOSCADA)
+              // Se a perseguição ultrapassar 5.0 segundos, ou a presa fugir para > 28m, ou entrar em abrigo, ou mergulhar:
+              if (a.chaseTimer > 5.0 || closestDist > 28.0 || a.isExhausted || isProtectedInBurrowOrRefuge(closestPrey) || closestPrey.isDiving) {
+                a.targetPreyId = null;
+                a.chaseTimer = 0.0;
+                a.chaseAbandonCooldown = 4.0; // Desiste da perseguição e descansa por 4s
+                shouldHunt = false;
+                closestPrey = null;
               }
             }
 
@@ -2364,7 +2533,7 @@
               // Bote de caça com Combate e Dano no HP (Resposta Funcional de Holling)
               if (closestDist < 1.4 && a.painStun <= 0) {
                 // Se a presa conseguiu alcançar e entrar na toca ou refúgio natural: imunidade absoluta!
-                if (isProtectedInBurrowOrRefuge(closestPrey)) {
+                if (isProtectedInBurrowOrRefuge(closestPrey) || closestPrey.isDiving) {
                   a.currentSprintBoost = 1.0;
                 } else {
                   const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
@@ -2381,6 +2550,13 @@
                       totalPredationDeaths++;
                       applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
 
+                      // Atualiza Memória Territorial Genética de Caça com Sucesso
+                      a.foodMemoryX = closestPrey.x;
+                      a.foodMemoryY = closestPrey.y;
+                      a.hasFoodMemory = true;
+                      a.targetPreyId = null;
+                      a.chaseTimer = 0.0;
+
                       // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
                       a.hunger = Math.max(0, a.hunger - 90.0);
 
@@ -2395,13 +2571,27 @@
                 }
               }
             } else if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
-              // Gato não permanece em terreno inundado: prioriza sair para terra firme
+              // Gato tem grande aversão à água: prioriza sair imediatamente para terra firme
               targetX = a.x + floodEscapeX * 3.5;
               targetY = a.y + floodEscapeY * 3.5;
             } else if (a.isPregnant && a.gestationRemaining < 4.0 && a.hasNest) {
               // MECÂNICA DE NINHO: Gata prenhe perto do parto retorna ao covil seguro
               targetX = a.nestX;
               targetY = a.nestY;
+            } else if (a.fatigue > 70.0 && a.hasNest) {
+              // Sono: busca o covil para repouso regenerativo
+              const dNest = Math.hypot(a.nestX - a.x, a.nestY - a.y);
+              if (dNest > 2.0) {
+                targetX = a.x + ((a.nestX - a.x) / dNest) * 3.8;
+                targetY = a.y + ((a.nestY - a.y) / dNest) * 3.8;
+              }
+            } else if (a.thirst > 45.0) {
+              // Sede: busca água doce nas margens do lago
+              const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
+              if (dLakeCenter > 52.0) {
+                targetX = a.x + ((256.0 - a.x) / dLakeCenter) * 3.8;
+                targetY = a.y + ((256.0 - a.y) / dLakeCenter) * 3.8;
+              }
             } else if (rivalCount > 0) {
               targetX = a.x + territoryRepulsionX * 3.5;
               targetY = a.y + territoryRepulsionY * 3.5;
@@ -2410,21 +2600,29 @@
               let ambushX = 0, ambushY = 0, hasAmbushGoal = false;
               if (currentScenario === 'amazon' && a.hunger > 22) {
                 const distToCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
-                // Várzea triplicada: lago até R≈50.5m, várzea até R≈200m.
-                // Gatos se posicionam na borda externa da várzea (R ≈ 185..215m) na orla da floresta para emboscar presas!
                 if (distToCenter > 215.0) {
                   ambushX = (256.0 - a.x) / distToCenter;
                   ambushY = (256.0 - a.y) / distToCenter;
                   hasAmbushGoal = true;
                 } else if (distToCenter < 52.0) {
-                  // Muito perto da água aberta do lago: afasta-se em direção à várzea/floresta
                   ambushX = (a.x - 256.0) / distToCenter;
                   ambushY = (a.y - 256.0) / distToCenter;
                   hasAmbushGoal = true;
                 }
               }
 
-              if (hasAmbushGoal) {
+              // Memória Territorial de Caça: gato patrulha o local da última captura bem-sucedida
+              if (a.hunger > 28.0 && a.hasFoodMemory && a.chaseAbandonCooldown <= 0) {
+                const dMem = Math.hypot(a.foodMemoryX - a.x, a.foodMemoryY - a.y);
+                if (dMem > 3.0 && dMem < 100.0) {
+                  const memRetention = (a.catGenome && a.catGenome.memoryRetention) || 0.75;
+                  targetX = a.x + ((a.foodMemoryX - a.x) / dMem) * 3.5 * memRetention;
+                  targetY = a.y + ((a.foodMemoryY - a.y) / dMem) * 3.5 * memRetention;
+                } else {
+                  targetX = a.x + (Math.random() - 0.5) * 4.0;
+                  targetY = a.y + (Math.random() - 0.5) * 4.0;
+                }
+              } else if (hasAmbushGoal) {
                 targetX = a.x + ambushX * 3.2 + (Math.random() - 0.5) * 1.5;
                 targetY = a.y + ambushY * 3.2 + (Math.random() - 0.5) * 1.5;
               } else {
@@ -2435,15 +2633,44 @@
           }
         }
 
-        // Movimento Contínuo: atravessa água com atrito de nado (0.65x speed) e aplica sprint se ativado
+        // =========================================================================
+        // HABILIDADES DE NATAÇÃO, FÔLEGO E MERGULHO DEFENSIVO CONTRA HARPIAS
+        // =========================================================================
+        if (a.species === 'rat') {
+          // Checa se há ameaça aérea iminente de Harpia no ar
+          let underAirThreat = false;
+          for (let hi = 0; hi < harpies.length; hi++) {
+            const h = harpies[hi];
+            if (h.hp > 0 && !h.migrated && (h.state === 'dive' || h.state === 'patrol')) {
+              if (Math.hypot(h.x - a.x, h.y - a.y) < 25.0) {
+                underAirThreat = true;
+                break;
+              }
+            }
+          }
+
+          if (inWater && underAirThreat && a.breath > 0) {
+            a.isDiving = true; // RATO MERGULHA SUBMERSO NA ÁGUA (REFÚGIO CONTRA HARPIAS)
+            a.breath = Math.max(0, a.breath - dt);
+          } else {
+            a.isDiving = false;
+            a.breath = Math.min(a.maxBreath, a.breath + 3.0 * dt); // Recupera o fôlego fora d'água
+          }
+        } else {
+          a.isDiving = false;
+        }
+
+        // Movimento Contínuo:
+        // Natação diferenciada: ratos nadam bem (0.70x), gatos têm forte aversão (0.35x)
         const dirX = targetX - a.x;
         const dirY = targetY - a.y;
         const dist = Math.hypot(dirX, dirY);
 
         if (dist > 0.05) {
           const sprint = a.currentSprintBoost || 1.0;
-          const baseSpeed = inWater ? a.speed * 0.65 : a.speed;
-          const effectiveSpeed = baseSpeed * sprint;
+          const waterFactor = (a.species === 'rat') ? (a.isDiving ? 0.55 : 0.70) : 0.35;
+          const baseSpeed = inWater ? a.speed * waterFactor : a.speed;
+          const effectiveSpeed = a.isSleeping ? 0.0 : (baseSpeed * sprint);
           const step = Math.min(dist, effectiveSpeed * dt);
           a.x = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (dirX / dist) * step));
           a.y = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (dirY / dist) * step));
@@ -2506,15 +2733,23 @@
           // Metabolismo basal
           h.hunger = Math.min(100, h.hunger + 0.15 * simDeltaHours);
 
+          // Fisiologia de Sede da Harpia (Beber água é necessidade de todo ser vivo)
+          if (h.thirst === undefined) h.thirst = 5.0;
+          if (h.fatigue === undefined) h.fatigue = 10.0;
+          h.thirst = Math.min(100, h.thirst + 0.035 * dt);
+
           // 1. Descanso e Regeneração no Ninho da Copa da Samaúma (410, 130)
           if (h.state === 'nest_resting') {
             h.z = 35.0;
             h.x = h.nestX;
             h.y = h.nestY;
             h.hp = Math.min(100, h.hp + 5.0 * dt);
+            h.fatigue = 0.0;
+            h.isSleeping = true;
             // Comportamento estritamente diurno: SÓ decola para patrulha de dia (isDayTime) se recuperada e com fome
             if (isDayTime && h.hp >= 95.0 && h.hunger > 25.0) {
               h.state = 'patrol';
+              h.isSleeping = false;
             }
             continue;
           }
@@ -2545,42 +2780,61 @@
               h.x = h.nestX;
               h.y = h.nestY;
               h.state = 'nest_resting';
+              h.isSleeping = true;
             }
             continue;
           }
 
           // 4. Voo de Patrulha em Círculos sobre o Lago e Várzea
           if (h.state === 'patrol') {
-            h.z = 38.0 + Math.sin(h.flightAngle * 2.0) * 4.0;
-            h.flightAngle += 0.24 * dt;
-            const cx = 256.0, cy = 256.0;
-            const targetPatrolX = cx + Math.cos(h.flightAngle) * h.circleRadius;
-            const targetPatrolY = cy + Math.sin(h.flightAngle) * h.circleRadius;
+            h.isSleeping = false;
 
-            const pDirX = targetPatrolX - h.x;
-            const pDirY = targetPatrolY - h.y;
-            const pDist = Math.hypot(pDirX, pDirY);
-            if (pDist > 0.1) {
-              const speed = 5.5;
-              h.x += (pDirX / pDist) * speed * dt;
-              h.y += (pDirY / pDist) * speed * dt;
+            // Fisiologia de Sede da Harpia: se com sede, desce para a borda da água para beber
+            if (h.thirst > 40.0) {
+              const dLakeCenter = Math.hypot(h.x - 256.0, h.y - 256.0);
+              if (dLakeCenter > 52.0) {
+                const lakeDirX = (256.0 - h.x) / dLakeCenter;
+                const lakeDirY = (256.0 - h.y) / dLakeCenter;
+                h.x += lakeDirX * 6.5 * dt;
+                h.y += lakeDirY * 6.5 * dt;
+              } else {
+                h.z = Math.max(1.0, h.z - 12.0 * dt);
+                if (h.z <= 2.5) {
+                  h.thirst = Math.max(0, h.thirst - 50.0 * dt); // Bebe água doce
+                }
+              }
+            } else {
+              h.z = 38.0 + Math.sin(h.flightAngle * 2.0) * 4.0;
+              h.flightAngle += 0.24 * dt;
+              const cx = 256.0, cy = 256.0;
+              const targetPatrolX = cx + Math.cos(h.flightAngle) * h.circleRadius;
+              const targetPatrolY = cy + Math.sin(h.flightAngle) * h.circleRadius;
+
+              const pDirX = targetPatrolX - h.x;
+              const pDirY = targetPatrolY - h.y;
+              const pDist = Math.hypot(pDirX, pDirY);
+              if (pDist > 0.1) {
+                const speed = 5.5;
+                h.x += (pDirX / pDist) * speed * dt;
+                h.y += (pDirY / pDist) * speed * dt;
+              }
             }
 
             // Busca por presas se faminta (hunger > 20)
-            if (h.hunger > 20.0) {
+            if (h.hunger > 20.0 && h.thirst <= 45.0) {
               let candidatePrey = null;
               let bestScore = -999;
 
               for (let ai = 0; ai < animals.length; ai++) {
                 const prey = animals[ai];
-                if (prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey)) continue;
+                // Presa mergulhada sob a água é INVISÍVEL e IMUNE ao rasante da Harpia!
+                if (prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey) || prey.isDiving) continue;
 
                 const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
                 if (pX < 0 || pX >= CHUNK_SIZE || pY < 0 || pY >= CHUNK_SIZE) continue;
                 const pIdx = getIdx(pX, pY);
 
                 // REGRA ESTRITA: Harpia SÓ ATACA NA ZONA DE GRAMÍNEAS (CAMPO ABERTO DE VÁRZEA)!
-                // Floresta densa (biomass > 55) bloqueia mergulho; água impede captura
                 const isGrasslandZone = (matId[pIdx] !== MAT_WATER && surfaceWater[pIdx] < 0.10 && biomass[pIdx] >= 15.0 && biomass[pIdx] <= 55.0);
                 if (!isGrasslandZone) continue;
 
@@ -2589,7 +2843,6 @@
                 if (distToPrey > 150.0) continue;
 
                 // Inteligência para Sobrevivência da Espécie:
-                // Se HP < 50, a harpia RECUSA caçar gatos (risco de ferimento por revide)
                 if (prey.species === 'cat' && h.hp < 50.0) continue;
 
                 let preyVal = (prey.species === 'rat') ? 80.0 : 45.0;
@@ -2610,7 +2863,8 @@
           // 5. Mergulho Rasante de Ataque (Dive Attack)
           else if (h.state === 'dive') {
             const prey = h.target;
-            if (!prey || prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey)) {
+            // Presa mergulhada ou em abrigo aborta o ataque aéreo
+            if (!prey || prey.hp <= 0 || isProtectedInBurrowOrRefuge(prey) || prey.isDiving) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2620,8 +2874,8 @@
             const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
             const pIdx = getIdx(Math.max(0, Math.min(CHUNK_SIZE - 1, pX)), Math.max(0, Math.min(CHUNK_SIZE - 1, pY)));
 
-            // SE A PRESA FUGIR PARA A FLORESTA DENSA, ÁGUA, TOCA OU REFÚGIO NATURAL: ABORTA MERGULHO!
-            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrowOrRefuge(prey)) {
+            // SE A PRESA FUGIR PARA A FLORESTA DENSA, ÁGUA, TOCA, REFÚGIO OU MERGULHAR: ABORTA MERGULHO!
+            if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrowOrRefuge(prey) || prey.isDiving) {
               h.state = 'patrol';
               h.target = null;
               h.z = 38.0;
@@ -2642,8 +2896,8 @@
 
             // Bote no alvo
             if (distHoriz < 1.8 && h.z < 2.5) {
-              // Verifica mais uma vez se a presa atingiu a segurança da toca ou refúgio
-              if (isProtectedInBurrowOrRefuge(prey)) {
+              // Verifica mais uma vez se a presa atingiu a segurança da toca, refúgio ou mergulho
+              if (isProtectedInBurrowOrRefuge(prey) || prey.isDiving) {
                 h.state = 'patrol';
                 h.target = null;
                 h.z = 38.0;
@@ -2657,6 +2911,10 @@
                   totalPredationDeaths++;
                   applyDeathDecomposition(prey.x, prey.y);
                   h.hunger = Math.max(0, h.hunger - 45.0);
+                  // Atualiza Memória Espacial Genética da Harpia
+                  h.foodMemoryX = prey.x;
+                  h.foodMemoryY = prey.y;
+                  h.hasFoodMemory = true;
                 }
                 h.state = 'patrol';
                 h.target = null;
@@ -3331,8 +3589,10 @@
           const hpStr = ` HP:${Math.max(0, a.hp).toFixed(0)}`;
           const stamStr = a.stamina !== undefined ? ` St:${a.stamina.toFixed(0)}` : '';
           const atkDefStr = ` Atk:${a.attackPower || 10}/Def:${a.defensePower || 3}`;
-          const tagStr = `${a.isCornered ? ' ⚠️ACUADO' : ''}${a.isExhausted ? ' 💨EXAUSTO' : ''}`;
-          return `${sp} ${sx}${estrusStr}${genStr}${hpStr}${stamStr}${atkDefStr}${tagStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
+          const tagStr = `${a.isCornered ? ' ⚠️ACUADO' : ''}${a.isExhausted ? ' 💨EXAUSTO' : ''}${a.isDiving ? ' 🤿MERGULHADO' : ''}${a.isSleeping ? ' 💤DORMINDO' : ''}`;
+          const thirstStr = ` Th:${(a.thirst || 0).toFixed(0)}%`;
+          const fatigueStr = ` Slp:${(a.fatigue || 0).toFixed(0)}%`;
+          return `${sp} ${sx}${estrusStr}${genStr}${hpStr}${stamStr}${thirstStr}${fatigueStr}${atkDefStr}${tagStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
         }).join(', ');
         document.getElementById('inspFauna').innerText = names;
       } else {

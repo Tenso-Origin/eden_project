@@ -41,6 +41,7 @@ public struct RatGenome
     public float RefugeAffinity;  // 0.2f a 1.0f: Viés cinemático de fuga para cobertura vegetal densa (refúgio de Holling)
     public float SprintBurst;     // 1.2f a 1.9f: Multiplicador de arrancada anaeróbica sob perseguição iminente
     public float EpigeneticBonus; // 0.0f a 4.0f: Experiência adquirida de sobrevivência individual
+    public float MemoryRetention; // 0.4f a 1.0f: Fidelidade da memória genética de locais de alimentação
     public ushort Generation;     // Contador geracional contínuo (G0, G1, G2...)
 
     public static RatGenome CreateDefault(ushort gen = 0)
@@ -51,6 +52,7 @@ public struct RatGenome
             RefugeAffinity = 0.45f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             SprintBurst = 1.35f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             EpigeneticBonus = 0f,
+            MemoryRetention = 0.70f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             Generation = gen
         };
     }
@@ -61,6 +63,7 @@ public struct RatGenome
         float baseAlert = (mother.AlertRadius + father.AlertRadius) * 0.5f;
         float baseRefuge = (mother.RefugeAffinity + father.RefugeAffinity) * 0.5f;
         float baseSprint = (mother.SprintBurst + father.SprintBurst) * 0.5f;
+        float baseMemory = (mother.MemoryRetention + father.MemoryRetention) * 0.5f;
 
         // 2. Herança epigenética parcial (pais experientes passam +15% de vigilância aos filhotes)
         float parentalExp = (mother.EpigeneticBonus + father.EpigeneticBonus) * 0.15f;
@@ -70,6 +73,7 @@ public struct RatGenome
         float mutAlert = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseAlert;
         float mutRefuge = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseRefuge;
         float mutSprint = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseSprint;
+        float mutMemory = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseMemory;
 
         ushort nextGen = (ushort)(Math.Max(mother.Generation, father.Generation) + 1);
 
@@ -79,6 +83,7 @@ public struct RatGenome
             RefugeAffinity = Math.Clamp(baseRefuge + mutRefuge, 0.10f, 1.0f),
             SprintBurst = Math.Clamp(baseSprint + mutSprint, 1.15f, 2.0f),
             EpigeneticBonus = 0f,
+            MemoryRetention = Math.Clamp(baseMemory + mutMemory, 0.40f, 1.0f),
             Generation = nextGen
         };
     }
@@ -95,6 +100,7 @@ public struct CatGenome
     public float AmbushPatience;     // 0.2f a 1.0f: Capacidade de espreita silenciosa e retenção de stamina de bote
     public float CombatFerocity;     // 0.8f a 1.6f: Multiplicador de dano de ataque contra presas e acuamento
     public float StaminaEfficiency; // 0.8f a 1.5f: Eficiência metabólica anaeróbica de sprint
+    public float MemoryRetention;    // 0.4f a 1.0f: Memória territorial de caça
     public ushort Generation;
 
     public static CatGenome CreateDefault(ushort gen = 0)
@@ -105,6 +111,7 @@ public struct CatGenome
             AmbushPatience = 0.55f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             CombatFerocity = 1.0f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             StaminaEfficiency = 1.0f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
+            MemoryRetention = 0.75f + (Random.Shared.NextSingle() * 0.20f - 0.10f),
             Generation = gen
         };
     }
@@ -115,11 +122,13 @@ public struct CatGenome
         float baseAmbush = (mother.AmbushPatience + father.AmbushPatience) * 0.5f;
         float baseFerocity = (mother.CombatFerocity + father.CombatFerocity) * 0.5f;
         float baseStamina = (mother.StaminaEfficiency + father.StaminaEfficiency) * 0.5f;
+        float baseMemory = (mother.MemoryRetention + father.MemoryRetention) * 0.5f;
 
         float mutHarpy = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseHarpy;
         float mutAmbush = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseAmbush;
         float mutFerocity = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseFerocity;
         float mutStamina = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseStamina;
+        float mutMemory = (Random.Shared.NextSingle() * 0.10f - 0.05f) * baseMemory;
 
         ushort nextGen = (ushort)(Math.Max(mother.Generation, father.Generation) + 1);
 
@@ -129,6 +138,7 @@ public struct CatGenome
             AmbushPatience = Math.Clamp(baseAmbush + mutAmbush, 0.15f, 1.0f),
             CombatFerocity = Math.Clamp(baseFerocity + mutFerocity, 0.70f, 1.8f),
             StaminaEfficiency = Math.Clamp(baseStamina + mutStamina, 0.70f, 1.7f),
+            MemoryRetention = Math.Clamp(baseMemory + mutMemory, 0.40f, 1.0f),
             Generation = nextGen
         };
     }
@@ -177,6 +187,25 @@ public struct AnimalAgent
     public float DefensePower;   // Resistência corporal e esquiva
     public bool IsCornered;      // Estado de acuamento extremo ("tudo ou nada")
 
+    // Memória Espacial Genética de Alimento (Transmitida e atualizada dinamicamente)
+    public float FoodMemoryX;
+    public float FoodMemoryY;
+    public bool HasFoodMemory;
+
+    // Fisiologia de Sono e Hidratação (Sede)
+    public float Fatigue;        // 0.0 (Descansado) a 100.0 (Exausto de sono)
+    public bool IsSleeping;      // Animal adormecido em repouso regenerativo
+
+    // Perseguição e Foco de Predador (Mecânica de perda de interesse/mudança de alvo)
+    public float ChaseTimer;            // Tempo contínuo caçando o mesmo alvo
+    public float ChaseAbandonCooldown;  // Cooldown de desinteresse após desistir da presa
+    public uint TargetEntityId;         // ID da presa focalizada
+
+    // Natação, Mergulho e Refúgio Subaquático contra Harpias
+    public float Breath;         // Fôlego subaquático atual
+    public float MaxBreath;      // Capacidade máxima de suster respiração
+    public bool IsDiving;        // Mergulhado sob a água (invisível/imune a ataques aéreos da Harpia)
+
     // Genética Evolutiva e Inteligência Hereditária
     public RatGenome Genome;
     public RatGenome MateGenome; // Genoma do parceiro retido na fêmea para recombinação no parto
@@ -202,7 +231,7 @@ public struct AnimalAgent
     public bool IsMale => Sex == 1;
     public bool IsAdult => AgeInDays >= (MaxLifespanDays * 0.08f);
     public bool IsInEstrus => IsFemale && IsAdult && !IsPregnant && EstrusDurationRemaining > 0f && Health > 50f;
-    public bool IsReadyToMate => IsAdult && Health > 50.0f && (
+    public bool IsReadyToMate => IsAdult && Health > 50.0f && !IsSleeping && (
         (IsFemale && IsInEstrus && Hunger < 50.0f) ||
         (IsMale && Hunger < 55.0f && MatingCooldown <= 0.0f)
     );
@@ -215,8 +244,13 @@ public struct AnimalAgent
         State = AgentState.Foraging;
         Health = 100f;
         Hunger = 20f;
-        Thirst = 0f;
+        Thirst = 5f;
+        Fatigue = Random.Shared.NextSingle() * 20f;
+        IsSleeping = false;
         DailyFunKills = 0;
+        ChaseTimer = 0f;
+        ChaseAbandonCooldown = 0f;
+        TargetEntityId = 0;
         PosX = x;
         PosY = y;
         VelocityX = 0f;
@@ -233,6 +267,9 @@ public struct AnimalAgent
         MaxStamina = 100f;
         IsExhausted = false;
         IsCornered = false;
+        FoodMemoryX = x;
+        FoodMemoryY = y;
+        HasFoodMemory = false;
         Genome = RatGenome.CreateDefault(initialGen);
         MateGenome = Genome;
         CatGenetics = CatGenome.CreateDefault(initialGen);
@@ -242,16 +279,25 @@ public struct AnimalAgent
         {
             AttackPower = 10f; // Mordida incisiva
             DefensePower = 3f; // Couro fino
+            MaxBreath = 7.0f;  // Ratos são exímios mergulhadores (~7s fôlego de mergulho)
+            Breath = MaxBreath;
+            IsDiving = false;
         }
         else if (species == SpeciesCatalog.IdCat)
         {
             AttackPower = 42f; // Garras retráteis e caninos
             DefensePower = 14f; // Reflexos felinos
+            MaxBreath = 0f;    // Felinos não têm adaptação para mergulho subaquático
+            Breath = 0f;
+            IsDiving = false;
         }
         else // Harpia
         {
             AttackPower = 80f; // Garras de 500 psi
             DefensePower = 28f;
+            MaxBreath = 0f;
+            Breath = 0f;
+            IsDiving = false;
         }
 
         // Puxa os parâmetros biológicos reais diretamente do "DNA" da Espécie (Tabela 1)
@@ -629,7 +675,13 @@ public static class FaunaSystem
                                 Sex = (byte)(Random.Shared.NextDouble() < 0.5 ? 0 : 1),
                                 Health = 100f,
                                 Hunger = 20f,
+                                Thirst = 5f,
+                                Fatigue = 5f,
+                                IsSleeping = false,
                                 Stamina = 100f,
+                                FoodMemoryX = a.FoodMemoryX,
+                                FoodMemoryY = a.FoodMemoryY,
+                                HasFoodMemory = a.HasFoodMemory,
                                 Genome = (a.SpeciesId == SpeciesCatalog.IdRat)
                                     ? RatGenome.Recombine(in a.Genome, in a.MateGenome)
                                     : default,
@@ -685,6 +737,94 @@ public static class FaunaSystem
                 }
             }
 
+            int curCellX = (int)Math.Clamp(a.PosX, 0, Chunk.Width - 1);
+            int curCellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
+            int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
+
+            // =========================================================================
+            // FISIOLOGIA DE SONO, FADIGA E REPOUSO BIOLÓGICO (CIRCADIANO / POLIFÁSICO)
+            // =========================================================================
+            if (a.IsSleeping)
+            {
+                a.VelocityX = 0f;
+                a.VelocityY = 0f;
+                a.Stamina = MathF.Min(a.MaxStamina, a.Stamina + 25.0f * dt);
+                a.Fatigue = MathF.Max(0f, a.Fatigue - 20.0f * dt);
+
+                if (a.IsSafeInBurrow || (a.Diet == AnimalDiet.AvianApex && a.HasNest))
+                {
+                    a.Health = MathF.Min(100f, a.Health + 1.5f * dt); // Regeneração celular no ninho
+                }
+
+                // Despertar descansado
+                if (a.Fatigue <= 15.0f)
+                {
+                    a.IsSleeping = false;
+                    a.State = AgentState.Foraging;
+                }
+
+                // Reflexo de Sobressalto por Perigo: se um predador se aproxima, acorda em susto
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref readonly var pred = ref agents[j];
+                    if (pred.Health > 0f && (pred.Diet == AnimalDiet.Carnivore || pred.Diet == AnimalDiet.AvianApex))
+                    {
+                        float dSq = MathF.Pow(pred.PosX - a.PosX, 2) + MathF.Pow(pred.PosY - a.PosY, 2);
+                        if (dSq <= 20.25f) // < 4.5m
+                        {
+                            a.IsSleeping = false;
+                            a.Fatigue = 45f;
+                            a.Stamina = 70f;
+                            break;
+                        }
+                    }
+                }
+
+                if (a.IsSleeping)
+                {
+                    continue; // Permanece dormindo, poupando energia
+                }
+            }
+            else
+            {
+                // Acúmulo de fadiga acordado
+                float fatigueRate = (a.Diet == AnimalDiet.Herbivore ? 0.08f : (a.Diet == AnimalDiet.Carnivore ? 0.06f : 0.04f));
+                a.Fatigue = MathF.Min(100f, a.Fatigue + fatigueRate * dt);
+
+                if (a.Fatigue >= 80f && (a.IsSafeInBurrow || a.Fatigue >= 95f))
+                {
+                    a.IsSleeping = true;
+                    a.State = AgentState.Resting;
+                }
+            }
+
+            // =========================================================================
+            // FISIOLOGIA DE SEDE E HIDRATAÇÃO (ÁGUA DOCE É VITAL PARA TODOS)
+            // =========================================================================
+            float thirstRate = (a.Diet == AnimalDiet.Herbivore ? 0.12f : (a.Diet == AnimalDiet.Carnivore ? 0.05f : 0.035f));
+            a.Thirst = MathF.Min(100f, a.Thirst + thirstRate * dt);
+
+            bool inWaterOrBank = (chunk.SurfaceWater[curCellIdx] > 0.05f || chunk.LakeWater[curCellIdx] > 0.05f);
+            if (inWaterOrBank)
+            {
+                // Bebendo água doce
+                a.Thirst = MathF.Max(0f, a.Thirst - 50.0f * dt);
+            }
+
+            // Dano severo por desidratação crítica (mata mais rápido que fome)
+            if (a.Thirst >= 90f)
+            {
+                a.Health = MathF.Max(0f, a.Health - 1.2f * dt);
+                if (a.Health <= 0f)
+                {
+                    DepositCarryingDebris(chunk, (int)a.PosX, (int)a.PosY, speciesDef.AdultBodyMassGrams);
+                    telemetry?.RecordEvent(currentTick, currentSimHour, a.SpeciesId, EcologicalEventType.DeathByStarvation, a.PosX, a.PosY);
+                    a.State = AgentState.Dead;
+                    continue;
+                }
+            }
+
             // Gasto Metabólico Basal (BMR derivado da Lei de Kleiber na Tabela 1 - PanTHERIA)
             // Roedores queimam ~0.08/hora; Felinos de 4kg queimam ~0.025/hora (8 a 10 dias de autonomia calórica por presa)
             float bmrHourRate = (speciesDef.BasalMetabolicRateWatts / speciesDef.MaxEnergyReserveJoules) * (a.Diet == AnimalDiet.Herbivore ? 0.08f : 0.025f);
@@ -704,9 +844,11 @@ public static class FaunaSystem
                 }
             }
 
-            int curCellX = (int)Math.Clamp(a.PosX, 0, Chunk.Width - 1);
-            int curCellY = (int)Math.Clamp(a.PosY, 0, Chunk.Height - 1);
-            int curCellIdx = Chunk.GetIndex(curCellX, curCellY);
+            // Cooldown de desinteresse da caça felina
+            if (a.ChaseAbandonCooldown > 0f)
+            {
+                a.ChaseAbandonCooldown = MathF.Max(0f, a.ChaseAbandonCooldown - dt);
+            }
 
             // =========================================================================
             // HERBIVORIA (RATO ALIMENTANDO-SE DE GRÃOS DE VÁRZEA OU BIOMASSA COMUM)
@@ -718,9 +860,12 @@ public static class FaunaSystem
                 {
                     float grainBite = MathF.Min(chunk.Grains[curCellIdx], (25.0f / 24.0f) * dt);
                     chunk.Grains[curCellIdx] -= grainBite;
-                    // Grão altamente calórico: 4x rendimento calórico e saciedade rápida (Tabela 3)
                     a.Hunger = MathF.Max(0f, a.Hunger - grainBite * 2.2f);
                     a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + grainBite * 8.0f);
+                    // Atualiza Memória Espacial Genética de Alimento Rico
+                    a.FoodMemoryX = a.PosX;
+                    a.FoodMemoryY = a.PosY;
+                    a.HasFoodMemory = true;
                 }
                 // 2. Consumo de Biomassa Vegetal Comum (Saciedade reduzida para 10% para forçar forrageamento de grãos)
                 else if (chunk.Biomass[curCellIdx] > 0.5f)
@@ -742,6 +887,9 @@ public static class FaunaSystem
                     chunk.Biomass[curCellIdx] -= bite;
                     a.Hunger = MathF.Max(0f, a.Hunger - bite * 0.35f); // 10% da saciedade anterior
                     a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + bite * 1.0f);
+                    a.FoodMemoryX = a.PosX;
+                    a.FoodMemoryY = a.PosY;
+                    a.HasFoodMemory = true;
                 }
             }
 
@@ -791,7 +939,7 @@ public static class FaunaSystem
                     if (distSq <= 1.44f) // Alcance de combate corpo-a-corpo (1.2 células)
                     {
                         bool willAttack = (a.DailyFunKills < 2) || (a.Hunger > 20.0f);
-                        if (willAttack)
+                        if (willAttack && a.ChaseAbandonCooldown <= 0f)
                         {
                             // REAÇÃO EXTREMA DE ACUAMENTO ("TUDO OU NADA"):
                             // Se o rato estiver exausto ou encurralado, parte para a luta feroz!
@@ -806,6 +954,9 @@ public static class FaunaSystem
                                 {
                                     a.PounceBoostCooldown = 3.5f;
                                     a.Stamina = MathF.Max(0f, a.Stamina - 20f);
+                                    a.TargetEntityId = 0;
+                                    a.ChaseTimer = 0f;
+                                    a.ChaseAbandonCooldown = 4.0f; // Perde o interesse por dor
                                     break;
                                 }
                             }
@@ -819,6 +970,13 @@ public static class FaunaSystem
                                 prey.Health = 0f;
                                 prey.State = AgentState.Dead;
                                 telemetry?.RecordEvent(currentTick, currentSimHour, prey.SpeciesId, EcologicalEventType.DeathByPredation, prey.PosX, prey.PosY);
+
+                                // Grava Memória Espacial do Local de Caça com Sucesso
+                                a.FoodMemoryX = prey.PosX;
+                                a.FoodMemoryY = prey.PosY;
+                                a.HasFoodMemory = true;
+                                a.TargetEntityId = 0;
+                                a.ChaseTimer = 0f;
 
                                 if (a.Hunger > 20.0f)
                                 {
@@ -856,6 +1014,9 @@ public static class FaunaSystem
                     if (prey.Health <= 0f || IsProtectedInBurrowOrRefuge(in prey)) continue;
                     if (prey.Diet != AnimalDiet.Herbivore && prey.Diet != AnimalDiet.Carnivore) continue;
 
+                    // Presa mergulhada sob a água está protegida contra a visão e garras da Harpia!
+                    if (prey.IsDiving) continue;
+
                     float distSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
                     if (distSq <= 6.25f && a.Hunger > 15.0f) // Rasante
                     {
@@ -882,6 +1043,9 @@ public static class FaunaSystem
                                 telemetry?.RecordEvent(currentTick, currentSimHour, prey.SpeciesId, EcologicalEventType.DeathByPredation, prey.PosX, prey.PosY);
                                 a.Hunger = MathF.Max(0f, a.Hunger - 45f);
                                 a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + 2000f);
+                                a.FoodMemoryX = prey.PosX;
+                                a.FoodMemoryY = prey.PosY;
+                                a.HasFoodMemory = true;
                                 DepositCarryingDebris(chunk, (int)prey.PosX, (int)prey.PosY, 4200f);
                                 break;
                             }
@@ -897,6 +1061,9 @@ public static class FaunaSystem
                                 telemetry?.RecordEvent(currentTick, currentSimHour, prey.SpeciesId, EcologicalEventType.DeathByPredation, prey.PosX, prey.PosY);
                                 a.Hunger = MathF.Max(0f, a.Hunger - 25f);
                                 a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + 600f);
+                                a.FoodMemoryX = prey.PosX;
+                                a.FoodMemoryY = prey.PosY;
+                                a.HasFoodMemory = true;
                                 DepositCarryingDebris(chunk, (int)prey.PosX, (int)prey.PosY, 250f);
                                 break;
                             }
@@ -953,15 +1120,56 @@ public static class FaunaSystem
                 a.IsExhausted = false; // Recuperou o fôlego
             }
 
-            float speedModifier = (chunk.SurfaceWater[curCellIdx] > 0.2f || chunk.LakeWater[curCellIdx] > 0.2f) ? 0.7f : 1.0f;
+            bool isInWater = (chunk.SurfaceWater[curCellIdx] > 0.2f || chunk.LakeWater[curCellIdx] > 0.2f);
+            float waterSpeedMod = 1.0f;
+            if (isInWater)
+            {
+                // Ratos são excelentes nadadores (0.70x). Gatos têm aversão severa à água (0.35x). Harpias voam no ar (1.0x).
+                waterSpeedMod = (a.Diet == AnimalDiet.Herbivore) ? 0.70f : ((a.Diet == AnimalDiet.Carnivore) ? 0.35f : 1.0f);
+            }
+
+            float speedModifier = waterSpeedMod;
             if (a.IsExhausted)
             {
                 speedModifier *= 0.60f; // Penalidade de fadiga por ácido lático
             }
 
-            // Arrancada Anaeróbica do Rato:
+            // =========================================================================
+            // MERGULHO E FÔLEGO SUBAQUÁTICO (REFÚGIO DO RATO CONTRA HARPIAS)
+            // =========================================================================
             if (a.Diet == AnimalDiet.Herbivore)
             {
+                // Se estiver na água e houver Harpia caçando no ar, mergulha como refúgio
+                bool underAirThreat = false;
+                for (int j = 0; j < agents.Length; j++)
+                {
+                    if (i == j) continue;
+                    ref readonly var predator = ref agents[j];
+                    if (predator.Diet == AnimalDiet.AvianApex && predator.Health > 0f)
+                    {
+                        float dSq = MathF.Pow(predator.PosX - a.PosX, 2) + MathF.Pow(predator.PosY - a.PosY, 2);
+                        if (dSq <= 625.0f) // Harpia no raio de 25 células
+                        {
+                            underAirThreat = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isInWater && underAirThreat && a.Breath > 0f)
+                {
+                    a.IsDiving = true;
+                    a.Breath = MathF.Max(0f, a.Breath - dt);
+                    speedModifier *= 0.85f; // Arrasto adicional subaquático
+                }
+                else
+                {
+                    a.IsDiving = false;
+                    // Recupera o fôlego quando fora d'água ou sem mergulho ativo
+                    a.Breath = MathF.Min(a.MaxBreath, a.Breath + 3.0f * dt);
+                }
+
+                // Arrancada Anaeróbica do Rato sob perseguição felina:
                 bool underImminentPursuit = false;
                 float closestPredDistSq = float.MaxValue;
 
@@ -997,35 +1205,86 @@ public static class FaunaSystem
             }
             else if (a.Diet == AnimalDiet.Carnivore)
             {
-                bool nearPrey = false;
-                for (int j = 0; j < agents.Length; j++)
+                a.IsDiving = false;
+
+                // MECÂNICA DE PERDA DE INTERESSE / MUDANÇA DE ALVO (PREDADOR DE EMBOSCADA)
+                if (a.ChaseAbandonCooldown > 0f)
                 {
-                    if (i == j) continue;
-                    ref readonly var prey = ref agents[j];
-                    if (prey.Diet == AnimalDiet.Herbivore && prey.Health > 0f)
+                    a.TargetEntityId = 0;
+                    a.ChaseTimer = 0f;
+                }
+                else
+                {
+                    int focusedPreyIdx = -1;
+                    float focusedPreyDistSq = float.MaxValue;
+
+                    for (int j = 0; j < agents.Length; j++)
                     {
-                        float dSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
-                        if (dSq <= 20.25f) // < 4.5 células
+                        if (i == j) continue;
+                        ref readonly var prey = ref agents[j];
+                        if (prey.Diet == AnimalDiet.Herbivore && prey.Health > 0f && !IsProtectedInBurrowOrRefuge(in prey) && !prey.IsDiving)
                         {
-                            nearPrey = true;
-                            break;
+                            float dSq = MathF.Pow(prey.PosX - a.PosX, 2) + MathF.Pow(prey.PosY - a.PosY, 2);
+                            if (a.TargetEntityId != 0 && prey.EntityId == a.TargetEntityId)
+                            {
+                                focusedPreyIdx = j;
+                                focusedPreyDistSq = dSq;
+                                break;
+                            }
+                            else if (a.TargetEntityId == 0 && dSq <= 400.0f && dSq < focusedPreyDistSq) // < 20 células
+                            {
+                                focusedPreyIdx = j;
+                                focusedPreyDistSq = dSq;
+                            }
                         }
                     }
-                }
 
-                if (nearPrey && !a.IsExhausted && a.Stamina > 8.0f && (a.DailyFunKills < 2 || a.Hunger > 25.0f))
-                {
-                    speedModifier *= (1.35f * a.CatGenetics.CombatFerocity);
-                    a.Stamina -= (20.0f / a.CatGenetics.StaminaEfficiency) * dt;
-                    if (a.Stamina <= 0f)
+                    if (focusedPreyIdx >= 0)
                     {
-                        a.Stamina = 0f;
-                        a.IsExhausted = true;
-                        a.PounceBoostCooldown = 4.0f; // Exaustão: precisa recuperar fôlego
+                        ref readonly var targetPrey = ref agents[focusedPreyIdx];
+                        a.TargetEntityId = targetPrey.EntityId;
+                        a.ChaseTimer += dt;
+
+                        // Arrancada Explosiva de Emboscada (Pounce Burst) se próximo (< 4.5 células)
+                        if (focusedPreyDistSq <= 20.25f && !a.IsExhausted && a.Stamina > 8.0f && (a.DailyFunKills < 2 || a.Hunger > 25.0f))
+                        {
+                            speedModifier *= (1.35f * a.CatGenetics.CombatFerocity);
+                            a.Stamina -= (20.0f / a.CatGenetics.StaminaEfficiency) * dt;
+                            if (a.Stamina <= 0f)
+                            {
+                                a.Stamina = 0f;
+                                a.IsExhausted = true;
+                                a.PounceBoostCooldown = 4.0f;
+                            }
+                        }
+
+                        // Se a perseguição ultrapassar 5.0 segundos, ou a presa fugir para > 28m, ou entrar em abrigo, ou gato exaurir:
+                        if (a.ChaseTimer > 5.0f || focusedPreyDistSq > 784.0f || a.IsExhausted || IsProtectedInBurrowOrRefuge(in targetPrey))
+                        {
+                            a.TargetEntityId = 0;
+                            a.ChaseTimer = 0f;
+                            a.ChaseAbandonCooldown = 4.0f; // Desiste e descansa por 4 segundos
+                        }
+                    }
+                    else
+                    {
+                        a.TargetEntityId = 0;
+                        a.ChaseTimer = 0f;
                     }
                 }
             }
+            else
+            {
+                a.IsDiving = false;
+            }
 
+            // Movimentação suave contínua
+            float dirX = (targetX + 0.5f) - a.PosX;
+            float dirY = (targetY + 0.5f) - a.PosY;
+            float dist = MathF.Sqrt(dirX * dirX + dirY * dirY);
+
+            if (dist > 0.05f)
+            {
                 float stepDist = a.MoveSpeed * speedModifier * dt;
                 float moveX = (dirX / dist) * MathF.Min(dist, stepDist);
                 float moveY = (dirY / dist) * MathF.Min(dist, stepDist);
@@ -1110,6 +1369,29 @@ public static class FaunaSystem
 
             float score = (food * foodWeight) - (danger * fearWeight) + refugeBonus + floodPenalty;
 
+            // Memória Espacial Genética de Alimento (Ratos famintos recorrem à memória genética herdada/registrada)
+            if (agent.Hunger > 20.0f && agent.HasFoodMemory)
+            {
+                float dMem = MathF.Sqrt(MathF.Pow(agent.FoodMemoryX - x, 2) + MathF.Pow(agent.FoodMemoryY - y, 2));
+                if (dMem < 100.0f)
+                {
+                    score += MathF.Max(0f, (100.0f - dMem) * 0.9f * agent.Genome.MemoryRetention * (agent.Hunger / 100.0f));
+                }
+            }
+
+            // Fisiologia de Sede: quando a sede aperta, busca fontes de água doce
+            if (agent.Thirst > 40.0f)
+            {
+                score += water * (agent.Thirst / 100.0f) * 6.5f;
+            }
+
+            // Fisiologia de Sono: quando exausto de sono, busca a segurança da toca ou refúgio
+            if (agent.Fatigue > 65.0f && agent.HasNest)
+            {
+                float dNest = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
+                score += MathF.Max(0f, (150.0f - dNest) * 0.5f * (agent.Fatigue / 100.0f));
+            }
+
             // Busca de parceiro fértil durante o ciclo de estro (feromônios urinários e USVs até 50 células)
             if (agent.IsReadyToMate)
             {
@@ -1140,27 +1422,54 @@ public static class FaunaSystem
         {
             float score = floodPenalty;
 
-            // 1. Zona de caça (25 células): predação se tiver < 2 caças no dia ou com fome (ignora presas imunes em tocas/refúgios)
-            // 2. Faro químico (até 90 células): persegue se estiver com fome real
-            for (int i = 0; i < allAgents.Length; i++)
+            // Fisiologia de Sede do Gato: atração por água doce quando com sede
+            if (agent.Thirst > 40.0f)
             {
-                if (i == selfIdx) continue;
-                ref readonly var other = ref allAgents[i];
-                if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f && !IsProtectedInBurrowOrRefuge(in other))
-                {
-                    float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
+                score += water * (agent.Thirst / 100.0f) * 5.0f;
+            }
 
-                    if (d <= CatHuntingZone)
+            // Fisiologia de Sono do Gato: busca ninho/covil quando cansado
+            if (agent.Fatigue > 70.0f && agent.HasNest)
+            {
+                float dNest = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
+                score += MathF.Max(0f, (150.0f - dNest) * 0.6f * (agent.Fatigue / 100.0f));
+            }
+
+            // Memória Territorial Genética de Caça: gato faminto patrulha áreas onde já caçou com sucesso
+            if (agent.Hunger > 30.0f && agent.HasFoodMemory && agent.ChaseAbandonCooldown <= 0f)
+            {
+                float dMem = MathF.Sqrt(MathF.Pow(agent.FoodMemoryX - x, 2) + MathF.Pow(agent.FoodMemoryY - y, 2));
+                if (dMem < 90.0f)
+                {
+                    score += MathF.Max(0f, (90.0f - dMem) * 0.7f * agent.CatGenetics.MemoryRetention);
+                }
+            }
+
+            // Se não estiver em cooldown de desinteresse da caça:
+            if (agent.ChaseAbandonCooldown <= 0f)
+            {
+                // 1. Zona de caça (25 células): predação se tiver < 2 caças no dia ou com fome (ignora presas imunes em tocas/refúgios ou mergulhadas)
+                // 2. Faro químico (até 90 células): persegue se estiver com fome real
+                for (int i = 0; i < allAgents.Length; i++)
+                {
+                    if (i == selfIdx) continue;
+                    ref readonly var other = ref allAgents[i];
+                    if (other.Diet == AnimalDiet.Herbivore && other.Health > 0f && !IsProtectedInBurrowOrRefuge(in other) && !other.IsDiving)
                     {
-                        if (agent.DailyFunKills < 2 || agent.Hunger > 30.0f)
+                        float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
+
+                        if (d <= CatHuntingZone)
                         {
-                            score += (CatHuntingZone - d) * 4.5f;
+                            if (agent.DailyFunKills < 2 || agent.Hunger > 30.0f)
+                            {
+                                score += (CatHuntingZone - d) * 4.5f;
+                            }
                         }
-                    }
-                    else if (d <= CatOlfactoryRange && agent.Hunger > 30.0f)
-                    {
-                        float hungerFactor = agent.Hunger / 100.0f;
-                        score += (CatOlfactoryRange - d) * 1.5f * hungerFactor;
+                        else if (d <= CatOlfactoryRange && agent.Hunger > 30.0f)
+                        {
+                            float hungerFactor = agent.Hunger / 100.0f;
+                            score += (CatOlfactoryRange - d) * 1.5f * hungerFactor;
+                        }
                     }
                 }
             }
@@ -1209,13 +1518,20 @@ public static class FaunaSystem
                 return 0f;
             }
 
-            // Visão aérea telescópica de 150 células com atração sobre presas terrestres desprotegidas durante o dia
+            // Sede da Harpia: se com sede, desce para a beira da água
             float score = 0f;
+            if (agent.Thirst > 40.0f)
+            {
+                score += water * (agent.Thirst / 100.0f) * 4.0f;
+            }
+
+            // Visão aérea telescópica de 150 células com atração sobre presas terrestres desprotegidas durante o dia
+            // (Presas mergulhadas sob a água ficam invisíveis e imunes à Harpia)
             for (int i = 0; i < allAgents.Length; i++)
             {
                 if (i == selfIdx) continue;
                 ref readonly var other = ref allAgents[i];
-                if (other.Health > 0f && (other.Diet == AnimalDiet.Herbivore || other.Diet == AnimalDiet.Carnivore) && !IsProtectedInBurrowOrRefuge(in other))
+                if (other.Health > 0f && (other.Diet == AnimalDiet.Herbivore || other.Diet == AnimalDiet.Carnivore) && !IsProtectedInBurrowOrRefuge(in other) && !other.IsDiving)
                 {
                     float d = MathF.Sqrt(MathF.Pow(other.PosX - x, 2) + MathF.Pow(other.PosY - y, 2));
                     if (d <= 150.0f)

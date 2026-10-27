@@ -472,6 +472,8 @@ function updateStats() {
   if (elPred && typeof totalPredationDeaths !== 'undefined') elPred.innerText = totalPredationDeaths;
   const elStarv = document.getElementById('statStarvDeaths');
   if (elStarv && typeof totalStarvationDeaths !== 'undefined') elStarv.innerText = totalStarvationDeaths;
+  const elThirst = document.getElementById('statThirstDeaths');
+  if (elThirst && typeof totalThirstDeaths !== 'undefined') elThirst.innerText = totalThirstDeaths;
 }
 
 function setRatsUI(val) {

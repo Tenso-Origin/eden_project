@@ -305,18 +305,24 @@ function updateCatBehavior(a, dt, ctx) {
         targetY = a.y + ((a.nestY - a.y) / dNest) * 3.8;
       }
     } else if (a.thirst > 25.0) {
-      const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
-      if (dLakeCenter > 52.0) {
-        // Caminha em direção à margem segura do lago (raio 51-52m)
-        targetX = a.x + ((256.0 - a.x) / dLakeCenter) * 3.8;
-        targetY = a.y + ((256.0 - a.y) / dLakeCenter) * 3.8;
-      } else if (dLakeCenter < 48.0) {
-        // Água profunda: recua imediatamente para a orla segura
-        targetX = a.x + ((a.x - 256.0) / (dLakeCenter + 0.1)) * 4.0;
-        targetY = a.y + ((a.y - 256.0) / (dLakeCenter + 0.1)) * 4.0;
-      } else {
-        // Na orla perfeita: bebe água calmamente
+      const curCellIdx = ctx.getIdx(Math.floor(a.x), Math.floor(a.y));
+      if (surfaceWater[curCellIdx] > 0.04) {
+        // Bebe água em poça de chuva ou orla imediata
         a.thirst = Math.max(0, a.thirst - 60.0 * dt);
+      } else {
+        const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
+        if (dLakeCenter > 52.0) {
+          // Caminha em direção à margem segura do lago (raio 51-52m)
+          targetX = a.x + ((256.0 - a.x) / dLakeCenter) * 3.8;
+          targetY = a.y + ((256.0 - a.y) / dLakeCenter) * 3.8;
+        } else if (dLakeCenter < 48.0) {
+          // Água profunda: recua imediatamente para a orla segura
+          targetX = a.x + ((a.x - 256.0) / (dLakeCenter + 0.1)) * 4.0;
+          targetY = a.y + ((a.y - 256.0) / (dLakeCenter + 0.1)) * 4.0;
+        } else {
+          // Na orla perfeita: bebe água calmamente
+          a.thirst = Math.max(0, a.thirst - 60.0 * dt);
+        }
       }
     } else if (rivalCount > 0) {
       targetX = a.x + territoryRepulsionX * 3.5;

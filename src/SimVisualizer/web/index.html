@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.4</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.5</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -618,6 +618,10 @@
           <div class="stat-box" style="border-left: 3px solid #d29922;">
             <div class="stat-label">🌾 MORTES P/ INANIÇÃO</div>
             <div id="statStarvDeaths" class="stat-val" style="color:#d29922;">0</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #00f2fe;">
+            <div class="stat-label">💧 MORTES P/ SEDE</div>
+            <div id="statThirstDeaths" class="stat-val" style="color:#00f2fe;">0</div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #8b949e;">
             <div class="stat-label">⏳ SENESCÊNCIA NATURAL</div>
@@ -963,15 +967,15 @@
         const curIdx = getIdx(curX, curY);
 
         // Sede e Hidratação Biológica Preventiva
-        const thirstRate = (a.species === 'rat') ? 0.045 : 0.025;
-        a.thirst = Math.min(100, a.thirst + thirstRate * dt);
+        const baseThirstRate = (a.species === 'rat') ? 0.045 : 0.025;
+        // Orvalho e umidade foliar atenuam a desidratação (até 20%), mas não anulam a necessidade de beber água
+        const moistureMitigation = (moisture[curIdx] > 0.50) ? 0.80 : 1.0;
+        a.thirst = Math.min(100, a.thirst + baseThirstRate * moistureMitigation * dt);
+
         const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - 256.0, a.y - 256.0) : 999.0;
         const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 53.0);
         if (inWaterOrBank) {
           a.thirst = Math.max(0, a.thirst - 50.0 * dt);
-        } else if (moisture[curIdx] > 0.40) {
-          // Absorção de umidade foliar e orvalho em áreas úmidas
-          a.thirst = Math.max(0, a.thirst - 0.25 * dt);
         }
         if (a.thirst >= 90) {
           a.hp -= 0.20 * dt; // Dano de desidratação calibrado

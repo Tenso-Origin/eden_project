@@ -346,14 +346,24 @@ function updateRatBehavior(a, dt, ctx) {
         // Busca preventiva de água doce: não espera desidratar
         let thirstBiasX = 0, thirstBiasY = 0, hasThirstGoal = false;
         if (a.thirst > 25.0) {
-          const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
-          if (dLakeCenter > 52.0) {
-            thirstBiasX = ((256.0 - a.x) / dLakeCenter) * 4.8;
-            thirstBiasY = ((256.0 - a.y) / dLakeCenter) * 4.8;
-            hasThirstGoal = true;
-          } else {
-            // Na margem segura do lago: bebe água
+          if (surfaceWater[curIdx] > 0.04) {
+            // Em poça d'água ou margem imediata: bebe água no local
             a.thirst = Math.max(0, a.thirst - 60.0 * dt);
+          } else {
+            const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
+            if (dLakeCenter > 52.0) {
+              thirstBiasX = ((256.0 - a.x) / dLakeCenter) * 4.8;
+              thirstBiasY = ((256.0 - a.y) / dLakeCenter) * 4.8;
+              hasThirstGoal = true;
+            } else if (dLakeCenter < 48.0) {
+              // Evita água profunda: recua para a orla
+              thirstBiasX = ((a.x - 256.0) / (dLakeCenter + 0.1)) * 4.5;
+              thirstBiasY = ((a.y - 256.0) / (dLakeCenter + 0.1)) * 4.5;
+              hasThirstGoal = true;
+            } else {
+              // Na margem segura do lago (raio 48m-52m): bebe água calmamente
+              a.thirst = Math.max(0, a.thirst - 60.0 * dt);
+            }
           }
         }
 

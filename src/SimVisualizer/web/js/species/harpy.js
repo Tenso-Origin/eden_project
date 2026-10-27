@@ -86,12 +86,30 @@ function stepHarpies(dt, ctx) {
 
   if (currentScenario !== 'amazon' || !harpies || harpies.length === 0) return;
 
-  // 1. Cálculo contínuo da Homeostase Ecológica (Lotka-Volterra: razão equilibrada 30:1)
+  // 1. Cálculo dinâmico e contínuo da Homeostase Ecológica
   const aliveRats = animals.filter(a => a.species === 'rat' && a.hp > 0).length;
   const aliveCats = animals.filter(a => a.species === 'cat' && a.hp > 0).length;
   const currentRatio = (aliveCats > 0) ? (aliveRats / aliveCats) : 0;
-  let currentHomeostasis = 100 - Math.min(100, Math.abs(currentRatio - 30.0) * 2.8);
-  if (aliveRats === 0 && aliveCats === 0) currentHomeostasis = 0;
+  
+  // Homeostase sustentável calibrada: máxima estabilidade (95-100%) em equilíbrio trófico
+  // Penaliza colapso de presas (< 50 ratos), superpopulação predatória ou desbalanço severo
+  let currentHomeostasis = 95.0;
+  if (aliveRats === 0 || aliveCats === 0) {
+    currentHomeostasis = 0.0;
+  } else {
+    // Balanço populacional saudável: ratio entre 1.5 e 8.0 ratos por gato
+    let balancePenalty = 0.0;
+    if (currentRatio < 1.5) {
+      balancePenalty = (1.5 - currentRatio) * 18.0; // Sobrecarga de predadores sobre poucas presas
+    } else if (currentRatio > 12.0) {
+      balancePenalty = Math.min(35.0, (currentRatio - 12.0) * 1.8); // Explosão de roedores
+    }
+    // Penalidade por colapso populacional absoluto de presas
+    if (aliveRats < 60) {
+      balancePenalty += (60 - aliveRats) * 0.75;
+    }
+    currentHomeostasis = Math.max(10.0, Math.min(100.0, 98.0 - balancePenalty));
+  }
 
   // Regra de Histerese de Dispersão e Retorno por Homeostase Ecológica:
   // - 1ª Harpia (Macho): migra quando Homeostase <= 85%, retorna quando >= 90%
@@ -108,6 +126,7 @@ function stepHarpies(dt, ctx) {
       h1.y = h1.nestY;
       h1.z = 38.0;
       h1.state = 'patrol';
+      h1.isSleeping = false;
     }
   }
 
@@ -123,6 +142,7 @@ function stepHarpies(dt, ctx) {
       h2.y = h2.nestY;
       h2.z = 38.0;
       h2.state = 'patrol';
+      h2.isSleeping = false;
     }
   }
 
@@ -147,7 +167,8 @@ function stepHarpies(dt, ctx) {
       h.hp = Math.min(100, h.hp + 5.0 * dt);
       h.fatigue = 0.0;
       h.isSleeping = true;
-      if (isDayTime && h.hp >= 95.0 && h.hunger > 25.0) {
+      // Ao amanhecer e com vitalidade regenerada (HP >= 90), retoma patrulha aérea territorial
+      if (isDayTime && h.hp >= 90.0) {
         h.state = 'patrol';
         h.isSleeping = false;
       }

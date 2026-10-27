@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.1</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.2</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -964,20 +964,32 @@
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
-        // Sede
-        const thirstRate = (a.species === 'rat') ? 0.12 : 0.05;
+        // Sede e Hidratação Biológica
+        const thirstRate = (a.species === 'rat') ? 0.12 : 0.04;
         a.thirst = Math.min(100, a.thirst + thirstRate * dt);
-        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04);
+        const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - 256.0, a.y - 256.0) : 999.0;
+        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 53.0);
         if (inWaterOrBank) {
           a.thirst = Math.max(0, a.thirst - 50.0 * dt);
         }
         if (a.thirst >= 90) {
-          a.hp -= 1.4 * dt;
+          a.hp -= 0.8 * dt;
+        }
+
+        // Regeneração lenta de vitalidade (cicatrização de pequenos ferimentos ao descansar)
+        if (a.hp < 100 && a.hunger < 60 && a.thirst < 60) {
+          a.hp = Math.min(100, a.hp + 0.12 * dt);
         }
 
         const inWater = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.15);
-        if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 18.0) {
-          a.hp -= 10.0 * dt;
+        if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 8.0) {
+          // Água profunda: animais terrestres sem fôlego perdem HP gradualmente e recuam
+          if (a.breath !== undefined && a.breath > 0) {
+            a.breath = Math.max(0, a.breath - dt);
+            if (a.breath <= 0) a.hp -= 3.5 * dt;
+          } else {
+            a.hp -= 3.5 * dt;
+          }
         }
 
         if (a.hp <= 0) {

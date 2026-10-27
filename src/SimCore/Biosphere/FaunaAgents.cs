@@ -946,19 +946,17 @@ public static class FaunaSystem
                             if (prey.IsExhausted || prey.IsCornered)
                             {
                                 prey.IsCornered = true;
-                                float ratCounterAttack = MathF.Max(6f, (prey.AttackPower * 2.2f) - a.DefensePower);
+                                // Mordida de autodefesa feroz: dor aguda e arranhão, sem dano letal instantâneo
+                                float ratCounterAttack = MathF.Max(0.1f, ((prey.AttackPower * 0.4f) - a.DefensePower * 0.1f) * dt * 0.8f);
                                 a.Health = MathF.Max(0f, a.Health - ratCounterAttack);
 
-                                // 45% de chance de o gato recuar sentindo dor aguda da mordida
-                                if (Random.Shared.NextSingle() < 0.45f)
-                                {
-                                    a.PounceBoostCooldown = 3.5f;
-                                    a.Stamina = MathF.Max(0f, a.Stamina - 20f);
-                                    a.TargetEntityId = 0;
-                                    a.ChaseTimer = 0f;
-                                    a.ChaseAbandonCooldown = 4.0f; // Perde o interesse por dor
-                                    break;
-                                }
+                                // Atordoamento por dor e hesitação no felino, permitindo a fuga do roedor
+                                a.PounceBoostCooldown = 3.5f;
+                                a.Stamina = MathF.Max(0f, a.Stamina - 15f);
+                                a.TargetEntityId = 0;
+                                a.ChaseTimer = 0f;
+                                a.ChaseAbandonCooldown = 3.5f; // Perde o interesse por dor e recua
+                                break;
                             }
 
                             // Ataque com garras e mandíbula do gato proporcional à ferocidade do genoma:

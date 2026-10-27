@@ -193,14 +193,14 @@ function updateRatBehavior(a, dt, ctx) {
       targetY = closestCat.y;
       a.currentSprintBoost = 1.1;
 
-      // Mordida frenética de autodefesa feroz no gato
-      const ratDmg = Math.max(3.0, (a.attackPower * 1.5 - (closestCat.defensePower || 14.0) * 0.3) * dt * 3.5);
+      // Mordida frenética de autodefesa: dor aguda no focinho do predador e atordoamento
+      const ratDmg = Math.max(0.1, (a.attackPower * 0.4 - (closestCat.defensePower || 14.0) * 0.1) * dt * 0.8);
       closestCat.hp = Math.max(0, closestCat.hp - ratDmg);
 
-      // 45% de chance de causar dor súbita e hesitação no gato
-      if (Math.random() < 0.45 * dt) {
-        closestCat.painStun = 1.2;
-      }
+      // Causa dor súbita, hesitação e quebra de foco no predador, permitindo a fuga do roedor
+      closestCat.painStun = 2.2;
+      closestCat.chaseAbandonCooldown = 3.5;
+      closestCat.stamina = Math.max(0, (closestCat.stamina || 100.0) - 15.0);
     } else {
       a.isCornered = false;
       targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 2.2);

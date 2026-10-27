@@ -183,7 +183,10 @@ function updateCatBehavior(a, dt, ctx) {
     let shouldHunt = false;
     let isFunHunt = false;
 
-    if (closestPrey && a.chaseAbandonCooldown <= 0) {
+    // Sede crítica (> 50%) tem prioridade absoluta sobre caçadas para garantir sobrevivência
+    const isCriticalThirst = (a.thirst > 50.0);
+
+    if (closestPrey && a.chaseAbandonCooldown <= 0 && !isCriticalThirst) {
       if (isInHuntingZone) {
         // Zona de caça (25m): caça por diversão até 2 abates diários
         if (a.dailyFunKills < 2) {
@@ -283,11 +286,19 @@ function updateCatBehavior(a, dt, ctx) {
         targetX = a.x + ((a.nestX - a.x) / dNest) * 3.8;
         targetY = a.y + ((a.nestY - a.y) / dNest) * 3.8;
       }
-    } else if (a.thirst > 45.0) {
+    } else if (a.thirst > 35.0) {
       const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
       if (dLakeCenter > 52.0) {
+        // Caminha em direção à margem segura do lago (raio 51-52m)
         targetX = a.x + ((256.0 - a.x) / dLakeCenter) * 3.8;
         targetY = a.y + ((256.0 - a.y) / dLakeCenter) * 3.8;
+      } else if (dLakeCenter < 48.0) {
+        // Água profunda: recua imediatamente para a orla segura
+        targetX = a.x + ((a.x - 256.0) / (dLakeCenter + 0.1)) * 4.0;
+        targetY = a.y + ((a.y - 256.0) / (dLakeCenter + 0.1)) * 4.0;
+      } else {
+        // Na orla perfeita: bebe água calmamente
+        a.thirst = Math.max(0, a.thirst - 60.0 * dt);
       }
     } else if (rivalCount > 0) {
       targetX = a.x + territoryRepulsionX * 3.5;

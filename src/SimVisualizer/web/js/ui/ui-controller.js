@@ -383,7 +383,43 @@ function updateStats() {
   const elAbyss = document.getElementById('statAbyss');
   if (elAbyss) elAbyss.innerText = elevation[getIdx(511, 511)].toFixed(1) + " m";
 
-  // Média genética dos Roedores
+  // 1. Homeostase Ecológica e Razão Predador-Presa (Lotka-Volterra)
+  const elHomeoVal = document.getElementById('lblHomeostasisVal');
+  const elRatio = document.getElementById('lblPredPreyRatio');
+  const aliveRatsCount = rats.length;
+  const aliveCatsCount = cats.length;
+  const curRatio = (aliveCatsCount > 0) ? (aliveRatsCount / aliveCatsCount) : 0;
+
+  let homeoScore = 95.0;
+  if (aliveRatsCount === 0 || aliveCatsCount === 0) {
+    homeoScore = 0.0;
+  } else {
+    let penalty = 0.0;
+    if (curRatio < 1.5) penalty = (1.5 - curRatio) * 18.0;
+    else if (curRatio > 12.0) penalty = Math.min(35.0, (curRatio - 12.0) * 1.8);
+    if (aliveRatsCount < 60) penalty += (60 - aliveRatsCount) * 0.75;
+    homeoScore = Math.max(10.0, Math.min(100.0, 98.0 - penalty));
+  }
+
+  if (elHomeoVal) {
+    let statusLabel = "Equilíbrio Sustentável";
+    let statusColor = "#3fb950";
+    if (homeoScore < 75.0) {
+      statusLabel = "Crise Severa / Dispersão";
+      statusColor = "#f85149";
+    } else if (homeoScore < 85.0) {
+      statusLabel = "Alerta Trófico";
+      statusColor = "#d29922";
+    }
+    elHomeoVal.innerText = `${homeoScore.toFixed(1)}% (${statusLabel})`;
+    elHomeoVal.style.color = statusColor;
+  }
+
+  if (elRatio) {
+    elRatio.innerText = `Razão ${curRatio.toFixed(1)}:1`;
+  }
+
+  // 2. Média genética dos Roedores (Bases Adaptativas)
   if (rats.length > 0) {
     let sumAlert = 0, sumRefuge = 0, sumSprint = 0, sumGen = 0;
     for (const r of rats) {
@@ -395,27 +431,28 @@ function updateStats() {
       }
     }
     const n = rats.length;
-    const elRatAlert = document.getElementById('lblRatAlert');
-    if (elRatAlert) elRatAlert.innerText = `${(sumAlert / n).toFixed(1)}m`;
-    const elRatRefuge = document.getElementById('lblRatRefuge');
-    if (elRatRefuge) elRatRefuge.innerText = `${((sumRefuge / n) * 100).toFixed(0)}%`;
-    const elRatSprint = document.getElementById('lblRatSprint');
-    if (elRatSprint) elRatSprint.innerText = `${(sumSprint / n).toFixed(2)}x`;
-    const elRatGen = document.getElementById('lblRatGen');
-    if (elRatGen) elRatGen.innerText = `G${(sumGen / n).toFixed(1)}`;
+    const elAvgGen = document.getElementById('lblAvgGen');
+    if (elAvgGen) elAvgGen.innerText = `G${(sumGen / n).toFixed(1)}`;
+    const elAvgAlert = document.getElementById('lblAvgAlert');
+    if (elAvgAlert) elAvgAlert.innerText = `${(sumAlert / n).toFixed(1)}c`;
+    const elAvgRefuge = document.getElementById('lblAvgRefuge');
+    if (elAvgRefuge) elAvgRefuge.innerText = `${((sumRefuge / n) * 100).toFixed(0)}%`;
   }
 
-  // Média genética dos Felinos
+  // 3. Média genética dos Felinos (DNA Herdável & Combate)
   if (cats.length > 0) {
-    let sumVig = 0, sumFer = 0, sumStam = 0;
+    let sumVig = 0, sumFer = 0, sumStam = 0, sumCatGen = 0;
     for (const c of cats) {
       if (c.catGenome) {
         sumVig += c.catGenome.harpyVigilance;
         sumFer += c.catGenome.combatFerocity;
         sumStam += c.catGenome.staminaEfficiency;
+        sumCatGen += (c.catGenome.generation || 0);
       }
     }
     const nc = cats.length;
+    const elCatGen = document.getElementById('lblCatGen');
+    if (elCatGen) elCatGen.innerText = `G${(sumCatGen / nc).toFixed(1)}`;
     const elCatVig = document.getElementById('lblCatVigilance');
     if (elCatVig) elCatVig.innerText = `${(sumVig / nc).toFixed(2)}x`;
     const elCatFer = document.getElementById('lblCatFerocity');
@@ -423,6 +460,14 @@ function updateStats() {
     const elCatStam = document.getElementById('lblCatStamina');
     if (elCatStam) elCatStam.innerText = `${(sumStam / nc).toFixed(2)}x`;
   }
+
+  // 4. Contadores de Nascimentos e Mortes
+  const elBirths = document.getElementById('statBirths');
+  if (elBirths && typeof totalBirthsCount !== 'undefined') elBirths.innerText = totalBirthsCount;
+  const elPred = document.getElementById('statPredDeaths');
+  if (elPred && typeof totalPredationDeaths !== 'undefined') elPred.innerText = totalPredationDeaths;
+  const elStarv = document.getElementById('statStarvDeaths');
+  if (elStarv && typeof totalStarvationDeaths !== 'undefined') elStarv.innerText = totalStarvationDeaths;
 }
 
 function setRatsUI(val) {

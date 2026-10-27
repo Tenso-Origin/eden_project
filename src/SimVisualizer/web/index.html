@@ -728,7 +728,7 @@
           </div>
           <div>
             <b style="color:#00f2fe;">🦅 Harpias (Predador Aéreo de Topo):</b><br>
-            • Casal monogâmico patrulhando a várzea aberta.<br>
+            • Comportamento estritamente <b>diurno</b>: patrulha e caça durante o dia (06h às 18h) e retorna ao ninho na copa para repouso noturno.<br>
             • <b>Histerese por Homeostase Ecológica:</b><br>
             &nbsp;&nbsp;↳ 1ª Harpia: remove a <b>≤ 85%</b> e retorna quando atingir <b>≥ 90%</b>.<br>
             &nbsp;&nbsp;↳ 2ª Harpia: remove a <b>≤ 75%</b> e retorna quando atingir <b>≥ 80%</b>.
@@ -2283,6 +2283,9 @@
           }
         }
 
+        const sunH = Math.sin(((timeOfDay - 6.0) / 12.0) * Math.PI);
+        const isDayTime = (sunH > 0); // Ciclo solar: True das 06:00 às 18:00 (dia claro), False das 18:00 às 06:00 (noite)
+
         for (let hi = 0; hi < harpies.length; hi++) {
           const h = harpies[hi];
           if (h.hp <= 0 || h.migrated) continue;
@@ -2296,10 +2299,17 @@
             h.x = h.nestX;
             h.y = h.nestY;
             h.hp = Math.min(100, h.hp + 5.0 * dt);
-            if (h.hp >= 95.0 && h.hunger > 25.0) {
+            // Comportamento estritamente diurno: SÓ decola para patrulha de dia (isDayTime) se recuperada e com fome
+            if (isDayTime && h.hp >= 95.0 && h.hunger > 25.0) {
               h.state = 'patrol';
             }
             continue;
+          }
+
+          // COMPORTAMENTO DIURNO: Ao anoitecer (18h às 06h), interrompe patrulha/caça e retorna ao ninho na copa
+          if (!isDayTime && h.state !== 'retreat') {
+            h.state = 'retreat';
+            h.target = null;
           }
 
           // 2. Autoconservação e Sobrevivência da Espécie: se HP < 30, voa para o ninho
@@ -2894,15 +2904,23 @@
       document.getElementById('statAvgTemp').innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
       document.getElementById('statErosion').innerText = (globalErosionTotal * 12.5).toFixed(1) + " m³";
 
-      // 4º ELEMENTO: Telemetria do Casal de Harpias Amazônicas
+      // 4º ELEMENTO: Telemetria do Casal de Harpias Amazônicas (Ciclo Diurno e Homeostase)
       const elHarpies = document.getElementById('statHarpies');
       if (elHarpies) {
         if (currentScenario === 'amazon' && harpies.length >= 2) {
           const hM = harpies[0], hF = harpies[1];
-          const stM = hM.migrated ? '🍃Migrou (Homeo ≤85%)' : (hM.state === 'dive' ? '⚡Mergulho' : (hM.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hM.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha')));
-          const stF = hF.migrated ? '🍃Migrou (Homeo ≤75%)' : (hF.state === 'dive' ? '⚡Mergulho' : (hF.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hF.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha')));
+          const isNight = !isDay;
+          const formatHarpyState = (h) => {
+            if (h.migrated) return '🍃Migrou';
+            if (h.state === 'dive') return '⚡Mergulho';
+            if (h.state === 'retreat') return isNight ? '🌙Retorno Noturno' : '🚨Fuga p/ Ninho';
+            if (h.state === 'nest_resting') return isNight ? '😴Dormindo no Ninho' : '🪺Repouso (HP)';
+            return '🦅Patrulha Diurna';
+          };
+          const stM = formatHarpyState(hM);
+          const stF = formatHarpyState(hF);
           const activeCount = (!hM.migrated ? 1 : 0) + (!hF.migrated ? 1 : 0);
-          elHarpies.innerText = `${activeCount}/2 Ativas | ♂ ${stM} | ♀ ${stF}`;
+          elHarpies.innerText = `${activeCount}/2 Ativas | ♂ ${stM} (${hM.hp.toFixed(0)} HP) | ♀ ${stF} (${hF.hp.toFixed(0)} HP)`;
         } else {
           elHarpies.innerText = "Inativo neste bioma";
         }

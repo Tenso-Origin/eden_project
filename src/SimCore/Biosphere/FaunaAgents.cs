@@ -375,6 +375,11 @@ public static class FaunaSystem
         // Regra de Histerese das Harpias: 1ª sai a <=85% (volta a >=90%) | 2ª sai a <=75% (volta a >=80%)
         UpdateHarpyHomeostasisHysteresis(agents, currentHomeostasis);
 
+        // Ciclo Circadiano Planetário (06h às 18h = Dia claro; 18h às 06h = Noite)
+        float simHour = (currentSimHour > 0f) ? currentSimHour : 12.0f;
+        float hourOfDay = simHour % 24f;
+        bool isDayTime = (hourOfDay >= 6.0f && hourOfDay < 18.0f);
+
         // 1. Predadores projetam gradiente de perigo nos mapas de influência
         for (int i = 0; i < agents.Length; i++)
         {
@@ -396,6 +401,26 @@ public static class FaunaSystem
             if (a.Health <= 0f || a.IsMigrated) continue;
 
             ref readonly var speciesDef = ref SpeciesCatalog.GetSpecies(a.SpeciesId);
+
+            // Comportamento Estritamente Diurno da Harpia Amazônica:
+            // Ao cair da noite (18h às 06h), cessa a patrulha e permanece em repouso no ninho na copa
+            if (a.Diet == AnimalDiet.AvianApex && !isDayTime)
+            {
+                if (a.HasNest)
+                {
+                    float dNestSq = MathF.Pow(a.NestPosX - a.PosX, 2) + MathF.Pow(a.NestPosY - a.PosY, 2);
+                    if (dNestSq <= 4.0f)
+                    {
+                        a.State = AgentState.Resting;
+                        a.PosX = a.NestPosX;
+                        a.PosY = a.NestPosY;
+                        a.VelocityX = 0f;
+                        a.VelocityY = 0f;
+                        a.Energy = MathF.Min(speciesDef.MaxEnergyReserveJoules, a.Energy + 25.0f * dt);
+                        continue; // Empoleirada dormindo no ninho durante a noite
+                    }
+                }
+            }
 
             // Envelhecimento biológico em dias
             a.AgeInDays += dt * 0.1f;
@@ -695,6 +720,13 @@ public static class FaunaSystem
             // =========================================================================
             if (a.Diet == AnimalDiet.AvianApex)
             {
+                // Harpias possuem comportamento estritamente diurno: não caçam presas à noite
+                if (!isDayTime)
+                {
+                    a.State = AgentState.Resting;
+                    continue;
+                }
+
                 // A Harpia patrulha o espaço aéreo e mergulha sobre presas terrestres desprotegidas
                 for (int j = 0; j < agents.Length; j++)
                 {
@@ -731,8 +763,8 @@ public static class FaunaSystem
                 }
             }
 
-            // Tomada de Decisão com faro olfativo e fuga de alagamento
-            float bestScore = EvaluateCellScore(curCellX, curCellY, in a, influence, agents, i);
+            // Tomada de Decisão com faro olfativo, ciclo circadiano e fuga de alagamento
+            float bestScore = EvaluateCellScore(curCellX, curCellY, in a, influence, agents, i, isDayTime);
             int targetX = curCellX;
             int targetY = curCellY;
 
@@ -747,7 +779,7 @@ public static class FaunaSystem
                     int nx = curCellX + dx;
                     if (nx < 0 || nx >= Chunk.Width) continue;
 
-                    float score = EvaluateCellScore(nx, ny, in a, influence, agents, i);
+                    float score = EvaluateCellScore(nx, ny, in a, influence, agents, i, isDayTime);
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -869,7 +901,8 @@ public static class FaunaSystem
         in AnimalAgent agent,
         InfluenceMap influence,
         ReadOnlySpan<AnimalAgent> allAgents,
-        int selfIdx)
+        int selfIdx,
+        bool isDayTime = true)
     {
         int idx = Chunk.GetIndex(x, y);
         float food = influence.FoodGradient[idx];
@@ -998,7 +1031,18 @@ public static class FaunaSystem
         }
         else // AnimalDiet.AvianApex (Harpia Amazônica)
         {
-            // Visão aérea telescópica de 150 células com atração sobre presas terrestres desprotegidas
+            if (!isDayTime)
+            {
+                // Comportamento Estritamente Diurno: à noite voa diretamente para o ninho na copa
+                if (agent.HasNest)
+                {
+                    float dNest = MathF.Sqrt(MathF.Pow(agent.NestPosX - x, 2) + MathF.Pow(agent.NestPosY - y, 2));
+                    return (300.0f - dNest) * 8.0f;
+                }
+                return 0f;
+            }
+
+            // Visão aérea telescópica de 150 células com atração sobre presas terrestres desprotegidas durante o dia
             float score = 0f;
             for (int i = 0; i < allAgents.Length; i++)
             {

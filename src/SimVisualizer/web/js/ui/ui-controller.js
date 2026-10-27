@@ -88,8 +88,13 @@ function screenToWorld(clientX, clientY) {
   };
 }
 
+var lastInspectedX = 256;
+var lastInspectedY = 256;
+
 function inspectCell(x, y) {
   if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
+  lastInspectedX = x;
+  lastInspectedY = y;
   const idx = getIdx(x, y);
 
   const elCoord = document.getElementById('inspCoord');
@@ -315,7 +320,16 @@ function updateStats() {
   if (elSolar) elSolar.innerText = `${isDay ? '☀️' : '🌙'} ${timeStr} | ${weatherStr}`;
 
   const elAvgTemp = document.getElementById('statAvgTemp');
-  if (elAvgTemp) elAvgTemp.innerText = temp[getIdx(256, 256)].toFixed(1) + "°C";
+  if (elAvgTemp) {
+    let tSum = 0;
+    for (let py = 64; py < 512; py += 128) {
+      for (let px = 64; px < 512; px += 128) {
+        tSum += temp[getIdx(px, py)];
+      }
+    }
+    elAvgTemp.innerText = (tSum / 16.0).toFixed(1) + "°C";
+  }
+
   const elErosion = document.getElementById('statErosion');
   if (elErosion) elErosion.innerText = (globalErosionTotal * 12.5).toFixed(1) + " m³";
 
@@ -383,9 +397,15 @@ function updateStats() {
   if (elPreg) elPreg.innerText = `${pregRats} ratas prenhes (${estrusRats} em cio) | ${pregCats} gatas prenhes (${estrusCats} em cio)`;
 
   const elPeak = document.getElementById('statPeak');
-  if (elPeak) elPeak.innerText = elevation[getIdx(0, 0)].toFixed(1) + " m";
+  if (elPeak) {
+    const peakElev = (currentScenario === 'amazon') ? elevation[getIdx(40, 256)] : elevation[getIdx(10, 10)];
+    elPeak.innerText = peakElev.toFixed(1) + " m";
+  }
   const elAbyss = document.getElementById('statAbyss');
-  if (elAbyss) elAbyss.innerText = elevation[getIdx(511, 511)].toFixed(1) + " m";
+  if (elAbyss) {
+    const minElev = (currentScenario === 'amazon') ? elevation[getIdx(256, 256)] : elevation[getIdx(500, 500)];
+    elAbyss.innerText = minElev.toFixed(1) + " m";
+  }
 
   // 1. Homeostase Ecológica e Razão Predador-Presa (Lotka-Volterra)
   const elHomeoVal = document.getElementById('lblHomeostasisVal');
@@ -394,15 +414,19 @@ function updateStats() {
   const aliveCatsCount = cats.length;
   const curRatio = (aliveCatsCount > 0) ? (aliveRatsCount / aliveCatsCount) : 0;
 
-  let homeoScore = 95.0;
+  // Proporção ótima da pirâmide trófica: 20:1 a 40:1 (ideal 30:1)
+  let homeoScore = 98.0;
   if (aliveRatsCount === 0 || aliveCatsCount === 0) {
     homeoScore = 0.0;
   } else {
     let penalty = 0.0;
-    if (curRatio < 1.5) penalty = (1.5 - curRatio) * 18.0;
-    else if (curRatio > 12.0) penalty = Math.min(35.0, (curRatio - 12.0) * 1.8);
-    if (aliveRatsCount < 60) penalty += (60 - aliveRatsCount) * 0.75;
-    homeoScore = Math.max(10.0, Math.min(100.0, 98.0 - penalty));
+    if (curRatio < 18.0) {
+      penalty += (18.0 - curRatio) * 3.0; // Superpredação excessiva
+    } else if (curRatio > 45.0) {
+      penalty += (curRatio - 45.0) * 1.2; // Superpopulação descontrolada de herbívoros
+    }
+    if (aliveRatsCount < 40) penalty += (40 - aliveRatsCount) * 1.0;
+    homeoScore = Math.max(0.0, Math.min(100.0, 98.0 - penalty));
   }
 
   if (elHomeoVal) {
@@ -424,6 +448,9 @@ function updateStats() {
   }
 
   // 2. Média genética dos Roedores (Bases Adaptativas)
+  const elAvgGen = document.getElementById('lblAvgGen');
+  const elAvgAlert = document.getElementById('lblAvgAlert');
+  const elAvgRefuge = document.getElementById('lblAvgRefuge');
   if (rats.length > 0) {
     let sumAlert = 0, sumRefuge = 0, sumSprint = 0, sumGen = 0;
     for (const r of rats) {
@@ -435,15 +462,20 @@ function updateStats() {
       }
     }
     const n = rats.length;
-    const elAvgGen = document.getElementById('lblAvgGen');
     if (elAvgGen) elAvgGen.innerText = `G${(sumGen / n).toFixed(1)}`;
-    const elAvgAlert = document.getElementById('lblAvgAlert');
     if (elAvgAlert) elAvgAlert.innerText = `${(sumAlert / n).toFixed(1)}c`;
-    const elAvgRefuge = document.getElementById('lblAvgRefuge');
     if (elAvgRefuge) elAvgRefuge.innerText = `${((sumRefuge / n) * 100).toFixed(0)}%`;
+  } else {
+    if (elAvgGen) elAvgGen.innerText = "G0";
+    if (elAvgAlert) elAvgAlert.innerText = "--";
+    if (elAvgRefuge) elAvgRefuge.innerText = "--";
   }
 
   // 3. Média genética dos Felinos (DNA Herdável & Combate)
+  const elCatGen = document.getElementById('lblCatGen');
+  const elCatVig = document.getElementById('lblCatVigilance');
+  const elCatFer = document.getElementById('lblCatFerocity');
+  const elCatStam = document.getElementById('lblCatStamina');
   if (cats.length > 0) {
     let sumVig = 0, sumFer = 0, sumStam = 0, sumCatGen = 0;
     for (const c of cats) {
@@ -455,17 +487,24 @@ function updateStats() {
       }
     }
     const nc = cats.length;
-    const elCatGen = document.getElementById('lblCatGen');
     if (elCatGen) elCatGen.innerText = `G${(sumCatGen / nc).toFixed(1)}`;
-    const elCatVig = document.getElementById('lblCatVigilance');
     if (elCatVig) elCatVig.innerText = `${(sumVig / nc).toFixed(2)}x`;
-    const elCatFer = document.getElementById('lblCatFerocity');
     if (elCatFer) elCatFer.innerText = `${(sumFer / nc).toFixed(2)}x`;
-    const elCatStam = document.getElementById('lblCatStamina');
     if (elCatStam) elCatStam.innerText = `${(sumStam / nc).toFixed(2)}x`;
+  } else {
+    if (elCatGen) elCatGen.innerText = "G0";
+    if (elCatVig) elCatVig.innerText = "--";
+    if (elCatFer) elCatFer.innerText = "--";
+    if (elCatStam) elCatStam.innerText = "--";
   }
 
-  // 4. Contadores de Nascimentos e Mortes
+  // 4. Contadores de Caças (Diversão vs Fome)
+  const elFunKills = document.getElementById('statFunKills');
+  if (elFunKills && typeof funKillsCount !== 'undefined') elFunKills.innerText = funKillsCount;
+  const elHungryKills = document.getElementById('statHungryKills');
+  if (elHungryKills && typeof hungryKillsCount !== 'undefined') elHungryKills.innerText = hungryKillsCount;
+
+  // 5. Contadores de Nascimentos e Mortes
   const elBirths = document.getElementById('statBirths');
   if (elBirths && typeof totalBirthsCount !== 'undefined') elBirths.innerText = totalBirthsCount;
   const elPred = document.getElementById('statPredDeaths');
@@ -474,6 +513,23 @@ function updateStats() {
   if (elStarv && typeof totalStarvationDeaths !== 'undefined') elStarv.innerText = totalStarvationDeaths;
   const elThirst = document.getElementById('statThirstDeaths');
   if (elThirst && typeof totalThirstDeaths !== 'undefined') elThirst.innerText = totalThirstDeaths;
+  const elSenesc = document.getElementById('statSenescDeaths');
+  if (elSenesc && typeof totalSenescenceDeaths !== 'undefined') elSenesc.innerText = totalSenescenceDeaths;
+
+  // 6. Reciclagem de Carcaças e Nutrientes no Solo
+  const elNutrient = document.getElementById('statNutrientRecycle');
+  if (elNutrient) {
+    if (typeof totalDecomposedCount !== 'undefined' && totalDecomposedCount > 0) {
+      elNutrient.innerText = `${totalDecomposedCount} carcaças recicladas (+${totalNutrientsRecycledKg.toFixed(1)} kg biomassa)`;
+    } else {
+      elNutrient.innerText = "Decomposição ativa nutrindo biomassa vegetal";
+    }
+  }
+
+  // 7. Atualização dinâmica contínua do Inspetor de Célula (ao vivo)
+  if (typeof inspectCell === 'function') {
+    inspectCell(lastInspectedX, lastInspectedY);
+  }
 }
 
 function setRatsUI(val) {

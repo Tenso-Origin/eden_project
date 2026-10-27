@@ -99,6 +99,8 @@ var totalPredationDeaths = 0;
 var totalStarvationDeaths = 0;
 var totalThirstDeaths = 0;
 var totalSenescenceDeaths = 0;
+var totalDecomposedCount = 0;
+var totalNutrientsRecycledKg = 0.0;
 var isPlaying = false;
 var currentLayer = 'composite';
 var currentBrush = 'inspect';
@@ -154,6 +156,8 @@ function initWorld() {
   totalStarvationDeaths = 0;
   totalThirstDeaths = 0;
   totalSenescenceDeaths = 0;
+  totalDecomposedCount = 0;
+  totalNutrientsRecycledKg = 0.0;
   ratScent.fill(0);
   totalSimHours = 0.0;
   lastSimDay = 0;

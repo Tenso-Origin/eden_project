@@ -287,6 +287,9 @@ function stepFlora(dt) {
  * Decomposição Orgânica com Fertilização de Biomassa Vegetal
  */
 function applyDeathDecomposition(centerX, centerY) {
+  if (typeof totalDecomposedCount !== 'undefined') totalDecomposedCount++;
+  if (typeof totalNutrientsRecycledKg !== 'undefined') totalNutrientsRecycledKg += 0.28;
+
   const cx = Math.floor(centerX);
   const cy = Math.floor(centerY);
   for (let dy = -2; dy <= 2; dy++) {

@@ -232,34 +232,34 @@ function stepFlora(dt) {
       tempEff = Math.max(0.08, Math.min(1.0, tempEff));
 
       let targetMaxBiomass = 100.0;
-      let baseGrowthRate = 4.2; // Taxa vigorosa típica da produtividade primária líquida amazônica
+      let baseGrowthRate = 0.55; // Calibrado com a Produtividade Primária Líquida (NPP) real amazônica
 
       if (currentScenario === 'amazon') {
         const distCenter = Math.hypot(rx - 256.0, ry - 256.0);
 
         if (distCenter >= 48.0 && distCenter <= 145.0) {
-          // ZONA 1: VÁRZEA ALAGÁVEL E GRAMÍNEAS C4 (Paspalum / Echinochloa)
+          // ZONA 1: VÁRZEA ALAGÁVEL E GRAMÍNEAS C4 (Paspalum / Echinochloa) - Rebrota em ~28-32 dias
           targetMaxBiomass = 55.0;
-          baseGrowthRate = 6.8; // Rebrota rápida pós-pastagem dos herbívoros
+          baseGrowthRate = 0.95; // Taxa real pós-pastejo (~2.2 pontos de biomassa/dia)
 
-          // DINÂMICA DE GRÃOS DE ARROZ SELVAGEM (Oryza glumaepatula)
+          // DINÂMICA DE GRÃOS DE ARROZ SELVAGEM (Oryza glumaepatula) - Maturação sazonal em ~30-45 dias
           if (m > 0.35 && wDepth <= 0.25 && curBio >= 12.0) {
             const currentG = grains[idx] || 0.0;
             const maxGrainCap = 80.0;
             const grainMaturityFactor = Math.min(1.0, curBio / 35.0);
-            const grainGrowth = 0.32 * dt * m * tempEff * grainMaturityFactor * (1.0 - currentG / maxGrainCap);
+            const grainGrowth = 0.05 * dt * m * tempEff * grainMaturityFactor * (1.0 - currentG / maxGrainCap);
             grains[idx] = Math.min(maxGrainCap, currentG + Math.max(0, grainGrowth));
           } else if (wDepth > 0.60 || m < 0.20) {
             if (grains[idx] > 0) grains[idx] = Math.max(0, grains[idx] - 0.25 * dt);
           }
         } else if (distCenter > 145.0 && rx >= 150 && rx <= 465) {
-          // ZONA 2: FLORESTA TROPICAL DENSA DE TERRA FIRME (Dossel Fechado)
+          // ZONA 2: FLORESTA TROPICAL DENSA DE TERRA FIRME (Dossel Fechado) - Recomposição em ~75-90 dias
           targetMaxBiomass = 95.0;
-          baseGrowthRate = 3.6;
+          baseGrowthRate = 0.48;
         } else if (rx < 150) {
           // ZONA 3: SERRA OCIDENTAL ELEVADA (Transição Montana até 550m)
           targetMaxBiomass = 65.0;
-          baseGrowthRate = 2.8;
+          baseGrowthRate = 0.35;
         }
       }
 

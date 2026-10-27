@@ -51,8 +51,8 @@ public static class FloraAutomata
                 }
                 tempEff = Math.Clamp(tempEff, 0.08f, 1.0f);
 
-                // Solo mais fértil e úmido acelera o crescimento
-                float baseGrowthRate = (chunk.Elevation[i] < 15.0f) ? 6.8f : 3.8f; // Várzea C4 vs Floresta de Terra Firme
+                // Solo mais fértil e úmido acelera o crescimento (calibrado com NPP real amazônico)
+                float baseGrowthRate = (chunk.Elevation[i] < 15.0f) ? 0.95f : 0.48f; // Várzea C4 (~28-32 dias) vs Floresta de Terra Firme (~75-90 dias)
                 float baseGrowth = tempEff * MathF.Pow(moisture, 0.8f) * baseGrowthRate * dt;
 
                 // Ciclagem de Nutrientes (Decomposição de Carcaças e Matéria Orgânica)
@@ -86,7 +86,7 @@ public static class FloraAutomata
                     float currentGrains = chunk.Grains[i];
                     const float maxGrainCapacity = 80.0f; // Até 80 kg/m² nas touceiras maduras de várzea
                     float grainMaturityFactor = MathF.Min(1.0f, currentBiomass / 35.0f);
-                    float grainGrowth = 0.32f * dt * moisture * tempEff * grainMaturityFactor * (1.0f - currentGrains / maxGrainCapacity);
+                    float grainGrowth = 0.05f * dt * moisture * tempEff * grainMaturityFactor * (1.0f - currentGrains / maxGrainCapacity);
                     chunk.Grains[i] = Math.Clamp(currentGrains + MathF.Max(0f, grainGrowth), 0f, maxGrainCapacity);
                 }
                 else if (waterDepth > 0.60f || moisture < 0.20f)

@@ -523,7 +523,7 @@
           </div>
           <div class="stat-box" style="border-left: 3px solid #00f2fe; grid-column: span 2; background:rgba(0, 242, 254, 0.05);">
             <div class="stat-label">🦅 CASAL DE HARPIAS AMAZÔNICAS (GAVIÃO-REAL)</div>
-            <div id="statHarpies" class="stat-val" style="color:#00f2fe; font-size:0.85rem;">2 aves (1♂ | 1♀) - Patrulha Aérea em Várzea</div>
+            <div id="statHarpies" class="stat-val" style="color:#00f2fe; font-size:0.85rem;">2 aves (1♂ | 1♀) - Controle Homeostático Ativo</div>
           </div>
           <div class="stat-box">
             <div class="stat-label">TICKS DISCRETOS</div>
@@ -718,13 +718,20 @@
             • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos).<br>
             • <b>Tocas e Refúgios:</b> Fêmea prenhe cria toca maternal onde estiver após 3 dias. Refúgios naturais (troncos, pedras, moitas) limitados a 10% dos ratos iniciais (75% floresta, 25% várzea). Ambos concedem <b>imunidade total a ataques</b>.
           </div>
-          <div>
+          <div style="margin-bottom:6px;">
             <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
             • Sexo Real: 49% <span style="color:#ff7b72;">♀ Fêmea (Vermelho Claro)</span> | 51% <span style="color:#991b1b;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>63 a 67 dias</b> | Ninhada: <b>3 a 5 filhotes</b> (média 4).<br>
             • Vida: ~14 anos (5110 dias). Adulto aos 210 dias.<br>
             • <b>Covis Maternais:</b> Gata prenhe cria covil na floresta após 3 dias; persiste até os filhotes completarem 210 dias.<br>
             • Caça lúdica: Máx. 2 caçadas/dia por diversão; presas em tocas têm imunidade.
+          </div>
+          <div>
+            <b style="color:#00f2fe;">🦅 Harpias (Predador Aéreo de Topo):</b><br>
+            • Casal monogâmico patrulhando a várzea aberta.<br>
+            • <b>Histerese por Homeostase Ecológica:</b><br>
+            &nbsp;&nbsp;↳ 1ª Harpia: remove a <b>≤ 85%</b> e retorna quando atingir <b>≥ 90%</b>.<br>
+            &nbsp;&nbsp;↳ 2ª Harpia: remove a <b>≤ 75%</b> e retorna quando atingir <b>≥ 80%</b>.
           </div>
         </div>
       </div>
@@ -1100,7 +1107,8 @@
             nestX: 435.0,
             nestY: 85.0,
             flightAngle: 0.5,
-            circleRadius: 140.0 // Raio expandido para a nova várzea ampla
+            circleRadius: 140.0, // Raio expandido para a nova várzea ampla
+            migrated: false
           },
           {
             id: 9002,
@@ -1118,7 +1126,8 @@
             nestX: 435.0,
             nestY: 85.0,
             flightAngle: 3.6,
-            circleRadius: 110.0 // Raio expandido para a nova várzea ampla
+            circleRadius: 110.0, // Raio expandido para a nova várzea ampla
+            migrated: false
           }
         ];
 
@@ -1859,10 +1868,10 @@
             }
           }
 
-          // Perigo Aéreo: se houver Harpia mergulhando próximo na grama aberta
+          // Perigo Aéreo: se houver Harpia mergulhando próximo na grama aberta (e não migrada)
           for (let hi = 0; hi < harpies.length; hi++) {
             const h = harpies[hi];
-            if (h.hp > 0 && h.state === 'dive') {
+            if (h.hp > 0 && !h.migrated && h.state === 'dive') {
               const hd = Math.hypot(h.x - a.x, h.y - a.y);
               if (hd < 25.0) {
                 fleeVectorX += (a.x - h.x) / (hd + 0.1);
@@ -2234,9 +2243,49 @@
 
       // === 4º ELEMENTO: CASAL DE HARPIAS AMAZÔNICAS (GAVIÃO-REAL) ===
       if (currentScenario === 'amazon' && harpies.length > 0) {
+        // Cálculo contínuo da Homeostase Ecológica (Lotka-Volterra: razão sustentável 30:1)
+        const aliveRats = animals.filter(a => a.species === 'rat' && a.hp > 0).length;
+        const aliveCats = animals.filter(a => a.species === 'cat' && a.hp > 0).length;
+        const currentRatio = (aliveCats > 0) ? (aliveRats / aliveCats) : 0;
+        let currentHomeostasis = 100 - Math.min(100, Math.abs(currentRatio - 30.0) * 2.8);
+        if (aliveRats === 0 && aliveCats === 0) currentHomeostasis = 0;
+
+        // Regra de Histerese de Dispersão e Retorno das Harpias por Homeostase Ecológica:
+        // - 1ª Harpia (Macho): remove (migra) quando Homeostase <= 85%, retorna quando atinge >= 90%
+        // - 2ª Harpia (Fêmea): remove (migra) quando Homeostase <= 75%, retorna quando atinge >= 80%
+        if (harpies.length >= 1) {
+          const h1 = harpies[0];
+          if (!h1.migrated && currentHomeostasis <= 85.0) {
+            h1.migrated = true;
+            h1.target = null;
+            h1.state = 'retreat';
+          } else if (h1.migrated && currentHomeostasis >= 90.0) {
+            h1.migrated = false;
+            h1.x = h1.nestX;
+            h1.y = h1.nestY;
+            h1.z = 38.0;
+            h1.state = 'patrol';
+          }
+        }
+
+        if (harpies.length >= 2) {
+          const h2 = harpies[1];
+          if (!h2.migrated && currentHomeostasis <= 75.0) {
+            h2.migrated = true;
+            h2.target = null;
+            h2.state = 'retreat';
+          } else if (h2.migrated && currentHomeostasis >= 80.0) {
+            h2.migrated = false;
+            h2.x = h2.nestX;
+            h2.y = h2.nestY;
+            h2.z = 38.0;
+            h2.state = 'patrol';
+          }
+        }
+
         for (let hi = 0; hi < harpies.length; hi++) {
           const h = harpies[hi];
-          if (h.hp <= 0) continue;
+          if (h.hp <= 0 || h.migrated) continue;
 
           // Metabolismo basal
           h.hunger = Math.min(100, h.hunger + 0.15 * simDeltaHours);
@@ -2742,7 +2791,7 @@
       if (currentScenario === 'amazon' && harpies.length > 0) {
         for (let hi = 0; hi < harpies.length; hi++) {
           const h = harpies[hi];
-          if (h.hp <= 0) continue;
+          if (h.hp <= 0 || h.migrated) continue;
 
           // 1. Sombra no solo projetada pela luz solar
           const shadowDist = h.z * 0.25;
@@ -2850,9 +2899,10 @@
       if (elHarpies) {
         if (currentScenario === 'amazon' && harpies.length >= 2) {
           const hM = harpies[0], hF = harpies[1];
-          const stM = hM.state === 'dive' ? '⚡Mergulho' : (hM.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hM.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha'));
-          const stF = hF.state === 'dive' ? '⚡Mergulho' : (hF.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hF.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha'));
-          elHarpies.innerText = `♂ ${stM} (${hM.hp.toFixed(0)} HP) | ♀ ${stF} (${hF.hp.toFixed(0)} HP)`;
+          const stM = hM.migrated ? '🍃Migrou (Homeo ≤85%)' : (hM.state === 'dive' ? '⚡Mergulho' : (hM.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hM.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha')));
+          const stF = hF.migrated ? '🍃Migrou (Homeo ≤75%)' : (hF.state === 'dive' ? '⚡Mergulho' : (hF.state === 'retreat' ? '🚨Fuga p/ Ninho' : (hF.state === 'nest_resting' ? '🪺Repouso' : '🦅Patrulha')));
+          const activeCount = (!hM.migrated ? 1 : 0) + (!hF.migrated ? 1 : 0);
+          elHarpies.innerText = `${activeCount}/2 Ativas | ♂ ${stM} | ♀ ${stF}`;
         } else {
           elHarpies.innerText = "Inativo neste bioma";
         }
@@ -2871,8 +2921,8 @@
       if (elNests) {
         const ratN = nests.filter(n => n.species === 'rat').length;
         const catN = nests.filter(n => n.species === 'cat').length;
-        const harpyN = nests.filter(n => n.species === 'harpy').length;
-        elNests.innerText = `${nests.length} (${ratN} tocas, ${catN} covis, ${harpyN} harpia)`;
+        const harpyN = harpies.filter(h => !h.migrated).length;
+        elNests.innerText = `${nests.length} (${ratN} tocas, ${catN} covis, ${harpyN} harpia ativa)`;
       }
 
       // Censo de Fauna por sexo, prenhez e estro cíclico

@@ -141,6 +141,16 @@ public sealed class EcosystemTelemetry
         if (_sampleCount < MaxHistorySamples) _sampleCount++;
     }
 
+    /// <summary>
+    /// Calcula o Índice de Homeostase Ecológica percentual (0 a 100%) baseado no equilíbrio de Lotka-Volterra (razão ótima 30:1).
+    /// </summary>
+    public static float CalculateHomeostasis(int herbivores, int carnivores)
+    {
+        if (herbivores == 0 && carnivores == 0) return 0f;
+        float ratio = (carnivores > 0) ? ((float)herbivores / carnivores) : 0f;
+        return Math.Clamp(100f - MathF.Min(100f, MathF.Abs(ratio - 30.0f) * 2.8f), 0f, 100f);
+    }
+
     public ReadOnlySpan<EcologicalTelemetrySample> GetLatestSamples(int count)
     {
         int available = Math.Min(count, _sampleCount);

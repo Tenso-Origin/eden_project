@@ -135,6 +135,7 @@ public struct AnimalAgent
     public float NestPosY;
     public float DaysPregnant;
     public uint MotherId;
+    public bool IsMigrated; // Dispersão/migração temporária fora do bioma (controle homeostático)
     public bool IsSafeInBurrow => HasNest && (MathF.Pow(PosX - NestPosX, 2) + MathF.Pow(PosY - NestPosY, 2) <= 9.0f);
 
     public bool IsFemale => Sex == 0;
@@ -167,6 +168,7 @@ public struct AnimalAgent
         GestationDaysRemaining = 0f;
         LitterSize = 0;
         PounceBoostCooldown = 0f;
+        IsMigrated = false;
         Genome = RatGenome.CreateDefault(initialGen);
         MateGenome = Genome;
 
@@ -304,6 +306,46 @@ public static class FaunaSystem
     }
 
     /// <summary>
+    /// Controle de histerese e dispersão das Harpias Amazônicas com base no Índice de Homeostase Ecológica:
+    /// - 1ª Harpia: remove (migra) quando Homeostase <= 85%, retorna quando Homeostase >= 90%.
+    /// - 2ª Harpia: remove (migra) quando Homeostase <= 75%, retorna quando Homeostase >= 80%.
+    /// </summary>
+    public static void UpdateHarpyHomeostasisHysteresis(Span<AnimalAgent> agents, float homeostasisPercent)
+    {
+        int harpyCount = 0;
+        for (int i = 0; i < agents.Length; i++)
+        {
+            ref var a = ref agents[i];
+            if (a.Diet == AnimalDiet.AvianApex && a.Health > 0f)
+            {
+                if (harpyCount == 0) // 1ª Harpia (primeira a dispersar)
+                {
+                    if (!a.IsMigrated && homeostasisPercent <= 85.0f)
+                    {
+                        a.IsMigrated = true;
+                    }
+                    else if (a.IsMigrated && homeostasisPercent >= 90.0f)
+                    {
+                        a.IsMigrated = false;
+                    }
+                }
+                else if (harpyCount == 1) // 2ª Harpia (dispersa sob crise severa)
+                {
+                    if (!a.IsMigrated && homeostasisPercent <= 75.0f)
+                    {
+                        a.IsMigrated = true;
+                    }
+                    else if (a.IsMigrated && homeostasisPercent >= 80.0f)
+                    {
+                        a.IsMigrated = false;
+                    }
+                }
+                harpyCount++;
+            }
+        }
+    }
+
+    /// <summary>
     /// Executa o tick fisiológico, a teia trófica de predação de Holling, decomposição e telemetria.
     /// </summary>
     public static void StepFauna(
@@ -315,11 +357,29 @@ public static class FaunaSystem
         ulong currentTick = 0,
         float currentSimHour = 0f)
     {
+        // 0. Censo populacional e cálculo do Índice de Homeostase Ecológica (Lotka-Volterra: razão ótima 30:1)
+        int liveHerbivores = 0;
+        int liveCarnivores = 0;
+        for (int i = 0; i < agents.Length; i++)
+        {
+            ref readonly var ag = ref agents[i];
+            if (ag.Health <= 0f) continue;
+            if (ag.Diet == AnimalDiet.Herbivore) liveHerbivores++;
+            else if (ag.Diet == AnimalDiet.Carnivore) liveCarnivores++;
+        }
+
+        float ratio = (liveCarnivores > 0) ? ((float)liveHerbivores / liveCarnivores) : 0f;
+        float currentHomeostasis = 100f - MathF.Min(100f, MathF.Abs(ratio - 30.0f) * 2.8f);
+        if (liveHerbivores == 0 && liveCarnivores == 0) currentHomeostasis = 0f;
+
+        // Regra de Histerese das Harpias: 1ª sai a <=85% (volta a >=90%) | 2ª sai a <=75% (volta a >=80%)
+        UpdateHarpyHomeostasisHysteresis(agents, currentHomeostasis);
+
         // 1. Predadores projetam gradiente de perigo nos mapas de influência
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
-            if (a.Health <= 0f) continue;
+            if (a.Health <= 0f || a.IsMigrated) continue;
 
             if (a.Diet == AnimalDiet.Carnivore)
             {
@@ -333,7 +393,7 @@ public static class FaunaSystem
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
-            if (a.Health <= 0f) continue;
+            if (a.Health <= 0f || a.IsMigrated) continue;
 
             ref readonly var speciesDef = ref SpeciesCatalog.GetSpecies(a.SpeciesId);
 

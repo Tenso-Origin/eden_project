@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.4.0</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -596,6 +596,15 @@
               <span>Geração: <strong id="lblAvgGen" style="color:#f778ba;">G0</strong></span>
               <span>Alerta: <strong id="lblAvgAlert" style="color:#ffea79;">12.0c</strong></span>
               <span>Refúgio: <strong id="lblAvgRefuge" style="color:#3fb950;">45%</strong></span>
+            </div>
+          </div>
+          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #ff6b6b; background:rgba(255,107,107,0.06);">
+            <div class="stat-label">🧬 GENÉTICA FELINA (DNA HERDÁVEL & COMBATE)</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.75rem; font-family:'JetBrains Mono', monospace;">
+              <span>Geração: <strong id="lblCatGen" style="color:#ff6b6b;">G0</strong></span>
+              <span>Vigilância: <strong id="lblCatVigilance" style="color:#00f2fe;">1.0x</strong></span>
+              <span>Ferocidade: <strong id="lblCatFerocity" style="color:#ff7b72;">1.0x</strong></span>
+              <span>Stamina: <strong id="lblCatStamina" style="color:#3fb950;">1.0x</strong></span>
             </div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #58a6ff;">
@@ -860,6 +869,51 @@
 
     function getIdx(x, y) { return y * CHUNK_SIZE + x; }
 
+    // Limpa uma área circular de 10m de raio sem biomassa ou grãos ao redor de tocas e refúgios
+    // Força os roedores a saírem do refúgio e forragearem a céu aberto
+    function clearBiomassRadius(centerX, centerY, radius = 10.0) {
+      const minX = Math.max(0, Math.floor(centerX - radius));
+      const maxX = Math.min(CHUNK_SIZE - 1, Math.ceil(centerX + radius));
+      const minY = Math.max(0, Math.floor(centerY - radius));
+      const maxY = Math.min(CHUNK_SIZE - 1, Math.ceil(centerY + radius));
+      const rSq = radius * radius;
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          const dx = x - centerX;
+          const dy = y - centerY;
+          if (dx * dx + dy * dy <= rSq) {
+            const idx = getIdx(x, y);
+            biomass[idx] = 0.0;
+            grains[idx] = 0.0;
+          }
+        }
+      }
+    }
+
+    // === GENOMA FELINO (HERDÁVEL PELO DNA AOS DESCENDENTES) ===
+    function createDefaultCatGenome() {
+      return {
+        harpyVigilance: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: percepção da sombra e mergulho da harpia
+        ambushPatience: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: tempo de espera na orla da várzea
+        combatFerocity: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: poder de abate e revide contra harpia
+        staminaEfficiency: 1.0 + (Math.random() * 0.4 - 0.2), // 0.8 a 1.2: economia anaeróbica no sprint
+        generation: 0
+      };
+    }
+
+    function recombineCatGenome(motherGen, fatherGen) {
+      const m = motherGen || createDefaultCatGenome();
+      const f = fatherGen || m;
+      const mut = () => (Math.random() * 0.10 - 0.05); // Mutação mendeliana ±5%
+      return {
+        harpyVigilance: Math.max(0.6, Math.min(2.2, (m.harpyVigilance + f.harpyVigilance) * 0.5 * (1.0 + mut()))),
+        ambushPatience: Math.max(0.6, Math.min(2.2, (m.ambushPatience + f.ambushPatience) * 0.5 * (1.0 + mut()))),
+        combatFerocity: Math.max(0.6, Math.min(2.2, (m.combatFerocity + f.combatFerocity) * 0.5 * (1.0 + mut()))),
+        staminaEfficiency: Math.max(0.6, Math.min(2.2, (m.staminaEfficiency + f.staminaEfficiency) * 0.5 * (1.0 + mut()))),
+        generation: Math.max(m.generation || 0, f.generation || 0) + 1
+      };
+    }
+
     // === SISTEMA DE REFÚGIOS NATURAIS E TOCAS MATERNAIS FLEXÍVEIS ===
     // Refúgios Naturais: Troncos caídos, espaços embaixo de pedras/rochas e moitas de vegetação densa
     // Limitados estritamente a 10% da quantidade inicial de ratos (75% floresta, 25% várzea/gramíneas)
@@ -896,6 +950,8 @@
               type: type,
               radius: 2.5
             });
+            // Área de 10m sem biomassa ao redor de cada refúgio
+            clearBiomassRadius(rx, ry, 10.0);
             break;
           }
         }
@@ -1100,6 +1156,8 @@
             y: 200.0,
             z: 35.0, // Altitude em metros
             hp: 100,
+            attackPower: 80.0,
+            defensePower: 28.0,
             hunger: 15.0,
             state: 'patrol',
             target: null,
@@ -1119,6 +1177,8 @@
             y: 310.0,
             z: 38.0,
             hp: 100,
+            attackPower: 80.0,
+            defensePower: 28.0,
             hunger: 15.0,
             state: 'patrol',
             target: null,
@@ -1237,6 +1297,7 @@
             nestX = loc.x;
             nestY = loc.y;
             nests.push({ id: i + 1, motherId: i + 1, species: 'rat', name: 'Toca de Roedores (Maternal)', quality: 80, x: nestX, y: nestY });
+            clearBiomassRadius(nestX, nestY, 10.0);
           }
         }
         const litterSize = isPregnant ? (8 + Math.floor(Math.random() * 6)) : 0; // +30% natalidade (8 a 13 filhotes)
@@ -1270,6 +1331,12 @@
           nestX: nestX,
           nestY: nestY,
           hp: 100,
+          stamina: 100.0,
+          maxStamina: 100.0,
+          isExhausted: false,
+          attackPower: 10.0,
+          defensePower: 3.0,
+          isCornered: false,
           hunger: 15 + Math.random() * 15,
           speed: 2.2,
           ageInDays: 75.0 + Math.random() * 20.0,
@@ -1308,6 +1375,7 @@
             nestX = loc.x;
             nestY = loc.y;
             nests.push({ id: 1000 + i, motherId: 1000 + i, species: 'cat', name: 'Covil Felino (Maternal)', quality: 85, x: nestX, y: nestY });
+            clearBiomassRadius(nestX, nestY, 10.0);
           }
         }
         const litterSize = isPregnant ? (3 + Math.floor(Math.random() * 3)) : 0;
@@ -1333,6 +1401,14 @@
           nestX: nestX,
           nestY: nestY,
           hp: 100,
+          stamina: 100.0,
+          maxStamina: 100.0,
+          isExhausted: false,
+          attackPower: 42.0,
+          defensePower: 14.0,
+          isCornered: false,
+          catGenome: createDefaultCatGenome(),
+          mateCatGenome: createDefaultCatGenome(),
           hunger: 5 + Math.random() * 10,
           speed: 2.8,
           ageInDays: 400.0 + Math.random() * 60.0,
@@ -1651,6 +1727,8 @@
               x: loc.x,
               y: loc.y
             });
+            // Área de 10m sem biomassa ao redor de cada toca maternal
+            clearBiomassRadius(loc.x, loc.y, 10.0);
           }
 
           if (a.gestationRemaining <= 0) {
@@ -1685,6 +1763,8 @@
                   : (Math.random() < 0.51 ? 'male' : 'female');
 
                 let pupGenome = null;
+                let pupCatGenome = null;
+
                 if (a.species === 'rat') {
                   // Recombinação Genética (Crossover Mendeliano) + Herança Epigenética + Mutação
                   const motherGen = a.genome || { alertRadius: 12.0, refugeAffinity: 0.45, sprintBurst: 1.35, epigeneticBonus: 0, generation: 0 };
@@ -1703,6 +1783,9 @@
                     epigeneticBonus: 0.0,
                     generation: Math.max(motherGen.generation || 0, fatherGen.generation || 0) + 1
                   };
+                } else if (a.species === 'cat') {
+                  // Recombinação Genética Felina (DNA Herdável: Vigilância contra Harpia, Ferocidade de Combate, Emboscada e Stamina)
+                  pupCatGenome = recombineCatGenome(a.catGenome, a.mateCatGenome);
                 }
 
                 // Filhotes nascem protegidos DENTRO da toca da mãe
@@ -1727,6 +1810,12 @@
                   nestY: a.nestY,
                   motherId: a.id, // Vincula à toca materna até atingir maturidade (60d ratos, 210d gatos)
                   hp: 100,
+                  stamina: 100.0,
+                  maxStamina: 100.0,
+                  isExhausted: false,
+                  attackPower: (a.species === 'rat' ? 10.0 : 42.0),
+                  defensePower: (a.species === 'rat' ? 3.0 : 14.0),
+                  isCornered: false,
                   hunger: 10,
                   speed: a.speed,
                   ageInDays: 0,
@@ -1735,7 +1824,9 @@
                   sensoryRadius: a.sensoryRadius,
                   dailyFunKills: 0,
                   genome: pupGenome,
-                  mateGenome: pupGenome
+                  mateGenome: pupGenome,
+                  catGenome: pupCatGenome,
+                  mateCatGenome: pupCatGenome
                 });
               }
             }
@@ -1841,6 +1932,33 @@
             const grainBite = Math.min(grains[curIdx], 2.8 * simDeltaHours);
             grains[curIdx] = Math.max(0, grains[curIdx] - grainBite);
             a.hunger = Math.max(0, a.hunger - grainBite * 18.0); // Boost imediato de saciedade calórica
+
+          // Inicialização de segurança dos atributos de combate e fisiologia
+          if (a.stamina === undefined) {
+            a.stamina = 100.0;
+            a.maxStamina = 100.0;
+            a.isExhausted = false;
+            a.attackPower = 10.0;
+            a.defensePower = 3.0;
+            a.isCornered = false;
+          }
+
+          // Regeneração de Stamina e recuperação de exaustão fisiológica
+          if (a.isExhausted) {
+            a.stamina = Math.min(a.maxStamina, a.stamina + 8.0 * dt);
+            if (a.stamina >= 35.0) {
+              a.isExhausted = false; // Recuperou o fôlego aeróbico
+            }
+          } else {
+            a.stamina = Math.min(a.maxStamina, a.stamina + 14.0 * dt);
+          }
+
+          // 1. Pastagem e Partilha de Alimento:
+          // 3º ELEMENTO: Se houver Grãos Amazônicos de Várzea (Oryza glumaepatula), consome com prioridade máxima pelo alto teor calórico!
+          if (a.hunger > 5 && grains[curIdx] > 0.5) {
+            const grainBite = Math.min(grains[curIdx], 2.8 * simDeltaHours);
+            grains[curIdx] = Math.max(0, grains[curIdx] - grainBite);
+            a.hunger = Math.max(0, a.hunger - grainBite * 18.0); // Boost imediato de saciedade calórica
           } else if (a.hunger > 5 && biomass[curIdx] > 0.5) {
             const nRats = ratsInCell[curIdx] || 1;
             const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
@@ -1854,6 +1972,7 @@
           const effectiveAlert = (a.genome ? a.genome.alertRadius + (a.genome.epigeneticBonus || 0) : 12.0);
           let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;
           let closestCatDist = 999.0;
+          let closestCat = null;
 
           for (let j = 0; j < animals.length; j++) {
             const other = animals[j];
@@ -1863,7 +1982,10 @@
                 fleeVectorX += (a.x - other.x) / (d + 0.1);
                 fleeVectorY += (a.y - other.y) / (d + 0.1);
                 dangerCount++;
-                if (d < closestCatDist) closestCatDist = d;
+                if (d < closestCatDist) {
+                  closestCatDist = d;
+                  closestCat = other;
+                }
               }
             }
           }
@@ -1914,18 +2036,53 @@
               refugeBiasY = (toShelterY / minShelterDist) * 4.5;
             }
 
-            targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 2.2);
-            targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 2.2);
+            // COMPORTAMENTO ANIMAL DE ACUAMENTO EXTREMO ("TUDO OU NADA"):
+            // Quando encurralado pelo predador a curta distância (<= 1.8m) e sem refúgio imediato ou exausto,
+            // o animal inverte de fuga desesperada para contra-ataque furioso de sobrevivência!
+            const isTrapped = (closestCatDist <= 1.8 && (minShelterDist > 7.0 || a.isExhausted) && closestCat !== null);
 
-            // Arrancada anaeróbica (SprintBurst) e aprendizado por experiência em perigo iminente
-            if (closestCatDist < 3.8 && a.genome) {
-              a.currentSprintBoost = a.genome.sprintBurst || 1.35;
-              a.genome.epigeneticBonus = Math.min(4.0, (a.genome.epigeneticBonus || 0) + 0.15 * dt);
+            if (isTrapped) {
+              a.isCornered = true;
+              // Vira de frente para o agressor para a luta de tudo ou nada
+              targetX = closestCat.x;
+              targetY = closestCat.y;
+              a.currentSprintBoost = 1.1;
+
+              // Mordida frenética de autodefesa feroz no gato
+              const ratDmg = Math.max(3.0, (a.attackPower * 1.5 - (closestCat.defensePower || 14.0) * 0.3) * dt * 3.5);
+              closestCat.hp = Math.max(0, closestCat.hp - ratDmg);
+
+              // 45% de chance de causar dor súbita e hesitação/recuo no gato
+              if (Math.random() < 0.45 * dt) {
+                closestCat.painStun = 1.2;
+              }
             } else {
-              a.currentSprintBoost = 1.0;
+              a.isCornered = false;
+              targetX = a.x + (fleeVectorX * 2.8) + (refugeBiasX * refugeAffinity * 2.2);
+              targetY = a.y + (fleeVectorY * 2.8) + (refugeBiasY * refugeAffinity * 2.2);
+
+              // Arrancada anaeróbica (SprintBurst) limitada por Stamina e ácido lático
+              if (closestCatDist < 3.8 && a.genome) {
+                if (a.isExhausted) {
+                  // Esgotado: velocidade reduzida para 60% por exaustão muscular
+                  a.currentSprintBoost = 0.60;
+                } else {
+                  a.currentSprintBoost = a.genome.sprintBurst || 1.35;
+                  // Drena stamina durante o sprint anaeróbico (~3.5 segundos de autonomia)
+                  a.stamina = Math.max(0, a.stamina - 28.0 * dt);
+                  if (a.stamina <= 0) {
+                    a.isExhausted = true;
+                    a.currentSprintBoost = 0.60;
+                  }
+                  a.genome.epigeneticBonus = Math.min(4.0, (a.genome.epigeneticBonus || 0) + 0.15 * dt);
+                }
+              } else {
+                a.currentSprintBoost = a.isExhausted ? 0.75 : 1.0;
+              }
             }
           } else {
-            a.currentSprintBoost = 1.0;
+            a.isCornered = false;
+            a.currentSprintBoost = a.isExhausted ? 0.75 : 1.0;
             if (inWater && (floodEscapeX !== 0 || floodEscapeY !== 0)) {
               targetX = a.x + floodEscapeX * 3.0;
               targetY = a.y + floodEscapeY * 3.0;
@@ -2010,10 +2167,19 @@
                 }
               }
 
-              // Se detectou pasto viçoso ao redor:
+              // COMPORTAMENTO DE SAÍDA DO LUGAR (FORA DOS 10M DA TOCA/REFÚGIO):
+              // Se a célula atual está sem biomassa (< 3) e sem grãos (< 0.5) devido à área de 10m limpa,
+              // o roedor ativamente marcha em linha reta para fora da zona limpa em direção à pastagem aberta!
+              const isInClearedDepletedZone = (biomass[curIdx] < 3.0 && grains[curIdx] < 0.5);
+
               if (bestScore > 5.0 && (bestX !== curX || bestY !== curY)) {
                 targetX = bestX;
                 targetY = bestY;
+              } else if (isInClearedDepletedZone) {
+                // Força marcha exploratória contínua para fora do raio limpo
+                if (!a.wanderAngle) a.wanderAngle = Math.random() * Math.PI * 2;
+                targetX = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + Math.cos(a.wanderAngle) * 8.0));
+                targetY = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + Math.sin(a.wanderAngle) * 8.0));
               } else {
                 // PERAMBULAÇÃO EXPLORATÓRIA (LÉVY FLIGHT):
                 // O rato NUNCA fica parado esperando a fome subir: caminha ativamente explorando o mapa!
@@ -2026,10 +2192,38 @@
           }
         }
         }
+        }
 
         // === COMPORTAMENTO DO GATO (PREDADOR COM FARO, POUNCE BURST E CICLO ESTRAL) ===
         else if (a.species === 'cat') {
-          a.currentSprintBoost = 1.0;
+          // Inicialização de segurança dos atributos de combate e fisiologia
+          if (a.stamina === undefined) {
+            a.stamina = 100.0;
+            a.maxStamina = 100.0;
+            a.isExhausted = false;
+            a.attackPower = 42.0;
+            a.defensePower = 14.0;
+            a.isCornered = false;
+            a.catGenome = createDefaultCatGenome();
+            a.mateCatGenome = createDefaultCatGenome();
+          }
+
+          if (!a.catGenome) a.catGenome = createDefaultCatGenome();
+          if (a.painStun === undefined) a.painStun = 0.0;
+          if (a.painStun > 0) a.painStun = Math.max(0, a.painStun - dt);
+
+          // Regeneração de Stamina e recuperação de exaustão fisiológica
+          if (a.isExhausted) {
+            a.stamina = Math.min(a.maxStamina, a.stamina + 8.0 * dt);
+            if (a.stamina >= 35.0) {
+              a.isExhausted = false; // Recuperou o fôlego
+            }
+          } else {
+            a.stamina = Math.min(a.maxStamina, a.stamina + 14.0 * dt);
+          }
+
+          a.currentSprintBoost = a.isExhausted ? 0.75 : 1.0;
+          if (a.painStun > 0) a.currentSprintBoost = 0.50; // Hesitação por dor de mordida
 
           // 1. Comunicação e Chamado Acústico / Feromônio de Acasalamento (ampliado com dados reais: até 100 metros)
           // Gatas em cio emitem chamados que atraem machos e suprimem a repulsão territorial
@@ -2070,6 +2264,7 @@
                 female.daysPregnant = 0.0;
                 female.gestationRemaining = 64.0 + (Math.random() - 0.5) * 4.0; // Gestação real: 63 a 67 dias
                 female.litterSize = 3 + Math.floor(Math.random() * 3); // Ninhada real: 3 a 5 filhotes (média 4)
+                female.mateCatGenome = male.catGenome; // Transmissão genética mendeliana do parceiro
                 female.estrusDurationRemaining = 0.0;
                 female.estrusCycleTimer = female.gestationRemaining;
                 female.matingCooldown = female.gestationRemaining + 45.0;
@@ -2150,13 +2345,24 @@
               const preyCellIdx = getIdx(Math.floor(closestPrey.x), Math.floor(closestPrey.y));
               const inHighVegetation = (biomass[preyCellIdx] > 35.0);
 
-              // Arrancada Explosiva de Emboscada (Pounce Burst): salta para 1.35x (~3.78 cél/s) quando a presa está a <= 4.5 células em campo aberto
-              if (closestDist <= 4.5 && !inHighVegetation) {
-                a.currentSprintBoost = 1.35;
+              // Arrancada Explosiva de Emboscada (Pounce Burst) limitada por Stamina e eficiência do DNA felino
+              const eff = (a.catGenome && a.catGenome.staminaEfficiency) || 1.0;
+              if (closestDist <= 4.5 && !inHighVegetation && a.painStun <= 0) {
+                if (a.isExhausted) {
+                  a.currentSprintBoost = 0.65; // Esgotado muscularmente
+                } else {
+                  a.currentSprintBoost = 1.35;
+                  // Gasta stamina com base na eficiência genética herdada
+                  a.stamina = Math.max(0, a.stamina - (20.0 / eff) * dt);
+                  if (a.stamina <= 0) {
+                    a.isExhausted = true;
+                    a.currentSprintBoost = 0.65;
+                  }
+                }
               }
 
-              // Bote de caça com Resposta Funcional de Holling (Refúgio Ecológico da Presa)
-              if (closestDist < 1.4) {
+              // Bote de caça com Combate e Dano no HP (Resposta Funcional de Holling)
+              if (closestDist < 1.4 && a.painStun <= 0) {
                 // Se a presa conseguiu alcançar e entrar na toca ou refúgio natural: imunidade absoluta!
                 if (isProtectedInBurrowOrRefuge(closestPrey)) {
                   a.currentSprintBoost = 1.0;
@@ -2165,18 +2371,25 @@
                   const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
 
                   if (Math.random() >= escapeChance) {
-                    closestPrey.hp = 0;
-                    totalPredationDeaths++;
-                    applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
+                    // Dano de combate proporcional ao ataque do gato, ferocidade genética e defesa do rato
+                    const ferocity = (a.catGenome && a.catGenome.combatFerocity) || 1.0;
+                    const catDmg = Math.max(12.0, (a.attackPower * ferocity - (closestPrey.defensePower || 3.0) * 0.5) * dt * 4.0);
+                    closestPrey.hp -= catDmg;
 
-                    // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
-                    a.hunger = Math.max(0, a.hunger - 90.0);
+                    if (closestPrey.hp <= 0) {
+                      closestPrey.hp = 0;
+                      totalPredationDeaths++;
+                      applyDeathDecomposition(closestPrey.x, closestPrey.y); // Carcaça fertiliza o solo
 
-                    if (isFunHunt && a.dailyFunKills < 2) {
-                      a.dailyFunKills++;
-                      funKillsCount++;
-                    } else {
-                      hungryKillsCount++;
+                      // Consumo calórico realista (250g de carne sacia 90 pontos de fome segundo Lei de Kleiber)
+                      a.hunger = Math.max(0, a.hunger - 90.0);
+
+                      if (isFunHunt && a.dailyFunKills < 2) {
+                        a.dailyFunKills++;
+                        funKillsCount++;
+                      } else {
+                        hungryKillsCount++;
+                      }
                     }
                   }
                 }
@@ -2449,20 +2662,29 @@
                 h.target = null;
                 h.z = 38.0;
               } else if (prey.species === 'cat') {
-                // GATO: 55% abate / 45% revide felino com unhas e dentes
-                const felineRetaliation = (Math.random() < 0.45);
+                // COMPORTAMENTO ANIMAL DE ACUAMENTO E DEFESA DO GATO CONTRA A HARPIA:
+                // Em campo aberto sem refúgio, o gato acuado vira de costas e defende-se ferozmente
+                // com as garras traseiras ("bunny-kicking") e mordidas na ave de rapina
+                const ferocity = (prey.catGenome && prey.catGenome.combatFerocity) || 1.0;
+                const vigilance = (prey.catGenome && prey.catGenome.harpyVigilance) || 1.0;
 
-                if (felineRetaliation) {
-                  // Gato revida furiosamente! Harpia perde 30 HP e recua para o ninho
-                  h.hp = Math.max(0, h.hp - 30.0);
+                // Contra-ataque de unhas e dentes do felino na Harpia
+                const catStrikeDmg = Math.max(15.0, Math.min(42.0, (prey.attackPower * ferocity * 0.8) - ((h.defensePower || 28.0) * 0.3) + (Math.random() * 8.0 - 4.0)));
+                h.hp = Math.max(0, h.hp - catStrikeDmg);
+
+                // Dano do golpe de talões da Harpia no gato
+                const harpyStrikeDmg = Math.max(22.0, ((h.attackPower || 80.0) * 0.8) - (prey.defensePower * 0.5) + (Math.random() * 8.0 - 4.0));
+                prey.hp = Math.max(0, prey.hp - harpyStrikeDmg);
+
+                if (h.hp < 45.0) {
+                  // Harpia ferida sente dor intensa e aborta ataque imediatamente, fugindo para o ninho
                   h.state = 'retreat';
                   h.target = null;
-
-                  // Gato sobrevive com adrenalina e corre para a floresta densa
+                  // Gato sobrevive ferido com adrenalina extrema e dispara para a floresta densa
                   prey.currentSprintBoost = 1.6;
                   prey.wanderAngle = Math.atan2(prey.y - 256.0, prey.x - 256.0);
-                } else {
-                  // Captura com sucesso (55%)
+                } else if (prey.hp <= 0) {
+                  // Gato sucumbiu ao impacto fulminante dos talões
                   prey.hp = 0;
                   totalPredationDeaths++;
                   applyDeathDecomposition(prey.x, prey.y);
@@ -2470,6 +2692,12 @@
                   h.state = 'patrol';
                   h.target = null;
                   h.z = 38.0;
+                } else {
+                  // Ambos feridos: Harpia retoma altitude e gato escapa
+                  h.state = 'patrol';
+                  h.target = null;
+                  h.z = 38.0;
+                  prey.currentSprintBoost = 1.4;
                 }
               }
             }
@@ -3022,6 +3250,31 @@
         const elAvgRefuge = document.getElementById('lblAvgRefuge');
         if (elAvgRefuge) elAvgRefuge.innerText = `${avgRefuge.toFixed(0)}%`;
       }
+
+      // Telemetria Genética Evolutiva dos Gatos (DNA Herdável)
+      if (cats.length > 0) {
+        let sumGen = 0, sumVig = 0, sumFer = 0, sumStam = 0;
+        for (let i = 0; i < cats.length; i++) {
+          const g = cats[i].catGenome || { generation: 0, harpyVigilance: 1.0, combatFerocity: 1.0, staminaEfficiency: 1.0 };
+          sumGen += (g.generation || 0);
+          sumVig += (g.harpyVigilance || 1.0);
+          sumFer += (g.combatFerocity || 1.0);
+          sumStam += (g.staminaEfficiency || 1.0);
+        }
+        const avgGen = Math.round(sumGen / cats.length);
+        const avgVig = sumVig / cats.length;
+        const avgFer = sumFer / cats.length;
+        const avgStam = sumStam / cats.length;
+
+        const elCatGen = document.getElementById('lblCatGen');
+        if (elCatGen) elCatGen.innerText = `G${avgGen}`;
+        const elCatVig = document.getElementById('lblCatVigilance');
+        if (elCatVig) elCatVig.innerText = `${avgVig.toFixed(2)}x`;
+        const elCatFer = document.getElementById('lblCatFerocity');
+        if (elCatFer) elCatFer.innerText = `${avgFer.toFixed(2)}x`;
+        const elCatStam = document.getElementById('lblCatStamina');
+        if (elCatStam) elCatStam.innerText = `${avgStam.toFixed(2)}x`;
+      }
     }
 
     function inspectCell(x, y) {
@@ -3062,7 +3315,7 @@
       }
       document.getElementById('inspEroded').innerText = cumulativeErosion[idx].toFixed(2) + " m";
 
-      // Detecta se há animal nesta célula com sexo e prenhez
+      // Detecta se há animal nesta célula com sexo, prenhez, combate, stamina e acuamento
       const nearbyAnimals = animals.filter(a => Math.hypot(a.x - x, a.y - y) < 2.0);
       if (nearbyAnimals.length > 0) {
         const names = nearbyAnimals.map(a => {
@@ -3074,8 +3327,12 @@
             else if (a.estrusDurationRemaining > 0) estrusStr = ` 🔥[EM CIO: ${a.estrusDurationRemaining.toFixed(1)}d]`;
             else estrusStr = ` [Cio em ${(a.estrusCycleTimer || 0).toFixed(1)}d]`;
           }
-          const genStr = a.genome ? ` [Gen: G${a.genome.generation}, Alerta: ${(a.genome.alertRadius + (a.genome.epigeneticBonus || 0)).toFixed(1)}c]` : '';
-          return `${sp} ${sx}${estrusStr}${genStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
+          const genStr = a.genome ? ` [G${a.genome.generation}]` : (a.catGenome ? ` [G${a.catGenome.generation}]` : '');
+          const hpStr = ` HP:${Math.max(0, a.hp).toFixed(0)}`;
+          const stamStr = a.stamina !== undefined ? ` St:${a.stamina.toFixed(0)}` : '';
+          const atkDefStr = ` Atk:${a.attackPower || 10}/Def:${a.defensePower || 3}`;
+          const tagStr = `${a.isCornered ? ' ⚠️ACUADO' : ''}${a.isExhausted ? ' 💨EXAUSTO' : ''}`;
+          return `${sp} ${sx}${estrusStr}${genStr}${hpStr}${stamStr}${atkDefStr}${tagStr} (Idade: ${a.ageInDays.toFixed(0)}d, Fome: ${a.hunger.toFixed(0)}%)`;
         }).join(', ');
         document.getElementById('inspFauna').innerText = names;
       } else {

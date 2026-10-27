@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.2</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.3</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -723,24 +723,22 @@
             <b style="color:#ffea79;">🐁 Ratos (Herbívoros):</b><br>
             • Sexo Real: 50% <span style="color:#fff59d;">♀ Fêmea (Amarelo Claro)</span> | 50% <span style="color:#d48800;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>8 a 13 filhotes</b> (média 10.5, +30% natalidade).<br>
-            • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Busca grãos de várzea.<br>
-            • Biomassa comum sacia apenas 10% (forçando migração ativa para os grãos calóricos).<br>
-            • <b>Tocas e Refúgios:</b> Fêmea prenhe cria toca maternal onde estiver após 3 dias. Refúgios naturais (troncos, pedras, moitas) limitados a 10% dos ratos iniciais (75% floresta, 25% várzea). Ambos concedem <b>imunidade total a ataques</b>.
+            • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Hidratação preventiva precoce (sede > 25%).<br>
+            • Biomassa comum com saciedade equilibrada (1.35) e dano por inanição suavizado.<br>
+            • <b>Refúgios Naturais:</b> 8 na várzea/grama, 20 na borda da floresta e 12 no interior (raio estrito de 1.0m).<br>
+            • <b>Predação Solitária:</b> Rato isolado sem aliados por perto sofre emboscada letal do gato sem chance de escape.
           </div>
           <div style="margin-bottom:6px;">
             <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
             • Sexo Real: 49% <span style="color:#ff7b72;">♀ Fêmea (Vermelho Claro)</span> | 51% <span style="color:#991b1b;">♂ Macho (Escuro)</span>.<br>
             • Gestação Real: <b>63 a 67 dias</b> | Ninhada: <b>3 a 5 filhotes</b> (média 4).<br>
-            • Vida: ~14 anos (5110 dias). Adulto aos 210 dias.<br>
-            • <b>Covis Maternais:</b> Gata prenhe cria covil na floresta após 3 dias; persiste até os filhotes completarem 210 dias.<br>
-            • Caça lúdica: Máx. 2 caçadas/dia por diversão; presas em tocas têm imunidade.
+            • Vida: ~14 anos (5110 dias). Adulto aos 210 dias. Hidratação preventiva precoce.<br>
+            • <b>Bote Cirúrgico:</b> Bote de emboscada (2.8x) sobre presas isoladas; perda de interesse ao perseguir por >5s.
           </div>
           <div>
-            <b style="color:#00f2fe;">🦅 Harpias (Predador Aéreo de Topo):</b><br>
-            • Comportamento estritamente <b>diurno</b>: patrulha e caça durante o dia (06h às 18h) e retorna ao ninho na copa para repouso noturno.<br>
-            • <b>Histerese por Homeostase Ecológica:</b><br>
-            &nbsp;&nbsp;↳ 1ª Harpia: remove a <b>≤ 85%</b> e retorna quando atingir <b>≥ 90%</b>.<br>
-            &nbsp;&nbsp;↳ 2ª Harpia: remove a <b>≤ 75%</b> e retorna quando atingir <b>≥ 80%</b>.
+            <b style="color:#00f2fe;">🦅 Harpias (Predador de Controle de Biomassa):</b><br>
+            • Inativas e dispersas por padrão para preservar o equilíbrio trófico inicial.<br>
+            • <b>Gatilho de Emergência de Biomassa:</b> Retornam ao ecossistema somente se a biomassa vegetal cair abaixo de <b>50%</b> da original (superpastoreio severo).
           </div>
         </div>
       </div>
@@ -953,27 +951,30 @@
           }
         }
 
-        // Fome
-        const hungerRate = (a.species === 'rat') ? 0.09 : 0.025;
+        // Fome e Metabolismo Basal
+        const hungerRate = (a.species === 'rat') ? 0.045 : 0.020;
         a.hunger = Math.min(100, a.hunger + hungerRate * dt);
         if (a.hunger >= 90) {
-          a.hp -= 0.6 * dt;
+          a.hp -= 0.18 * dt; // Dano de inanição suavizado para permitir busca e forrageamento sem morte súbita
         }
 
         const curX = Math.floor(a.x);
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
-        // Sede e Hidratação Biológica
-        const thirstRate = (a.species === 'rat') ? 0.12 : 0.04;
+        // Sede e Hidratação Biológica Preventiva
+        const thirstRate = (a.species === 'rat') ? 0.045 : 0.025;
         a.thirst = Math.min(100, a.thirst + thirstRate * dt);
         const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - 256.0, a.y - 256.0) : 999.0;
         const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 53.0);
         if (inWaterOrBank) {
           a.thirst = Math.max(0, a.thirst - 50.0 * dt);
+        } else if (moisture[curIdx] > 0.40) {
+          // Absorção de umidade foliar e orvalho em áreas úmidas
+          a.thirst = Math.max(0, a.thirst - 0.25 * dt);
         }
         if (a.thirst >= 90) {
-          a.hp -= 0.8 * dt;
+          a.hp -= 0.20 * dt; // Dano de desidratação calibrado
         }
 
         // Regeneração lenta de vitalidade (cicatrização de pequenos ferimentos ao descansar)

@@ -12,8 +12,8 @@ function createInitialHarpies() {
       species: 'harpy',
       sex: 'male',
       name: 'Harpia Macho',
-      x: 210.0,
-      y: 200.0,
+      x: 435.0,
+      y: 85.0,
       z: 35.0, // Altitude em metros
       hp: 100,
       attackPower: 80.0,
@@ -25,22 +25,22 @@ function createInitialHarpies() {
       foodMemoryX: 256.0,
       foodMemoryY: 256.0,
       hasFoodMemory: false,
-      state: 'patrol',
+      state: 'retreat',
       target: null,
       diveSpeed: 0.0,
       nestX: 435.0,
       nestY: 85.0,
       flightAngle: 0.5,
       circleRadius: 140.0, // Raio expandido sobre a várzea ampla
-      migrated: false
+      migrated: true // Removida por padrão: surge apenas quando biomassa < 50%
     },
     {
       id: 9002,
       species: 'harpy',
       sex: 'female',
       name: 'Harpia Fêmea',
-      x: 290.0,
-      y: 270.0,
+      x: 435.0,
+      y: 85.0,
       z: 40.0,
       hp: 100,
       attackPower: 95.0, // Fêmea 30% mais pesada e forte
@@ -52,14 +52,14 @@ function createInitialHarpies() {
       foodMemoryX: 256.0,
       foodMemoryY: 256.0,
       hasFoodMemory: false,
-      state: 'patrol',
+      state: 'retreat',
       target: null,
       diveSpeed: 0.0,
       nestX: 435.0,
       nestY: 85.0,
       flightAngle: 3.5,
       circleRadius: 165.0,
-      migrated: false
+      migrated: true // Removida por padrão: surge apenas quando biomassa < 50%
     }
   ];
 }
@@ -86,41 +86,23 @@ function stepHarpies(dt, ctx) {
 
   if (currentScenario !== 'amazon' || !harpies || harpies.length === 0) return;
 
-  // 1. Cálculo dinâmico e contínuo da Homeostase Ecológica
-  const aliveRats = animals.filter(a => a.species === 'rat' && a.hp > 0).length;
-  const aliveCats = animals.filter(a => a.species === 'cat' && a.hp > 0).length;
-  const currentRatio = (aliveCats > 0) ? (aliveRats / aliveCats) : 0;
-  
-  // Homeostase sustentável calibrada: máxima estabilidade (95-100%) em equilíbrio trófico
-  // Penaliza colapso de presas (< 50 ratos), superpopulação predatória ou desbalanço severo
-  let currentHomeostasis = 95.0;
-  if (aliveRats === 0 || aliveCats === 0) {
-    currentHomeostasis = 0.0;
-  } else {
-    // Balanço populacional saudável: ratio entre 1.5 e 8.0 ratos por gato
-    let balancePenalty = 0.0;
-    if (currentRatio < 1.5) {
-      balancePenalty = (1.5 - currentRatio) * 18.0; // Sobrecarga de predadores sobre poucas presas
-    } else if (currentRatio > 12.0) {
-      balancePenalty = Math.min(35.0, (currentRatio - 12.0) * 1.8); // Explosão de roedores
-    }
-    // Penalidade por colapso populacional absoluto de presas
-    if (aliveRats < 60) {
-      balancePenalty += (60 - aliveRats) * 0.75;
-    }
-    currentHomeostasis = Math.max(10.0, Math.min(100.0, 98.0 - balancePenalty));
-  }
+  // 1. Monitoramento da Biomassa Vegetal Planetária
+  // Regra: Harpias removidas por padrão; surgem somente quando a biomassa estiver ameaçada (< 50% da original)
+  let totalCurrentBio = 0;
+  for (let bi = 0; bi < CELL_COUNT; bi += 8) totalCurrentBio += biomass[bi];
+  const currentTotalBiomass = totalCurrentBio * 8;
+  const bioRef = (typeof initialBiomassReference !== 'undefined' && initialBiomassReference > 0)
+    ? initialBiomassReference
+    : (CELL_COUNT * 55.0);
+  const biomassRatio = currentTotalBiomass / bioRef;
+  const isBiomassThreatened = (biomassRatio < 0.50);
 
-  // Regra de Histerese de Dispersão e Retorno por Homeostase Ecológica:
-  // - 1ª Harpia (Macho): migra quando Homeostase <= 85%, retorna quando >= 90%
-  // - 2ª Harpia (Fêmea): migra quando Homeostase <= 75%, retorna quando >= 80%
-  if (harpies.length >= 1) {
-    const h1 = harpies[0];
-    if (!h1.migrated && currentHomeostasis <= 85.0) {
-      h1.migrated = true;
-      h1.target = null;
-      h1.state = 'retreat';
-    } else if (h1.migrated && currentHomeostasis >= 90.0) {
+  const h1 = harpies[0];
+  const h2 = harpies[1];
+
+  if (isBiomassThreatened) {
+    // Alerta Ecológico Crítico: Biomassa abaixo de 50%! Harpias amazônicas são acionadas como predador de topo
+    if (h1 && h1.migrated) {
       h1.migrated = false;
       h1.x = h1.nestX;
       h1.y = h1.nestY;
@@ -128,21 +110,25 @@ function stepHarpies(dt, ctx) {
       h1.state = 'patrol';
       h1.isSleeping = false;
     }
-  }
-
-  if (harpies.length >= 2) {
-    const h2 = harpies[1];
-    if (!h2.migrated && currentHomeostasis <= 75.0) {
-      h2.migrated = true;
-      h2.target = null;
-      h2.state = 'retreat';
-    } else if (h2.migrated && currentHomeostasis >= 80.0) {
+    if (h2 && h2.migrated) {
       h2.migrated = false;
       h2.x = h2.nestX;
       h2.y = h2.nestY;
       h2.z = 38.0;
       h2.state = 'patrol';
       h2.isSleeping = false;
+    }
+  } else if (biomassRatio >= 0.55) {
+    // Biomassa restaurada (>= 55% da original): Harpias retornam ao isolamento e dispersam
+    if (h1 && !h1.migrated) {
+      h1.migrated = true;
+      h1.target = null;
+      h1.state = 'retreat';
+    }
+    if (h2 && !h2.migrated) {
+      h2.migrated = true;
+      h2.target = null;
+      h2.state = 'retreat';
     }
   }
 

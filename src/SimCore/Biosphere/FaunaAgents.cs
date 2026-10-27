@@ -224,8 +224,8 @@ public struct AnimalAgent
     public float NestPosY;
     public float DaysPregnant;
     public uint MotherId;
-    public bool IsMigrated; // Dispersão/migração temporária fora do bioma (controle homeostático)
-    public bool IsSafeInBurrow => HasNest && (MathF.Pow(PosX - NestPosX, 2) + MathF.Pow(PosY - NestPosY, 2) <= 9.0f);
+    public bool IsMigrated; // Dispersão/migração temporária fora do bioma (controle trófico)
+    public bool IsSafeInBurrow => HasNest && (MathF.Pow(PosX - NestPosX, 2) + MathF.Pow(PosY - NestPosY, 2) <= 1.44f);
 
     public bool IsFemale => Sex == 0;
     public bool IsMale => Sex == 1;
@@ -378,23 +378,40 @@ public readonly struct NaturalRefuge
     /// </summary>
     public static NaturalRefuge[] CreateAmazonRefuges(int initialRatCount = 180)
     {
-        int count = Math.Max(1, (int)MathF.Round(initialRatCount * 0.10f)); // Limite estrito de 10% da quantidade inicial de ratos
-        var refuges = new NaturalRefuge[count];
-        int forestCount = (int)(count * 0.75f); // 75% na floresta densa
+        // 8 na várzea/grama, 20 na borda da floresta e 12 no interior da floresta
+        var refuges = new NaturalRefuge[40];
+        int idx = 0;
 
-        for (int i = 0; i < count; i++)
+        // 1. Exatamente 8 refúgios naturais na zona de grama (várzea)
+        for (int i = 0; i < 8; i++)
         {
-            bool inForest = (i < forestCount);
             float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
-            float radius = inForest
-                ? (195.0f + Random.Shared.NextSingle() * 45.0f)  // 75% na floresta densa (R > 195m)
-                : (58.0f + Random.Shared.NextSingle() * 135.0f); // 25% na várzea (R: 58m a 193m)
-
-            float x = Math.Clamp(256f + MathF.Cos(angle) * radius, 10f, 502f);
-            float y = Math.Clamp(256f + MathF.Sin(angle) * radius, 10f, 502f);
-            var type = (RefugeType)Random.Shared.Next(0, 3);
-            refuges[i] = new NaturalRefuge(x, y, type, 2.5f);
+            float r = 56.0f + Random.Shared.NextSingle() * 82.0f; // 56m a 138m
+            float x = Math.Clamp(256f + MathF.Cos(angle) * r, 8f, 504f);
+            float y = Math.Clamp(256f + MathF.Sin(angle) * r, 8f, 504f);
+            refuges[idx++] = new NaturalRefuge(x, y, (RefugeType)Random.Shared.Next(0, 3), 1.0f);
         }
+
+        // 2. 20 abrigos espalhados na borda da floresta (transição ecotonal)
+        for (int i = 0; i < 20; i++)
+        {
+            float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+            float r = 140.0f + Random.Shared.NextSingle() * 60.0f; // 140m a 200m
+            float x = Math.Clamp(256f + MathF.Cos(angle) * r, 8f, 504f);
+            float y = Math.Clamp(256f + MathF.Sin(angle) * r, 8f, 504f);
+            refuges[idx++] = new NaturalRefuge(x, y, (RefugeType)Random.Shared.Next(0, 3), 1.0f);
+        }
+
+        // 3. 12 abrigos no interior da floresta de terra firme
+        for (int i = 0; i < 12; i++)
+        {
+            float angle = Random.Shared.NextSingle() * MathF.PI * 2f;
+            float r = 202.0f + Random.Shared.NextSingle() * 45.0f; // 202m a 247m
+            float x = Math.Clamp(256f + MathF.Cos(angle) * r, 8f, 504f);
+            float y = Math.Clamp(256f + MathF.Sin(angle) * r, 8f, 504f);
+            refuges[idx++] = new NaturalRefuge(x, y, (RefugeType)Random.Shared.Next(0, 3), 1.0f);
+        }
+
         return refuges;
     }
 }
@@ -405,17 +422,16 @@ public readonly struct NaturalRefuge
 /// </summary>
 public static class FaunaSystem
 {
-    public const float StarvationDamage = 0.6f;   // Dano suave de inanição dando tempo de busca por alimento
+    public const float StarvationDamage = 0.18f;  // Dano calibrado de inanição dando tempo de busca por alimento
     public const byte CatHuntingZone = 25;        // Zona de caça direta do gato: 25 células (dados reais de bote)
     public const byte CatOlfactoryRange = 90;     // Alcance de faro: 90 células (dados reais de faro felino)
 
-    public static readonly NaturalRefuge[] AmazonRefuges = NaturalRefuge.CreateAmazonRefuges(180); // Limite de 10% dos 180 ratos iniciais (18 refúgios)
+    public static readonly NaturalRefuge[] AmazonRefuges = NaturalRefuge.CreateAmazonRefuges(180);
 
     /// <summary>
-    /// Limpa a biomassa e grãos num raio de 10m ao redor de tocas e refúgios.
-    /// Obriga os animais a saírem do abrigo para forragear comida a céu aberto.
+    /// Limpa suavemente a vegetação ao redor de tocas e refúgios (1.5m) mantendo alimento acessível.
     /// </summary>
-    public static void ClearBiomassRadius(Chunk chunk, int centerX, int centerY, float radius = 10.0f)
+    public static void ClearBiomassRadius(Chunk chunk, int centerX, int centerY, float radius = 1.5f)
     {
         int r = (int)MathF.Ceiling(radius);
         float rSq = radius * radius;
@@ -441,8 +457,7 @@ public static class FaunaSystem
     }
 
     /// <summary>
-    /// Avalia se o roedor/animal está protegido dentro de sua toca maternal ou em um refúgio natural
-    /// (troncos de árvores caídos, espaços embaixo de pedras ou vegetação densa que impedem predadores).
+    /// Avalia se o roedor/animal está protegido dentro de sua toca maternal ou em um refúgio natural (1m).
     /// </summary>
     public static bool IsProtectedInBurrowOrRefuge(in AnimalAgent animal)
     {
@@ -463,41 +478,26 @@ public static class FaunaSystem
     }
 
     /// <summary>
-    /// Controle de histerese e dispersão das Harpias Amazônicas com base no Índice de Homeostase Ecológica:
-    /// - 1ª Harpia: remove (migra) quando Homeostase <= 85%, retorna quando Homeostase >= 90%.
-    /// - 2ª Harpia: remove (migra) quando Homeostase <= 75%, retorna quando Homeostase >= 80%.
+    /// Controle de Harpias por Biomassa Vegetal Planetária:
+    /// Removidas por padrão; surgem somente quando a biomassa estiver ameaçada (< 50% da original).
     /// </summary>
-    public static void UpdateHarpyHomeostasisHysteresis(Span<AnimalAgent> agents, float homeostasisPercent)
+    public static void UpdateHarpyBiomassTrigger(Span<AnimalAgent> agents, float currentBiomassRatio)
     {
-        int harpyCount = 0;
+        bool isBiomassThreatened = (currentBiomassRatio < 0.50f);
+
         for (int i = 0; i < agents.Length; i++)
         {
             ref var a = ref agents[i];
             if (a.Diet == AnimalDiet.AvianApex && a.Health > 0f)
             {
-                if (harpyCount == 0) // 1ª Harpia (primeira a dispersar)
+                if (isBiomassThreatened)
                 {
-                    if (!a.IsMigrated && homeostasisPercent <= 85.0f)
-                    {
-                        a.IsMigrated = true;
-                    }
-                    else if (a.IsMigrated && homeostasisPercent >= 90.0f)
-                    {
-                        a.IsMigrated = false;
-                    }
+                    a.IsMigrated = false; // Ativa para controle de herbívoros
                 }
-                else if (harpyCount == 1) // 2ª Harpia (dispersa sob crise severa)
+                else if (currentBiomassRatio >= 0.55f)
                 {
-                    if (!a.IsMigrated && homeostasisPercent <= 75.0f)
-                    {
-                        a.IsMigrated = true;
-                    }
-                    else if (a.IsMigrated && homeostasisPercent >= 80.0f)
-                    {
-                        a.IsMigrated = false;
-                    }
+                    a.IsMigrated = true;  // Dispersa e sai do mapa
                 }
-                harpyCount++;
             }
         }
     }
@@ -941,9 +941,24 @@ public static class FaunaSystem
                         bool willAttack = (a.DailyFunKills < 2) || (a.Hunger > 20.0f);
                         if (willAttack && a.ChaseAbandonCooldown <= 0f)
                         {
+                            // Detecta se o rato está isolado/sem aliados por perto (raio de 10 células)
+                            bool preyIsAlone = true;
+                            for (int k = 0; k < agents.Length; k++)
+                            {
+                                if (k != j && agents[k].Diet == AnimalDiet.Herbivore && agents[k].Health > 0f)
+                                {
+                                    float allyDistSq = MathF.Pow(agents[k].PosX - prey.PosX, 2) + MathF.Pow(agents[k].PosY - prey.PosY, 2);
+                                    if (allyDistSq <= 100.0f) // 10 metros
+                                    {
+                                        preyIsAlone = false;
+                                        break;
+                                    }
+                                }
+                            }
+
                             // REAÇÃO EXTREMA DE ACUAMENTO ("TUDO OU NADA"):
-                            // Se o rato estiver exausto ou encurralado, parte para a luta feroz!
-                            if (prey.IsExhausted || prey.IsCornered)
+                            // Se o rato estiver exausto ou encurralado, mas NÃO for surpreendido sozinho, parte para a luta feroz!
+                            if (!preyIsAlone && (prey.IsExhausted || prey.IsCornered))
                             {
                                 prey.IsCornered = true;
                                 // Mordida de autodefesa feroz: dor aguda e arranhão, sem dano letal instantâneo
@@ -960,7 +975,9 @@ public static class FaunaSystem
                             }
 
                             // Ataque com garras e mandíbula do gato proporcional à ferocidade do genoma:
-                            float catDamage = MathF.Max(18f, (a.AttackPower * a.CatGenetics.CombatFerocity) - prey.DefensePower);
+                            // Se a presa estiver sozinha e for surpreendida, sofre emboscada letal (multiplicador 2.8x)
+                            float ambushMult = preyIsAlone ? 2.8f : 1.0f;
+                            float catDamage = MathF.Max(18f * ambushMult, (a.AttackPower * a.CatGenetics.CombatFerocity * ambushMult) - prey.DefensePower);
                             prey.Health = MathF.Max(0f, prey.Health - catDamage);
 
                             if (prey.Health <= 0f)

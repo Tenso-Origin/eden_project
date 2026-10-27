@@ -326,7 +326,7 @@ function updateStats() {
       const hM = harpies[0], hF = harpies[1];
       const isNight = !isDay;
       const formatHarpyState = (h) => {
-        if (h.migrated) return '🍃Migrou';
+        if (h.migrated) return '🍃Dispersa';
         if (h.state === 'dive') return '⚡Mergulho';
         if (h.state === 'retreat') return isNight ? '🌙Retorno Noturno' : '🚨Fuga p/ Ninho';
         if (h.state === 'nest_resting') return isNight ? '😴Dormindo no Ninho' : '🪺Repouso (HP)';
@@ -335,7 +335,11 @@ function updateStats() {
       const stM = formatHarpyState(hM);
       const stF = formatHarpyState(hF);
       const activeCount = (!hM.migrated ? 1 : 0) + (!hF.migrated ? 1 : 0);
-      elHarpies.innerText = `${activeCount}/2 Ativas | ♂ ${stM} (${hM.hp.toFixed(0)} HP) | ♀ ${stF} (${hF.hp.toFixed(0)} HP)`;
+      if (activeCount === 0) {
+        elHarpies.innerText = `🍃 Dispersas (Biomassa Saudável > 50%)`;
+      } else {
+        elHarpies.innerText = `🦅 ${activeCount}/2 Ativas (Biomassa < 50%) | ♂ ${stM} | ♀ ${stF}`;
+      }
     } else {
       elHarpies.innerText = "Inativo neste bioma";
     }

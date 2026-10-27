@@ -248,12 +248,30 @@ function updateCatBehavior(a, dt, ctx) {
         if (isProtectedInBurrowOrRefuge(closestPrey) || closestPrey.isDiving) {
           a.currentSprintBoost = 1.0;
         } else {
+          // Verifica se o rato está sozinho (sem outros roedores num raio de 10m para alerta coletivo)
+          let nearbyRats = 0;
+          for (let k = 0; k < animals.length; k++) {
+            const oth = animals[k];
+            if (oth.id !== closestPrey.id && oth.species === 'rat' && oth.hp > 0) {
+              if (Math.hypot(oth.x - closestPrey.x, oth.y - closestPrey.y) < 10.0) {
+                nearbyRats++;
+                break;
+              }
+            }
+          }
+          const isPreyAlone = (nearbyRats === 0);
+
+          // Rato sozinho e surpreendido: escape quase nulo (bote letal certeiro do felino)
           const refugeSkill = closestPrey.genome ? closestPrey.genome.refugeAffinity : 0.45;
-          const escapeChance = inHighVegetation ? Math.min(0.70, 0.35 + refugeSkill * 0.32) : 0.0;
+          let escapeChance = inHighVegetation ? Math.min(0.65, 0.30 + refugeSkill * 0.30) : 0.0;
+          if (isPreyAlone) {
+            escapeChance = inHighVegetation ? 0.05 : 0.0; // Presa isolada não consegue escapar
+          }
 
           if (Math.random() >= escapeChance) {
             const ferocity = (a.catGenome && a.catGenome.combatFerocity) || 1.0;
-            const catDmg = Math.max(12.0, (a.attackPower * ferocity - (closestPrey.defensePower || 3.0) * 0.5) * dt * 4.0);
+            const ambushMultiplier = isPreyAlone ? 2.8 : 1.0;
+            const catDmg = Math.max(16.0, (a.attackPower * ferocity * ambushMultiplier - (closestPrey.defensePower || 3.0) * 0.5) * dt * 5.5);
             closestPrey.hp -= catDmg;
 
             if (closestPrey.hp <= 0) {
@@ -286,7 +304,7 @@ function updateCatBehavior(a, dt, ctx) {
         targetX = a.x + ((a.nestX - a.x) / dNest) * 3.8;
         targetY = a.y + ((a.nestY - a.y) / dNest) * 3.8;
       }
-    } else if (a.thirst > 35.0) {
+    } else if (a.thirst > 25.0) {
       const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
       if (dLakeCenter > 52.0) {
         // Caminha em direção à margem segura do lago (raio 51-52m)

@@ -104,8 +104,8 @@ function updateRatBehavior(a, dt, ctx) {
     const baseRatePerHour = 100.0 / 72.0; // ~1.3888 biomassa/hora
     const sharedBite = Math.min(biomass[curIdx] / nRats, baseRatePerHour * simDeltaHours);
     biomass[curIdx] = Math.max(0, biomass[curIdx] - sharedBite);
-    // Saciedade da biomassa comum reduzida a 10% (0.42) para forçar busca por grãos
-    a.hunger = Math.max(0, a.hunger - sharedBite * 0.42);
+    // Saciedade da biomassa comum elevada para 1.35: garante sobrevivência e combate a inanição
+    a.hunger = Math.max(0, a.hunger - sharedBite * 1.35);
     a.foodMemoryX = a.x;
     a.foodMemoryY = a.y;
     a.hasFoodMemory = true;
@@ -183,11 +183,31 @@ function updateRatBehavior(a, dt, ctx) {
       refugeBiasY = (toShelterY / minShelterDist) * 4.5;
     }
 
-    // COMPORTAMENTO DE ACUAMENTO EXTREMO ("TUDO OU NADA"):
-    // Quando encurralado <= 1.8m e sem refúgio imediato ou exausto, contra-ataca com fúria!
-    const isTrapped = (closestCatDist <= 1.8 && (minShelterDist > 7.0 || a.isExhausted) && closestCat !== null);
+    // Verificação de isolamento do rato (efeito sentinela / bando)
+    let nearbyAllies = 0;
+    for (let k = 0; k < animals.length; k++) {
+      const oth = animals[k];
+      if (oth.id !== a.id && oth.species === 'rat' && oth.hp > 0) {
+        if (Math.hypot(oth.x - a.x, oth.y - a.y) < 10.0) {
+          nearbyAllies++;
+          break;
+        }
+      }
+    }
+    const isAloneAndAmbushed = (nearbyAllies === 0 && closestCatDist <= 2.2);
 
-    if (isTrapped) {
+    // COMPORTAMENTO DE ACUAMENTO EXTREMO ("TUDO OU NADA"):
+    // Quando encurralado <= 1.8m e sem refúgio imediato ou exausto, contra-ataca com fúria.
+    // Mas se estiver SOZINHO e SURPREENDIDO pelo gato, é dominado sem tempo de reação!
+    const isTrapped = (closestCatDist <= 1.8 && (minShelterDist > 7.0 || a.isExhausted) && closestCat !== null && !isAloneAndAmbushed);
+
+    if (isAloneAndAmbushed) {
+      // Rato isolado pego de surpresa: hesitação pelo susto do bote felino
+      a.isCornered = false;
+      a.currentSprintBoost = 0.55;
+      targetX = a.x + (fleeVectorX * 1.5);
+      targetY = a.y + (fleeVectorY * 1.5);
+    } else if (isTrapped) {
       a.isCornered = true;
       targetX = closestCat.x;
       targetY = closestCat.y;
@@ -323,14 +343,17 @@ function updateRatBehavior(a, dt, ctx) {
           }
         }
 
-        // Busca de água doce por sede
+        // Busca preventiva de água doce: não espera desidratar
         let thirstBiasX = 0, thirstBiasY = 0, hasThirstGoal = false;
-        if (a.thirst > 40) {
+        if (a.thirst > 25.0) {
           const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
           if (dLakeCenter > 52.0) {
-            thirstBiasX = ((256.0 - a.x) / dLakeCenter) * 5.0;
-            thirstBiasY = ((256.0 - a.y) / dLakeCenter) * 5.0;
+            thirstBiasX = ((256.0 - a.x) / dLakeCenter) * 4.8;
+            thirstBiasY = ((256.0 - a.y) / dLakeCenter) * 4.8;
             hasThirstGoal = true;
+          } else {
+            // Na margem segura do lago: bebe água
+            a.thirst = Math.max(0, a.thirst - 60.0 * dt);
           }
         }
 
@@ -350,7 +373,7 @@ function updateRatBehavior(a, dt, ctx) {
         if (hasSleepGoal) {
           targetX = a.x + sleepBiasX;
           targetY = a.y + sleepBiasY;
-        } else if (hasThirstGoal && a.thirst > 55.0) {
+        } else if (hasThirstGoal && a.thirst > 25.0) {
           targetX = a.x + thirstBiasX;
           targetY = a.y + thirstBiasY;
         } else if (bestScore > 5.0 && (bestX !== curX || bestY !== curY)) {

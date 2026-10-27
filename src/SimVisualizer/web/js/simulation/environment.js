@@ -309,41 +309,51 @@ function applyDeathDecomposition(centerX, centerY) {
 
 /**
  * Refúgios Naturais: Troncos caídos, pedras e vegetação densa
- * Limitados a 10% da quantidade inicial de ratos (75% floresta, 25% várzea)
+ * - Exatamente 8 refúgios na zona de grama (várzea)
+ * - Abrigos expandidos na borda da floresta (transição ecotonal) e interior
+ * - Raio de proteção reduzido para 1.0 metro
  */
 function initNaturalRefuges(initialRatCount = 180) {
   naturalRefuges = [];
-  const TOTAL_REFUGES = Math.max(1, Math.round(initialRatCount * 0.10));
-  for (let i = 0; i < TOTAL_REFUGES; i++) {
-    const inForest = (i < TOTAL_REFUGES * 0.75);
-    for (let attempt = 0; attempt < 40; attempt++) {
-      let rx, ry;
-      if (currentScenario === 'amazon') {
-        const angle = Math.random() * Math.PI * 2;
-        const r = inForest
-          ? (195.0 + Math.random() * 45.0)  // 75% na floresta densa (R > 195m)
-          : (58.0 + Math.random() * 135.0); // 25% na várzea / gramíneas (R: 58m a 193m)
-        rx = 256.0 + Math.cos(angle) * r;
-        ry = 256.0 + Math.sin(angle) * r;
-      } else {
-        rx = 30 + Math.random() * (CHUNK_SIZE - 60);
-        ry = 30 + Math.random() * (CHUNK_SIZE - 60);
-      }
-      rx = Math.max(10, Math.min(CHUNK_SIZE - 10, rx));
-      ry = Math.max(10, Math.min(CHUNK_SIZE - 10, ry));
-      const idx = getIdx(Math.floor(rx), Math.floor(ry));
-      if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
-        const typeRoll = Math.random();
-        const type = typeRoll < 0.40 ? 'log' : (typeRoll < 0.75 ? 'rock' : 'brush');
-        naturalRefuges.push({
-          id: i + 1,
-          x: rx,
-          y: ry,
-          type: type,
-          radius: 2.5
-        });
-        clearBiomassRadius(rx, ry, 10.0);
-        break;
+  let nextId = 1;
+
+  const refugeZones = [
+    { count: 8, minR: 56.0, maxR: 138.0, desc: 'grama_varzea' },       // 8 na zona de grama
+    { count: 20, minR: 140.0, maxR: 200.0, desc: 'borda_floresta' },  // Espalhados na borda da floresta
+    { count: 12, minR: 202.0, maxR: 245.0, desc: 'interior_floresta' } // Interior da floresta de terra firme
+  ];
+
+  for (const zone of refugeZones) {
+    for (let i = 0; i < zone.count; i++) {
+      for (let attempt = 0; attempt < 50; attempt++) {
+        let rx, ry;
+        if (currentScenario === 'amazon') {
+          const angle = Math.random() * Math.PI * 2;
+          const r = zone.minR + Math.random() * (zone.maxR - zone.minR);
+          rx = 256.0 + Math.cos(angle) * r;
+          ry = 256.0 + Math.sin(angle) * r;
+        } else {
+          rx = 25 + Math.random() * (CHUNK_SIZE - 50);
+          ry = 25 + Math.random() * (CHUNK_SIZE - 50);
+        }
+        rx = Math.max(8, Math.min(CHUNK_SIZE - 8, rx));
+        ry = Math.max(8, Math.min(CHUNK_SIZE - 8, ry));
+        const idx = getIdx(Math.floor(rx), Math.floor(ry));
+
+        if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
+          const typeRoll = Math.random();
+          const type = typeRoll < 0.40 ? 'log' : (typeRoll < 0.75 ? 'rock' : 'brush');
+          naturalRefuges.push({
+            id: nextId++,
+            x: rx,
+            y: ry,
+            type: type,
+            zone: zone.desc,
+            radius: 1.0 // Raio reduzido estritamente para 1m
+          });
+          clearBiomassRadius(rx, ry, 1.5); // Limpeza suave de 1.5m para manter alimento acessível próximo
+          break;
+        }
       }
     }
   }
@@ -367,25 +377,25 @@ function findLocalNestLocation(animal) {
 }
 
 /**
- * Imunidade de Predação em Tocas, Covis e Refúgios Naturais
+ * Imunidade de Predação em Tocas, Covis e Refúgios Naturais (Raio de 1m)
  */
 function isProtectedInBurrowOrRefuge(animal) {
   // 1. Toca própria
-  if (animal.hasNest && Math.hypot(animal.x - animal.nestX, animal.y - animal.nestY) <= 3.0) {
+  if (animal.hasNest && Math.hypot(animal.x - animal.nestX, animal.y - animal.nestY) <= 1.2) {
     return true;
   }
   // 2. Qualquer toca da mesma espécie
   for (let ni = 0; ni < nests.length; ni++) {
     const n = nests[ni];
-    if (n.species === animal.species && Math.hypot(n.x - animal.x, n.y - animal.y) <= 3.0) {
+    if (n.species === animal.species && Math.hypot(n.x - animal.x, n.y - animal.y) <= 1.2) {
       return true;
     }
   }
-  // 3. Refúgio Natural (roedores)
+  // 3. Refúgio Natural (roedores) - área estrita de 1m
   if (animal.species === 'rat') {
     for (let ri = 0; ri < naturalRefuges.length; ri++) {
       const r = naturalRefuges[ri];
-      if (Math.hypot(r.x - animal.x, r.y - animal.y) <= r.radius) {
+      if (Math.hypot(r.x - animal.x, r.y - animal.y) <= 1.0) {
         return true;
       }
     }

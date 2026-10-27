@@ -38,6 +38,7 @@ var harpies = [];         // Casal de Harpias Amazônicas (Macho e Fêmea)
 var animals = [];         // Ratos e Gatos
 var naturalRefuges = [];  // Refúgios naturais (troncos, pedras, moitas)
 var currentScenario = 'amazon'; // 'amazon' ou 'temperate'
+var initialBiomassReference = 0; // Referência da biomassa vegetal inicial do planeta
 
 // Controle de Zoom e Câmera Interativa (1 chunk = 1 m²)
 var zoomLevel = 1.0;
@@ -487,6 +488,11 @@ function initWorld() {
       dailyFunKills: 0
     });
   }
+
+  // Registra a biomassa vegetal total original do ecossistema
+  let totalInitBio = 0;
+  for (let bi = 0; bi < CELL_COUNT; bi += 8) totalInitBio += biomass[bi];
+  initialBiomassReference = totalInitBio * 8;
 }
 
 // Vinculação de escopo para ambiente browser
@@ -512,12 +518,14 @@ if (typeof window !== 'undefined') {
     harpies,
     animals,
     naturalRefuges,
+    initialBiomassReference,
     weather,
     getIdx,
     clearBiomassRadius,
     getSimDate,
     initWorld
   };
+  window.initialBiomassReference = initialBiomassReference;
   window.CHUNK_SIZE = CHUNK_SIZE;
   window.CELL_COUNT = CELL_COUNT;
   window.MATERIALS = MATERIALS;

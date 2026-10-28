@@ -125,8 +125,24 @@ public static class SpeciesCatalog
     public const ushort IdCat = 10;
     public const ushort IdGrain = 20;       // Arroz Silvestre da Várzea Amazônica (Oryza glumaepatula)
     public const ushort IdHarpyEagle = 30;  // Harpia / Gavião-Real Amazônico (Harpia harpyja)
+    public const ushort IdToucan = 31;      // Tucano-toco (Ramphastos toco) - Ave Frugívora/Passiva
+    public const ushort IdCarcara = 32;     // Carcará (Caracara plancus) - Ave Predadora Oportunista
+    public const ushort IdTambaqui = 40;    // Tambaqui (Colossoma macropomum) - Peixe Passivo/Frugívoro
+    public const ushort IdPiranha = 41;     // Piranha-vermelha (Pygocentrus nattereri) - Peixe Agressivo/Carnívoro
+    public const ushort IdTortoise = 50;    // Jabuti-tinga (Chelonoidis denticulatus) - Réptil Passivo/Herbívoro
+    public const ushort IdCaiman = 51;      // Jacaré-açu / Coroa (Melanosuchus niger) - Réptil Predador Semi-aquático
+    public const ushort IdAnt = 60;         // Formiga-saúva (Atta sexdens) - Inseto Herbívoro Social
+    public const ushort IdBee = 61;         // Abelha-jataí (Tetragonisca angustula) - Inseto Polinizador
+    public const ushort IdButterfly = 62;   // Borboleta-morfo (Morpho menelaus) - Inseto Nectívoro
+    public const ushort IdDragonfly = 63;   // Libélula-imperador (Erythemis vesiculosa) - Inseto Predador Aéreo
+    public const ushort IdBeetle = 64;      // Besouro-hércules (Dynastes hercules) - Inseto Detritívoro de Madeira
+    public const ushort IdMosquito = 65;    // Mosquito-prego (Anopheles darlingi) - Inseto Hematófago/Aquático
+    public const ushort IdGrasshopper = 66; // Gafanhoto-esperança (Tropidacris cristata) - Inseto Herbívoro Saltador
+    public const ushort IdMantis = 67;      // Louva-a-deus (Acanthops falcata) - Inseto Carnívoro Emboscada
+    public const ushort IdRoach = 68;       // Barata-da-mata (Blaberus giganteus) - Inseto Detritívoro Noturno
+    public const ushort IdTermite = 69;     // Cupim-de-montículo (Nasutitermes corniger) - Inseto Decompositor
 
-    private static readonly SpeciesDef[] _speciesRegistry = new SpeciesDef[64];
+    private static readonly SpeciesDef[] _speciesRegistry = new SpeciesDef[128];
     private static readonly TrophicInteraction[] _trophicInteractions;
 
     static SpeciesCatalog()
@@ -225,48 +241,249 @@ public static class SpeciesCatalog
         );
 
         // -------------------------------------------------------------------------
-        // TABELA 3: Grafo de Conexões Tróficas (Quem come o quê)
+        // 4. ESPÉCIE: Ramphastos toco (Tucano-toco / Ave Frugívora de Copa)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdToucan] = new SpeciesDef(
+            id: IdToucan,
+            guild: TrophicGuild.PrimaryConsumer,
+            trophicLevel: 2,
+            massGrams: 600f,
+            bmrWatts: 4.5f,
+            moveCost: 0.12f,
+            maxEnergy: 900f,
+            waterMl: 45f,
+            maxLifespan: 7300.0f,
+            maturityDays: 730.0f,
+            gestationDays: 18.0f,
+            litterSize: 3.5f,
+            reproCost: 120.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 90.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 10.0f,
+            minTemp: 14.0f,
+            maxTemp: 40.0f,
+            visualRadius: 90,
+            olfactoryRadius: 15
+        );
+
+        // -------------------------------------------------------------------------
+        // 5. ESPÉCIE: Caracara plancus (Carcará / Falcão Terrestre Oportunista)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdCarcara] = new SpeciesDef(
+            id: IdCarcara,
+            guild: TrophicGuild.SecondaryConsumer,
+            trophicLevel: 3,
+            massGrams: 1400f,
+            bmrWatts: 7.8f,
+            moveCost: 0.14f,
+            maxEnergy: 1600f,
+            waterMl: 65f,
+            maxLifespan: 6200.0f,
+            maturityDays: 730.0f,
+            gestationDays: 30.0f,
+            litterSize: 2.5f,
+            reproCost: 210.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 120.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 12.0f,
+            minTemp: 10.0f,
+            maxTemp: 42.0f,
+            visualRadius: 110,
+            olfactoryRadius: 40
+        );
+
+        // -------------------------------------------------------------------------
+        // 6. ESPÉCIE: Colossoma macropomum (Tambaqui / Peixe Frugívoro do Lago)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdTambaqui] = new SpeciesDef(
+            id: IdTambaqui,
+            guild: TrophicGuild.PrimaryConsumer,
+            trophicLevel: 2,
+            massGrams: 15000f,
+            bmrWatts: 5.2f,
+            moveCost: 0.05f,
+            maxEnergy: 4200f,
+            waterMl: 0f,
+            maxLifespan: 9125.0f,
+            maturityDays: 1095.0f,
+            gestationDays: 10.0f,
+            litterSize: 40.0f,
+            reproCost: 350.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 180.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 15.0f,
+            minTemp: 18.0f,
+            maxTemp: 36.0f,
+            visualRadius: 25,
+            olfactoryRadius: 50
+        );
+
+        // -------------------------------------------------------------------------
+        // 7. ESPÉCIE: Pygocentrus nattereri (Piranha-vermelha / Peixe Predador)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdPiranha] = new SpeciesDef(
+            id: IdPiranha,
+            guild: TrophicGuild.SecondaryConsumer,
+            trophicLevel: 3,
+            massGrams: 1200f,
+            bmrWatts: 1.8f,
+            moveCost: 0.07f,
+            maxEnergy: 1300f,
+            waterMl: 0f,
+            maxLifespan: 3650.0f,
+            maturityDays: 365.0f,
+            gestationDays: 7.0f,
+            litterSize: 30.0f,
+            reproCost: 140.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 90.0f,
+            estrusInterval: 180.0f,
+            estrusDuration: 8.0f,
+            minTemp: 20.0f,
+            maxTemp: 35.0f,
+            visualRadius: 28,
+            olfactoryRadius: 75
+        );
+
+        // -------------------------------------------------------------------------
+        // 8. ESPÉCIE: Chelonoidis denticulatus (Jabuti-tinga / Réptil Herbívoro)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdTortoise] = new SpeciesDef(
+            id: IdTortoise,
+            guild: TrophicGuild.PrimaryConsumer,
+            trophicLevel: 2,
+            massGrams: 8500f,
+            bmrWatts: 1.5f,
+            moveCost: 0.02f,
+            maxEnergy: 3200f,
+            waterMl: 40f,
+            maxLifespan: 18250.0f,
+            maturityDays: 3650.0f,
+            gestationDays: 120.0f,
+            litterSize: 8.0f,
+            reproCost: 180.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 240.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 20.0f,
+            minTemp: 16.0f,
+            maxTemp: 38.0f,
+            visualRadius: 18,
+            olfactoryRadius: 35
+        );
+
+        // -------------------------------------------------------------------------
+        // 9. ESPÉCIE: Melanosuchus niger (Jacaré-açu / Predador Anfíbio de Topo)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdCaiman] = new SpeciesDef(
+            id: IdCaiman,
+            guild: TrophicGuild.ApexPredator,
+            trophicLevel: 4,
+            massGrams: 50000f,
+            bmrWatts: 6.0f,
+            moveCost: 0.11f,
+            maxEnergy: 8500f,
+            waterMl: 150f,
+            maxLifespan: 21900.0f,
+            maturityDays: 3650.0f,
+            gestationDays: 90.0f,
+            litterSize: 35.0f,
+            reproCost: 650.0f,
+            femaleRatio: 0.50f,
+            postPartumCooldown: 365.0f,
+            estrusInterval: 365.0f,
+            estrusDuration: 25.0f,
+            minTemp: 18.0f,
+            maxTemp: 40.0f,
+            visualRadius: 50,
+            olfactoryRadius: 85
+        );
+
+        // -------------------------------------------------------------------------
+        // 10 a 19: INSETOS NEOTROPICAIS (Microfauna Ecológica DOD)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdAnt] = new SpeciesDef(IdAnt, TrophicGuild.PrimaryConsumer, 2, 0.02f, 0.0001f, 0.001f, 0.5f, 0.01f, 365f, 30f, 15f, 50f, 0.1f, 0.8f, 10f, 30f, 5f, 15f, 40f, 6, 25);
+        _speciesRegistry[IdBee] = new SpeciesDef(IdBee, TrophicGuild.PrimaryConsumer, 2, 0.05f, 0.0003f, 0.002f, 1.0f, 0.02f, 120f, 20f, 12f, 30f, 0.2f, 0.9f, 8f, 20f, 3f, 16f, 40f, 12, 35);
+        _speciesRegistry[IdButterfly] = new SpeciesDef(IdButterfly, TrophicGuild.PrimaryConsumer, 2, 0.3f, 0.001f, 0.005f, 2.5f, 0.05f, 45f, 15f, 7f, 60f, 0.5f, 0.5f, 5f, 14f, 2f, 18f, 38f, 15, 20);
+        _speciesRegistry[IdDragonfly] = new SpeciesDef(IdDragonfly, TrophicGuild.SecondaryConsumer, 3, 0.8f, 0.003f, 0.008f, 4.0f, 0.08f, 90f, 30f, 10f, 40f, 0.8f, 0.5f, 7f, 20f, 3f, 18f, 38f, 24, 10);
+        _speciesRegistry[IdBeetle] = new SpeciesDef(IdBeetle, TrophicGuild.Decomposer, 2, 15.0f, 0.015f, 0.012f, 35.0f, 0.3f, 730f, 180f, 30f, 20f, 4.0f, 0.5f, 30f, 60f, 7f, 15f, 39f, 10, 30);
+        _speciesRegistry[IdMosquito] = new SpeciesDef(IdMosquito, TrophicGuild.SecondaryConsumer, 2, 0.005f, 0.00005f, 0.001f, 0.2f, 0.005f, 30f, 10f, 5f, 100f, 0.05f, 0.6f, 4f, 10f, 2f, 18f, 40f, 8, 30);
+        _speciesRegistry[IdGrasshopper] = new SpeciesDef(IdGrasshopper, TrophicGuild.PrimaryConsumer, 2, 3.5f, 0.008f, 0.010f, 15.0f, 0.15f, 150f, 45f, 14f, 45f, 2.0f, 0.5f, 15f, 30f, 4f, 16f, 40f, 14, 15);
+        _speciesRegistry[IdMantis] = new SpeciesDef(IdMantis, TrophicGuild.SecondaryConsumer, 3, 4.0f, 0.010f, 0.006f, 18.0f, 0.18f, 240f, 60f, 20f, 50f, 3.0f, 0.5f, 20f, 45f, 5f, 18f, 39f, 22, 12);
+        _speciesRegistry[IdRoach] = new SpeciesDef(IdRoach, TrophicGuild.Decomposer, 2, 5.0f, 0.008f, 0.008f, 20.0f, 0.20f, 550f, 90f, 25f, 35f, 3.0f, 0.5f, 20f, 40f, 5f, 15f, 41f, 10, 45);
+        _speciesRegistry[IdTermite] = new SpeciesDef(IdTermite, TrophicGuild.Decomposer, 2, 0.015f, 0.0001f, 0.001f, 0.4f, 0.01f, 300f, 25f, 12f, 80f, 0.1f, 0.7f, 8f, 20f, 3f, 16f, 40f, 4, 30);
+
+        // -------------------------------------------------------------------------
+        // TABELA 3: Grafo Expandido de Conexões Tróficas (Quem come o quê)
         // -------------------------------------------------------------------------
         _trophicInteractions = new TrophicInteraction[]
         {
-            // Rato consome Biomassa Vegetal Comum (Herbivoria)
-            new TrophicInteraction(
-                predatorId: IdRat,
-                preyId: IdVegetation,
-                nutritionalYield: 45.0f,
-                captureSuccess: 1.0f,
-                handlingTime: 0.2f,
-                satietyBoost: 25.0f
-            ),
+            // Rato consome Vegetação e Grãos
+            new TrophicInteraction(IdRat, IdVegetation, 45.0f, 1.0f, 0.2f, 25.0f),
+            new TrophicInteraction(IdRat, IdGrain, 180.0f, 1.0f, 0.15f, 55.0f),
+            new TrophicInteraction(IdRat, IdGrasshopper, 35.0f, 0.85f, 0.1f, 20.0f),
+            new TrophicInteraction(IdRat, IdRoach, 40.0f, 0.90f, 0.1f, 25.0f),
 
-            // Rato consome Grãos Amazônicos (Alimento Premium Rico em Amido e Lipídios)
-            new TrophicInteraction(
-                predatorId: IdRat,
-                preyId: IdGrain,
-                nutritionalYield: 180.0f, // 4x o rendimento calórico da biomassa verde comum
-                captureSuccess: 1.0f,
-                handlingTime: 0.15f,
-                satietyBoost: 55.0f      // Forte saciedade que acalma a fome rapidamente
-            ),
+            // Gato consome Rato, Gafanhoto e Pássaros menores
+            new TrophicInteraction(IdCat, IdRat, 650.0f, 0.75f, 0.5f, 85.0f),
+            new TrophicInteraction(IdCat, IdGrasshopper, 35.0f, 0.90f, 0.1f, 15.0f),
+            new TrophicInteraction(IdCat, IdRoach, 40.0f, 0.95f, 0.1f, 15.0f),
 
-            // Gato consome Rato (Predação com Saciedade Calórica Realista da Lei de Kleiber)
-            new TrophicInteraction(
-                predatorId: IdCat,
-                preyId: IdRat,
-                nutritionalYield: 650.0f,
-                captureSuccess: 0.75f,
-                handlingTime: 0.5f,
-                satietyBoost: 85.0f
-            ),
+            // Harpia consome Rato, Gato, Peixes grandes e Tucanos
+            new TrophicInteraction(IdHarpyEagle, IdRat, 250.0f, 0.90f, 0.3f, 35.0f),
+            new TrophicInteraction(IdHarpyEagle, IdCat, 1800.0f, 0.55f, 1.2f, 95.0f),
+            new TrophicInteraction(IdHarpyEagle, IdTambaqui, 3200.0f, 0.80f, 1.5f, 98.0f),
+            new TrophicInteraction(IdHarpyEagle, IdToucan, 600.0f, 0.85f, 0.6f, 65.0f),
+            new TrophicInteraction(IdHarpyEagle, IdCarcara, 1300.0f, 0.60f, 1.0f, 85.0f),
 
-            // Harpia preda Rato em Campo Aberto (Rasante Aéreo Letal)
-            new TrophicInteraction(
-                predatorId: IdHarpyEagle,
-                preyId: IdRat,
-                nutritionalYield: 250.0f,
-                captureSuccess: 0.90f,    // 90% de sucesso em grama aberta
-                handlingTime: 0.3f,
-                satietyBoost: 35.0f
+            // Tucano consome Vegetação, Grãos, Borboleta e Gafanhoto
+            new TrophicInteraction(IdToucan, IdVegetation, 50.0f, 1.0f, 0.2f, 30.0f),
+            new TrophicInteraction(IdToucan, IdGrain, 120.0f, 1.0f, 0.2f, 50.0f),
+            new TrophicInteraction(IdToucan, IdButterfly, 30.0f, 0.75f, 0.1f, 25.0f),
+            new TrophicInteraction(IdToucan, IdGrasshopper, 45.0f, 0.80f, 0.15f, 35.0f),
+
+            // Carcará consome Rato, Gafanhoto, Besouro e Carcaças
+            new TrophicInteraction(IdCarcara, IdRat, 400.0f, 0.75f, 0.4f, 60.0f),
+            new TrophicInteraction(IdCarcara, IdGrasshopper, 45.0f, 0.90f, 0.1f, 20.0f),
+            new TrophicInteraction(IdCarcara, IdBeetle, 55.0f, 0.90f, 0.1f, 25.0f),
+            new TrophicInteraction(IdCarcara, IdTortoise, 120.0f, 0.20f, 1.0f, 30.0f), // Carapaça dura do jabuti dificulta predação
+
+            // Tambaqui consome Vegetação Aquática e Grãos caídos no lago
+            new TrophicInteraction(IdTambaqui, IdVegetation, 120.0f, 1.0f, 0.2f, 40.0f),
+            new TrophicInteraction(IdTambaqui, IdGrain, 200.0f, 1.0f, 0.15f, 60.0f),
+
+            // Piranha preda Tambaqui jovem, Ratos na água e carcaças
+            new TrophicInteraction(IdPiranha, IdTambaqui, 850.0f, 0.70f, 0.6f, 80.0f),
+            new TrophicInteraction(IdPiranha, IdRat, 350.0f, 0.85f, 0.3f, 70.0f),
+
+            // Jabuti consome Vegetação e Detritos orgânicos
+            new TrophicInteraction(IdTortoise, IdVegetation, 85.0f, 1.0f, 0.4f, 50.0f),
+
+            // Jacaré preda Peixes (Tambaqui, Piranha), Ratos e Gatos na margem
+            new TrophicInteraction(IdCaiman, IdTambaqui, 3500.0f, 0.80f, 1.5f, 95.0f),
+            new TrophicInteraction(IdCaiman, IdPiranha, 950.0f, 0.65f, 0.8f, 65.0f),
+            new TrophicInteraction(IdCaiman, IdRat, 450.0f, 0.90f, 0.3f, 50.0f),
+            new TrophicInteraction(IdCaiman, IdCat, 2200.0f, 0.70f, 1.2f, 90.0f),
+
+            // Insetos e suas Interações
+            new TrophicInteraction(IdAnt, IdVegetation, 10.0f, 1.0f, 0.1f, 30.0f),
+            new TrophicInteraction(IdBee, IdVegetation, 15.0f, 1.0f, 0.1f, 30.0f),
+            new TrophicInteraction(IdButterfly, IdVegetation, 12.0f, 1.0f, 0.1f, 25.0f),
+            new TrophicInteraction(IdGrasshopper, IdVegetation, 25.0f, 1.0f, 0.1f, 35.0f),
+            new TrophicInteraction(IdGrasshopper, IdGrain, 75.0f, 1.0f, 0.1f, 60.0f),
+            new TrophicInteraction(IdDragonfly, IdMosquito, 5.0f, 0.90f, 0.05f, 40.0f),
+            new TrophicInteraction(IdDragonfly, IdButterfly, 15.0f, 0.60f, 0.1f, 55.0f),
+            new TrophicInteraction(IdMantis, IdGrasshopper, 30.0f, 0.80f, 0.2f, 65.0f),
+            new TrophicInteraction(IdMantis, IdBee, 18.0f, 0.75f, 0.15f, 50.0f),
+            new TrophicInteraction(IdMantis, IdMosquito, 6.0f, 0.90f, 0.05f, 30.0f),
+            new TrophicInteraction(IdMosquito, IdRat, 1.0f, 0.80f, 0.05f, 10.0f),
+            new TrophicInteraction(IdMosquito, IdCat, 1.0f, 0.75f, 0.05f, 10.0f),
+            new TrophicInteraction(IdBeetle, IdVegetation, 30.0f, 1.0f, 0.3f, 45.0f),
+            new TrophicInteraction(IdRoach, IdVegetation, 20.0f, 1.0f, 0.2f, 35.0f),
+            new TrophicInteraction(IdTermite, IdVegetation, 8.0f, 1.0f, 0.1f, 25.0f)
             ),
 
             // Harpia preda Gato em Campo Aberto (Chance de Revide Felino!)

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Projeto Biosfera - Simulação Planetária 512x512 DOD (Ecossistema Realista)</title>
+  <title>Projeto Biosfera - Simulação Planetária 1024x1024 DOD (Ecossistema Realista)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 512x512 DOD (262.144 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.5.6</span></h1>
+        <h1>Projeto Biosfera <span>Planeta 1024x1024 DOD (1.048.576 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.6.0</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -425,7 +425,7 @@
     <!-- Viewport Central: Exclusivo para o Mapa -->
     <div class="viewport-card">
       <div class="canvas-container">
-        <canvas id="viewportCanvas" width="512" height="512"></canvas>
+        <canvas id="viewportCanvas" width="1024" height="1024"></canvas>
         <!-- Overlay flutuante de navegação rápida sobre o mapa -->
         <div class="map-nav-overlay">
           <button class="nav-btn" id="btnOverlayUp" title="Navegar Cima (Seta ↑)">⬆️</button>
@@ -559,6 +559,22 @@
           <div class="stat-box" style="border-left: 3px solid #ff4444;">
             <div class="stat-label">GATOS (♀ Claro | ♂ Escuro)</div>
             <div id="statCats" class="stat-val" style="color:#ff6b6b; font-size:0.88rem;">0 (♀0 | ♂0)</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #10b981;">
+            <div class="stat-label">PEIXES DO LAGO (2 ESPÉCIES)</div>
+            <div id="statAquatic" class="stat-val" style="color:#34d399; font-size:0.85rem;">🐟 0 Tambaquis | 🦈 0 Piranhas</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #84cc16;">
+            <div class="stat-label">RÉPTEIS (2 ESPÉCIES)</div>
+            <div id="statReptiles" class="stat-val" style="color:#a3e635; font-size:0.85rem;">🐢 0 Jabutis | 🐊 0 Jacarés</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #f59e0b;">
+            <div class="stat-label">AVES ADICIONAIS (2 ESPÉCIES)</div>
+            <div id="statBirds" class="stat-val" style="color:#fbbf24; font-size:0.85rem;">🦜 0 Tucanos | 🪶 0 Carcarás</div>
+          </div>
+          <div class="stat-box" style="border-left: 3px solid #38bdf8;">
+            <div class="stat-label">MICROFAUNA DE INSETOS (10 ESPÉCIES)</div>
+            <div id="statInsects" class="stat-val" style="color:#38bdf8; font-size:0.85rem;">🐜 Insetos Totais: 0</div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #f778ba; grid-column: span 2;">
             <div class="stat-label">FÊMEAS GESTANTES (REPRODUÇÃO REAL)</div>
@@ -758,6 +774,10 @@
   <script src="js/species/rat.js"></script>
   <script src="js/species/cat.js"></script>
   <script src="js/species/harpy.js"></script>
+  <script src="js/species/aquatic.js"></script>
+  <script src="js/species/reptiles.js"></script>
+  <script src="js/species/birds.js"></script>
+  <script src="js/species/insects.js"></script>
   <script src="js/rendering/renderer.js"></script>
   <script src="js/ui/ui-controller.js"></script>
 
@@ -975,8 +995,8 @@
         const moistureMitigation = (moisture[curIdx] > 0.50) ? 0.80 : 1.0;
         a.thirst = Math.min(100, a.thirst + baseThirstRate * moistureMitigation * dt);
 
-        const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - 256.0, a.y - 256.0) : 999.0;
-        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 53.0);
+        const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - (CHUNK_SIZE / 2.0), a.y - (CHUNK_SIZE / 2.0)) : 999.0;
+        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 112.0);
         if (inWaterOrBank) {
           a.thirst = Math.max(0, a.thirst - 50.0 * dt);
         }
@@ -991,12 +1011,14 @@
 
         const inWater = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.15);
         if (matId[curIdx] === MAT_WATER && surfaceWater[curIdx] > 8.0) {
-          // Água profunda: animais terrestres sem fôlego perdem HP gradualmente e recuam
-          if (a.breath !== undefined && a.breath > 0) {
-            a.breath = Math.max(0, a.breath - dt);
-            if (a.breath <= 0) a.hp -= 3.5 * dt;
-          } else {
-            a.hp -= 3.5 * dt;
+          // Água profunda: somente mamíferos terrestres sem fôlego perdem HP gradualmente
+          if (a.species === 'rat' || a.species === 'cat') {
+            if (a.breath !== undefined && a.breath > 0) {
+              a.breath = Math.max(0, a.breath - dt);
+              if (a.breath <= 0) a.hp -= 3.5 * dt;
+            } else {
+              a.hp -= 3.5 * dt;
+            }
           }
         }
 
@@ -1111,6 +1133,64 @@
           const moveTarget = updateCatBehavior(a, dt, catContext);
           targetX = moveTarget.targetX;
           targetY = moveTarget.targetY;
+        } else if (a.species === 'tambaqui') {
+          if (typeof AquaticSpecies !== 'undefined') {
+            const aquaticCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, matId, MAT_WATER, getIdx, grains, biomass, weather };
+            const moveTarget = AquaticSpecies.updateTambaquiBehavior(a, dt, aquaticCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (a.species === 'piranha') {
+          if (typeof AquaticSpecies !== 'undefined') {
+            const aquaticCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, getIdx, matId, MAT_WATER, applyDeathDecomposition, onPredationSuccess: (prey, piranha) => {
+              totalPredationDeaths++;
+              hungryKillsCount++;
+            }};
+            const moveTarget = AquaticSpecies.updatePiranhaBehavior(a, dt, aquaticCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (a.species === 'tortoise') {
+          if (typeof ReptileSpecies !== 'undefined') {
+            const repCtx = { animals, biomass, getIdx, matId, MAT_WATER, temp, CHUNK_SIZE };
+            const moveTarget = ReptileSpecies.updateTortoiseBehavior(a, dt, repCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (a.species === 'caiman') {
+          if (typeof ReptileSpecies !== 'undefined') {
+            const repCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, getIdx, matId, MAT_WATER, applyDeathDecomposition, timeOfDay, onPredationSuccess: (prey, caiman) => {
+              totalPredationDeaths++;
+              hungryKillsCount++;
+            }};
+            const moveTarget = ReptileSpecies.updateCaimanBehavior(a, dt, repCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (a.species === 'toucan') {
+          if (typeof BirdSpecies !== 'undefined') {
+            const birdCtx = { biomass, grains, getIdx, CHUNK_SIZE };
+            const moveTarget = BirdSpecies.updateToucanBehavior(a, dt, birdCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (a.species === 'carcara') {
+          if (typeof BirdSpecies !== 'undefined') {
+            const birdCtx = { animals, grains, getIdx, CHUNK_SIZE, applyDeathDecomposition, onPredationSuccess: (prey, carcara) => {
+              totalPredationDeaths++;
+              hungryKillsCount++;
+            }};
+            const moveTarget = BirdSpecies.updateCarcaraBehavior(a, dt, birdCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
+        } else if (['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'].includes(a.species)) {
+          if (typeof InsectSpecies !== 'undefined') {
+            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, CHUNK_SIZE, timeOfDay };
+            const moveTarget = InsectSpecies.updateInsectBehavior(a, dt, insCtx);
+            targetX = moveTarget.targetX;
+            targetY = moveTarget.targetY;
+          }
         }
 
         // Cinemática e deslocamento
@@ -1120,7 +1200,11 @@
 
         if (dist > 0.05) {
           const sprint = a.currentSprintBoost || 1.0;
-          const waterFactor = (a.species === 'rat') ? (a.isDiving ? 0.55 : 0.70) : 0.35;
+          let waterFactor = 0.35;
+          if (a.species === 'rat') waterFactor = a.isDiving ? 0.55 : 0.70;
+          else if (a.species === 'tambaqui' || a.species === 'piranha') waterFactor = 1.0;
+          else if (a.species === 'caiman') waterFactor = 1.35;
+          else if (a.species === 'dragonfly' || a.species === 'mosquito') waterFactor = 1.0;
           const baseSpeed = inWater ? a.speed * waterFactor : a.speed;
           const effectiveSpeed = a.isSleeping ? 0.0 : (baseSpeed * sprint);
           const step = Math.min(dist, effectiveSpeed * dt);
@@ -1212,7 +1296,7 @@
     initUI();
     initWorld();
     updateStats();
-    inspectCell(256, 256);
+    inspectCell(512, 512);
     render();
     requestAnimationFrame(loop);
   </script>

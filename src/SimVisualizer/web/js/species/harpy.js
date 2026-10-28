@@ -5,15 +5,23 @@
 /**
  * Inicialização do casal monogâmico de harpias com ninho na samaúma
  */
-function createInitialHarpies() {
+function createInitialHarpies(CHUNK_SIZE = 1024) {
+  const is1024 = (CHUNK_SIZE >= 1024);
+  const nestX = is1024 ? 870.0 : 435.0;
+  const nestY = is1024 ? 170.0 : 85.0;
+  const cx = is1024 ? 512.0 : 256.0;
+  const cy = is1024 ? 512.0 : 256.0;
+  const rMale = is1024 ? 280.0 : 140.0;
+  const rFemale = is1024 ? 320.0 : 165.0;
+
   return [
     {
       id: 9001,
       species: 'harpy',
       sex: 'male',
       name: 'Harpia Macho',
-      x: 435.0,
-      y: 85.0,
+      x: nestX,
+      y: nestY,
       z: 35.0, // Altitude em metros
       hp: 100,
       attackPower: 80.0,
@@ -22,16 +30,16 @@ function createInitialHarpies() {
       thirst: 5.0,
       fatigue: 10.0,
       isSleeping: false,
-      foodMemoryX: 256.0,
-      foodMemoryY: 256.0,
+      foodMemoryX: cx,
+      foodMemoryY: cy,
       hasFoodMemory: false,
       state: 'retreat',
       target: null,
       diveSpeed: 0.0,
-      nestX: 435.0,
-      nestY: 85.0,
+      nestX: nestX,
+      nestY: nestY,
       flightAngle: 0.5,
-      circleRadius: 140.0, // Raio expandido sobre a várzea ampla
+      circleRadius: rMale, // Raio expandido sobre a várzea ampla
       migrated: true // Removida por padrão: surge apenas quando biomassa < 50%
     },
     {
@@ -39,8 +47,8 @@ function createInitialHarpies() {
       species: 'harpy',
       sex: 'female',
       name: 'Harpia Fêmea',
-      x: 435.0,
-      y: 85.0,
+      x: nestX,
+      y: nestY,
       z: 40.0,
       hp: 100,
       attackPower: 95.0, // Fêmea 30% mais pesada e forte
@@ -49,16 +57,16 @@ function createInitialHarpies() {
       thirst: 5.0,
       fatigue: 10.0,
       isSleeping: false,
-      foodMemoryX: 256.0,
-      foodMemoryY: 256.0,
+      foodMemoryX: cx,
+      foodMemoryY: cy,
       hasFoodMemory: false,
       state: 'retreat',
       target: null,
       diveSpeed: 0.0,
-      nestX: 435.0,
-      nestY: 85.0,
+      nestX: nestX,
+      nestY: nestY,
       flightAngle: 3.5,
-      circleRadius: 165.0,
+      circleRadius: rFemale,
       migrated: true // Removida por padrão: surge apenas quando biomassa < 50%
     }
   ];
@@ -197,11 +205,15 @@ function stepHarpies(dt, ctx) {
       h.isSleeping = false;
 
       // Sede: desce na borda do lago para beber água
+      const cx = (typeof CHUNK_SIZE !== 'undefined' ? CHUNK_SIZE / 2.0 : 512.0);
+      const cy = (typeof CHUNK_SIZE !== 'undefined' ? CHUNK_SIZE / 2.0 : 512.0);
+      const lakeR = (typeof CHUNK_SIZE !== 'undefined' && CHUNK_SIZE >= 1024) ? 105.0 : 52.0;
+
       if (h.thirst > 40.0) {
-        const dLakeCenter = Math.hypot(h.x - 256.0, h.y - 256.0);
-        if (dLakeCenter > 52.0) {
-          const lakeDirX = (256.0 - h.x) / dLakeCenter;
-          const lakeDirY = (256.0 - h.y) / dLakeCenter;
+        const dLakeCenter = Math.hypot(h.x - cx, h.y - cy);
+        if (dLakeCenter > lakeR) {
+          const lakeDirX = (cx - h.x) / dLakeCenter;
+          const lakeDirY = (cy - h.y) / dLakeCenter;
           h.x += lakeDirX * 6.5 * dt;
           h.y += lakeDirY * 6.5 * dt;
         } else {
@@ -213,7 +225,6 @@ function stepHarpies(dt, ctx) {
       } else {
         h.z = 38.0 + Math.sin(h.flightAngle * 2.0) * 4.0;
         h.flightAngle += 0.24 * dt;
-        const cx = 256.0, cy = 256.0;
         const targetPatrolX = cx + Math.cos(h.flightAngle) * h.circleRadius;
         const targetPatrolY = cy + Math.sin(h.flightAngle) * h.circleRadius;
 
@@ -240,17 +251,23 @@ function stepHarpies(dt, ctx) {
           if (pX < 0 || pX >= CHUNK_SIZE || pY < 0 || pY >= CHUNK_SIZE) continue;
           const pIdx = ctx.getIdx(pX, pY);
 
-          // REGRA ESTRITA: Harpia SÓ ATACA NA ZONA DE GRAMÍNEAS (CAMPO ABERTO DE VÁRZEA)
-          const isGrasslandZone = (matId[pIdx] !== MAT_WATER && surfaceWater[pIdx] < 0.10 && biomass[pIdx] >= 15.0 && biomass[pIdx] <= 55.0);
-          if (!isGrasslandZone) continue;
+          // REGRA ESTRITA: Harpia caça na zona de várzea e espelho do lago raso
+          const distToLake = Math.hypot(prey.x - cx, prey.y - cy);
+          const isHuntingZone = (distToLake <= lakeR + 290.0);
+          if (!isHuntingZone) continue;
 
-          // Visão telescópica ampliada: até 150m
+          // Visão telescópica ampliada: até 180m
           const distToPrey = Math.hypot(prey.x - h.x, prey.y - h.y);
-          if (distToPrey > 150.0) continue;
+          if (distToPrey > 180.0) continue;
 
           if (prey.species === 'cat' && h.hp < 50.0) continue;
 
-          let preyVal = (prey.species === 'rat') ? 80.0 : 45.0;
+          let preyVal = 50.0;
+          if (prey.species === 'rat') preyVal = 80.0;
+          else if (prey.species === 'tambaqui') preyVal = 95.0; // Pesca rasante
+          else if (prey.species === 'toucan') preyVal = 65.0;
+          else if (prey.species === 'carcara') preyVal = 60.0;
+          else if (prey.species === 'cat') preyVal = 45.0;
           const score = preyVal - distToPrey * 0.8;
           if (score > bestScore) {
             bestScore = score;

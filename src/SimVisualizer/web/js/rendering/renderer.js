@@ -1,5 +1,5 @@
 // =========================================================================
-// MÓDULO RENDERIZADOR: DIRECT UINT32 BUFFER 512x512 E SOBREPOSIÇÕES GRÁFICAS
+// MÓDULO RENDERIZADOR: DIRECT UINT32 BUFFER 1024x1024 E ÍCONES VISUAIS DE FAUNA
 // =========================================================================
 
 let canvas = null;
@@ -9,12 +9,46 @@ let pixelBuffer = null;
 let offscreenCanvas = null;
 let offscreenCtx = null;
 
+// Tabela Mestra de Ícones e Identidade Visual das Espécies
+const SPECIES_VISUALS = {
+  // Mamíferos
+  'rat':         { icon: '🐁', label: 'Rato', color: '#ffea79', bg: 'rgba(45, 35, 10, 0.88)', border: '#facc15', size: 12 },
+  'cat':         { icon: '🐈', label: 'Gato', color: '#f87171', bg: 'rgba(55, 15, 15, 0.88)', border: '#ef4444', size: 14 },
+
+  // Aves
+  'harpy':       { icon: '🦅', label: 'Harpia', color: '#38bdf8', bg: 'rgba(10, 30, 60, 0.92)', border: '#0284c7', size: 20 },
+  'toucan':      { icon: '🦜', label: 'Tucano', color: '#fbbf24', bg: 'rgba(45, 30, 10, 0.88)', border: '#f59e0b', size: 13 },
+  'carcara':     { icon: '🪶', label: 'Carcará', color: '#fb923c', bg: 'rgba(55, 20, 10, 0.88)', border: '#ea580c', size: 13 },
+
+  // Peixes do Lago
+  'tambaqui':    { icon: '🐟', label: 'Tambaqui', color: '#34d399', bg: 'rgba(6, 40, 28, 0.88)', border: '#10b981', size: 12 },
+  'piranha':     { icon: '🦈', label: 'Piranha', color: '#f43f5e', bg: 'rgba(55, 10, 20, 0.92)', border: '#e11d48', size: 12 },
+
+  // Répteis
+  'tortoise':    { icon: '🐢', label: 'Jabuti', color: '#a3e635', bg: 'rgba(25, 45, 10, 0.88)', border: '#84cc16', size: 13 },
+  'caiman':      { icon: '🐊', label: 'Jacaré', color: '#4ade80', bg: 'rgba(12, 45, 22, 0.92)', border: '#22c55e', size: 16 },
+
+  // Insetos (10 espécies)
+  'ant':         { icon: '🐜', label: 'Saúva', color: '#d97706', bg: 'rgba(35, 20, 8, 0.80)', border: '#b45309', size: 9 },
+  'bee':         { icon: '🐝', label: 'Jataí', color: '#fde047', bg: 'rgba(40, 35, 10, 0.80)', border: '#eab308', size: 9 },
+  'butterfly':   { icon: '🦋', label: 'Morfo', color: '#60a5fa', bg: 'rgba(15, 30, 55, 0.80)', border: '#3b82f6', size: 10 },
+  'dragonfly':   { icon: '🪰', label: 'Libélula', color: '#2dd4bf', bg: 'rgba(10, 40, 38, 0.80)', border: '#14b8a6', size: 10 },
+  'beetle':      { icon: '🪲', label: 'Hércules', color: '#84cc16', bg: 'rgba(20, 35, 12, 0.80)', border: '#65a30d', size: 9 },
+  'mosquito':    { icon: '🦟', label: 'Mosquito', color: '#cbd5e1', bg: 'rgba(25, 30, 35, 0.80)', border: '#64748b', size: 8 },
+  'grasshopper': { icon: '🦗', label: 'Esperança', color: '#a3e635', bg: 'rgba(18, 38, 14, 0.80)', border: '#84cc16', size: 9 },
+  'mantis':      { icon: '🍃', label: 'Louva-a-deus', color: '#4ade80', bg: 'rgba(14, 38, 18, 0.80)', border: '#22c55e', size: 10 },
+  'roach':       { icon: '🪳', label: 'Barata-mata', color: '#b45309', bg: 'rgba(32, 18, 10, 0.80)', border: '#92400e', size: 9 },
+  'termite':     { icon: '🪵', label: 'Cupim', color: '#a8a29e', bg: 'rgba(30, 30, 30, 0.80)', border: '#78716c', size: 8 }
+};
+
 /**
- * Inicialização dos buffers de pixel e canvas
+ * Inicialização dos buffers de pixel e canvas 1024x1024
  */
 function initRenderer() {
   canvas = document.getElementById('viewportCanvas');
   if (!canvas) return;
+  canvas.width = CHUNK_SIZE;
+  canvas.height = CHUNK_SIZE;
   ctx = canvas.getContext('2d');
   imgData = ctx.createImageData(CHUNK_SIZE, CHUNK_SIZE);
   pixelBuffer = new Uint32Array(imgData.data.buffer);
@@ -26,7 +60,7 @@ function initRenderer() {
 }
 
 /**
- * Renderização ultrarrápida 512x512 (60 FPS) via Direct Uint32 PixelBuffer
+ * Renderização ultrarrápida 1024x1024 (60 FPS) via Direct Uint32 PixelBuffer
  */
 function render() {
   if (!canvas || !ctx || !pixelBuffer) {
@@ -34,7 +68,7 @@ function render() {
     if (!canvas || !ctx || !pixelBuffer) return;
   }
 
-  // Loop contíguo sobre 262.144 pixels diretamente no buffer nativo
+  // Loop contíguo sobre 1.048.576 pixels diretamente no buffer nativo
   for (let y = 0; y < CHUNK_SIZE; y++) {
     const rowOffset = y * CHUNK_SIZE;
 
@@ -141,7 +175,7 @@ function render() {
         }
       }
 
-      if (y === 255 && currentLayer === 'composite') {
+      if (y === (CHUNK_SIZE / 2 - 1) && currentLayer === 'composite') {
         r = Math.min(255, r + 50);
         g = Math.min(255, g + 40);
       }
@@ -235,91 +269,127 @@ function render() {
     }
   }
 
-  // Fauna Terrestre (Ratos e Gatos)
+  // Fauna Completa (Mamíferos, Peixes, Répteis, Aves e Insetos com Ícones Distintos)
   if (animals && animals.length > 0) {
     for (const a of animals) {
+      if (a.hp <= 0) continue;
       const px = a.x;
       const py = a.y;
 
+      const spec = SPECIES_VISUALS[a.species] || { icon: '●', label: a.species, color: '#ffffff', bg: 'rgba(0,0,0,0.8)', border: '#ffffff', size: 9 };
+      // Ajuste de escala dinâmico proporcional ao zoom para manter nitidez
+      const baseSize = spec.size;
+      const scaleAdj = (zoomLevel >= 1.5) ? 1.0 : (zoomLevel >= 0.8 ? 1.15 : 1.35);
+      const iconPx = Math.max(7, Math.round((baseSize * scaleAdj) / Math.sqrt(zoomLevel)));
+      const badgeR = iconPx * 0.72;
+
+      // Círculos sensoriais em camadas de debug/telemetria
       if (currentLayer === 'fauna' || currentLayer === 'scent') {
         if (a.species === 'rat') {
           ctx.beginPath();
           ctx.arc(px, py, 15, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 235, 59, 0.4)';
+          ctx.strokeStyle = 'rgba(255, 235, 59, 0.35)';
           ctx.lineWidth = 1;
           ctx.stroke();
         } else if (a.species === 'cat') {
           ctx.beginPath();
           ctx.arc(px, py, 25, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(255, 77, 77, 0.45)';
+          ctx.strokeStyle = 'rgba(255, 77, 77, 0.40)';
           ctx.lineWidth = 1.2;
           ctx.stroke();
 
           ctx.beginPath();
           ctx.setLineDash([4, 4]);
           ctx.arc(px, py, 90, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(88, 166, 255, 0.3)';
+          ctx.strokeStyle = 'rgba(88, 166, 255, 0.25)';
           ctx.lineWidth = 1;
           ctx.stroke();
           ctx.setLineDash([]);
+        } else if (a.species === 'caiman') {
+          ctx.beginPath();
+          ctx.arc(px, py, 24, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(74, 222, 128, 0.35)';
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
         }
       }
 
+      // 1. Placa/Badge de Fundo (Alto Contraste contra qualquer terreno)
       ctx.beginPath();
-      const rad = (a.species === 'cat') ? 3.0 : 2.0;
-      ctx.arc(px, py, rad, 0, Math.PI * 2);
-
-      let animalColor = '#ffe135';
-      let glowColor = 'rgba(255, 225, 53, 0.9)';
-
-      if (a.species === 'cat') {
-        if (a.sex === 'female') {
-          animalColor = '#ff7b72';
-          glowColor = 'rgba(255, 123, 114, 0.9)';
-        } else {
-          animalColor = '#991b1b';
-          glowColor = 'rgba(153, 27, 27, 0.9)';
-        }
-      } else {
-        if (a.sex === 'female') {
-          animalColor = '#fff59d';
-          glowColor = 'rgba(255, 245, 157, 0.9)';
-        } else {
-          animalColor = '#d48800';
-          glowColor = 'rgba(212, 136, 0, 0.9)';
-        }
-      }
-
-      ctx.fillStyle = animalColor;
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = (a.species === 'cat') ? 6 : 4;
+      ctx.arc(px, py, badgeR, 0, Math.PI * 2);
+      ctx.fillStyle = spec.bg;
       ctx.fill();
-      ctx.shadowBlur = 0;
+      ctx.strokeStyle = spec.border;
+      ctx.lineWidth = Math.max(0.8, 1.2 / Math.sqrt(zoomLevel));
+      ctx.stroke();
 
-      // Halo de prenhez ou cio
+      // 2. Ícone Expressivo de Alta Legibilidade
+      ctx.font = `${iconPx}px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(spec.icon, px, py);
+
+      // 3. Indicadores de Estado Especial:
+      // Fêmea Grávida ou em Cio
       if (a.isPregnant) {
         ctx.beginPath();
-        ctx.arc(px, py, rad + 1.8, 0, Math.PI * 2);
-        ctx.strokeStyle = (a.species === 'cat') ? 'rgba(255, 182, 193, 0.85)' : 'rgba(255, 255, 224, 0.85)';
-        ctx.lineWidth = 1.2;
+        ctx.arc(px, py, badgeR + 2.2, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 182, 193, 0.95)';
+        ctx.lineWidth = 1.4;
         ctx.stroke();
       } else if (a.sex === 'female' && a.estrusDurationRemaining > 0) {
         ctx.beginPath();
-        ctx.arc(px, py, rad + 2.2, 0, Math.PI * 2);
-        ctx.strokeStyle = (a.species === 'cat') ? 'rgba(255, 64, 129, 0.95)' : 'rgba(255, 152, 0, 0.95)';
-        ctx.lineWidth = 1.4;
+        ctx.arc(px, py, badgeR + 2.4, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(255, 64, 129, 0.95)';
+        ctx.lineWidth = 1.5;
         ctx.stroke();
       }
 
-      // Escudo de imunidade ativa
-      if (typeof isProtectedInBurrowOrRefuge !== 'undefined' && isProtectedInBurrowOrRefuge(a)) {
+      // Piranha em Frenesi
+      if (a.frenzyTimer > 0) {
         ctx.beginPath();
-        ctx.arc(px, py, rad + 2.2, 0, Math.PI * 2);
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 1.0;
+        ctx.arc(px, py, badgeR + 3.0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.95)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+
+      // Jabuti Retraído na Carapaça
+      if (a.isRetracted) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#84cc16';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+      }
+
+      // Jacaré em Banho de Sol (Basking)
+      if (a.isBasking) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 3.0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(250, 204, 21, 0.85)';
+        ctx.lineWidth = 1.4;
         ctx.setLineDash([2, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
+      }
+
+      // Escudo de Imunidade em Toca / Refúgio
+      if (typeof isProtectedInBurrowOrRefuge !== 'undefined' && isProtectedInBurrowOrRefuge(a)) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 2.6, 0, Math.PI * 2);
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([2, 2]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Indicador de Sono
+      if (a.isSleeping) {
+        ctx.font = `bold ${Math.max(6, Math.round(iconPx * 0.65))}px sans-serif`;
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillText('z', px + badgeR + 1, py - badgeR);
       }
     }
   }

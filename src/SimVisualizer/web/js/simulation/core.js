@@ -1,9 +1,9 @@
 // =========================================================================
-// MÓDULO CORE: CONFIGURAÇÃO PLANETÁRIA 512x512, BUFFERS E INICIALIZAÇÃO
+// MÓDULO CORE: CONFIGURAÇÃO PLANETÁRIA 1024x1024, BUFFERS E INICIALIZAÇÃO
 // =========================================================================
 
-// Dimensões do Grid Planetário (262.144 células)
-const CHUNK_SIZE = 512;
+// Dimensões do Grid Planetário Expandido (1.048.576 células)
+const CHUNK_SIZE = 1024;
 const CELL_COUNT = CHUNK_SIZE * CHUNK_SIZE;
 
 // Catálogo de Materiais Físicos
@@ -35,14 +35,14 @@ const grains = new Float32Array(CELL_COUNT);
 // Entidades Vivas e Estruturas
 var nests = [];           // Ninhos e tocas maternais
 var harpies = [];         // Casal de Harpias Amazônicas (Macho e Fêmea)
-var animals = [];         // Ratos e Gatos
+var animals = [];         // Fauna completa (Ratos, Gatos, Peixes, Répteis, Aves, Insetos)
 var naturalRefuges = [];  // Refúgios naturais (troncos, pedras, moitas)
 var currentScenario = 'amazon'; // 'amazon' ou 'temperate'
 var initialBiomassReference = 0; // Referência da biomassa vegetal inicial do planeta
 
 // Controle de Zoom e Câmera Interativa (1 chunk = 1 m²)
 var zoomLevel = 1.0;
-var panX = 256.0, panY = 256.0;
+var panX = 512.0, panY = 512.0;
 
 // Calendário Planetário (Ano com 365 dias)
 const MONTHS = [
@@ -168,24 +168,26 @@ function initWorld() {
   const scSelect = (typeof document !== 'undefined') ? document.getElementById('scenarioSelect') : null;
   if (scSelect) currentScenario = scSelect.value;
 
-  const equatorY = 255.5;
+  const equatorY = (CHUNK_SIZE - 1) / 2.0;
 
   // -------------------------------------------------------------------------
-  // CENÁRIO 1: AMAZÔNIA - OESTE DO ESTADO DO PARÁ (Várzea, Floresta & Lago)
+  // CENÁRIO 1: AMAZÔNIA - OESTE DO ESTADO DO PARÁ (Várzea, Floresta & Lago 1024x1024)
   // -------------------------------------------------------------------------
+  const lakeCenterX = CHUNK_SIZE / 2.0;
+  const lakeCenterY = CHUNK_SIZE / 2.0;
+  const lakeBaseRadius = 105.0;
+
   if (currentScenario === 'amazon') {
-    const lakeCenterX = 256.0, lakeCenterY = 256.0;
-
     for (let y = 0; y < CHUNK_SIZE; y++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const idx = getIdx(x, y);
 
-        let regionalElev = 8.0 + Math.sin(x * 0.02 + y * 0.015) * 4.0;
-        if (x < 150) {
-          const uWest = (150 - x) / 150.0;
+        let regionalElev = 8.0 + Math.sin(x * 0.01 + y * 0.0075) * 4.0;
+        if (x < 300) {
+          const uWest = (300 - x) / 300.0;
           regionalElev += Math.pow(uWest, 1.8) * 540.0;
-        } else if (x > 465) {
-          const uEast = (x - 465) / 47.0;
+        } else if (x > 930) {
+          const uEast = (x - 930) / 94.0;
           regionalElev -= uEast * 18.0;
         }
 
@@ -193,7 +195,7 @@ function initWorld() {
         const dy = y - lakeCenterY;
         const d = Math.hypot(dx, dy);
         const angle = Math.atan2(dy, dx);
-        const lakeR = 50.5 * (1.0 + 0.20 * Math.sin(3 * angle) + 0.15 * Math.cos(5 * angle + 0.5) + 0.08 * Math.sin(7 * angle));
+        const lakeR = lakeBaseRadius * (1.0 + 0.20 * Math.sin(3 * angle) + 0.15 * Math.cos(5 * angle + 0.5) + 0.08 * Math.sin(7 * angle));
 
         let finalElev = regionalElev;
         let finalMat = MAT_SOIL;
@@ -203,23 +205,23 @@ function initWorld() {
 
         if (d <= lakeR) {
           const depthNorm = Math.pow(Math.max(0, 1.0 - (d / lakeR)), 1.4);
-          finalElev = -2.0 - (depthNorm * 18.0);
+          finalElev = -2.0 - (depthNorm * 22.0);
           finalMat = MAT_WATER;
           finalWater = -finalElev;
           finalMoist = 1.0;
           finalBio = 1.0;
-        } else if (d <= lakeR + 145.0) {
-          // Várzea de gramíneas aberta (zona da harpia e grãos de arroz)
+        } else if (d <= lakeR + 290.0) {
+          // Várzea de gramíneas aberta expandida (zona da harpia, carcará e grãos de arroz)
           const floodD = d - lakeR;
-          finalElev = 1.5 + (floodD * 0.06);
-          finalMat = (floodD < 6.0) ? MAT_SAND : MAT_SOIL;
+          finalElev = 1.5 + (floodD * 0.04);
+          finalMat = (floodD < 12.0) ? MAT_SAND : MAT_SOIL;
           finalWater = 0.0;
-          finalMoist = Math.max(0.60, 1.0 - (floodD / 150.0) * 0.40);
-          finalBio = 15.0 + Math.sin(d * 0.15) * 10.0 + (floodD * 0.18);
-          grains[idx] = (floodD >= 4.0 && floodD <= 95.0) ? (30.0 + Math.random() * 45.0) : 0.0;
+          finalMoist = Math.max(0.60, 1.0 - (floodD / 290.0) * 0.40);
+          finalBio = 15.0 + Math.sin(d * 0.08) * 10.0 + (floodD * 0.10);
+          grains[idx] = (floodD >= 8.0 && floodD <= 190.0) ? (35.0 + Math.random() * 45.0) : 0.0;
         } else {
           // Floresta densa de terra firme
-          finalElev = regionalElev + 6.0 + Math.sin(x * 0.05 + y * 0.04) * 3.0;
+          finalElev = regionalElev + 6.0 + Math.sin(x * 0.025 + y * 0.02) * 3.0;
           finalMat = (finalElev > 350.0) ? MAT_STONE : MAT_SOIL;
           finalWater = 0.0;
           finalMoist = 0.85;
@@ -239,34 +241,34 @@ function initWorld() {
 
     // Inicialização do casal monogâmico de Harpias Amazônicas via HarpySpecies
     if (typeof HarpySpecies !== 'undefined') {
-      harpies = HarpySpecies.createInitialHarpies();
+      harpies = HarpySpecies.createInitialHarpies(CHUNK_SIZE);
     } else if (typeof createInitialHarpies !== 'undefined') {
-      harpies = createInitialHarpies();
+      harpies = createInitialHarpies(CHUNK_SIZE);
     }
 
-    // Ninho permanente da Harpia na Samaúma a Nordeste (435, 85)
+    // Ninho permanente da Harpia na Samaúma a Nordeste (870, 170 em 1024x1024)
     nests.push({
       id: 9000,
       species: 'harpy',
       name: 'Ninho da Harpia (Samaúma)',
       quality: 100,
-      x: 435.0,
-      y: 85.0
+      x: 870.0,
+      y: 170.0
     });
   } else {
     // -------------------------------------------------------------------------
     // CENÁRIO 2: PLANALTO CONTINENTAL TEMPERADO (-100m a +2000m)
     // -------------------------------------------------------------------------
     for (let y = 0; y < CHUNK_SIZE; y++) {
-      const latDist = Math.abs(y - equatorY) / 255.5;
+      const latDist = Math.abs(y - equatorY) / equatorY;
       const latFactor = Math.max(0, 1.0 - latDist);
 
       for (let x = 0; x < CHUNK_SIZE; x++) {
         const idx = getIdx(x, y);
-        const diag = (511 - x + 511 - y) / 1022.0;
+        const diag = (CHUNK_SIZE - 1 - x + CHUNK_SIZE - 1 - y) / ((CHUNK_SIZE - 1) * 2.0);
         const baseElev = -100.0 + diag * 2100.0;
-        const rot1 = (x - y) * 0.08;
-        const rot2 = (x + y) * 0.03;
+        const rot1 = (x - y) * 0.04;
+        const rot2 = (x + y) * 0.015;
         const striation = (Math.sin(rot1 * 2.0) * 1.8 + Math.cos(rot2 * 1.5 + rot1) * 1.2);
         const finalElev = Math.max(-100.0, Math.min(2000.0, baseElev + striation));
 
@@ -289,7 +291,7 @@ function initWorld() {
           surfaceWater[idx] = 0.0;
           moisture[idx] = 0.25;
           biomass[idx] = 6.0;
-        } else if (latFactor > 0.88 && finalElev < 250.0 && x > 280) {
+        } else if (latFactor > 0.88 && finalElev < 250.0 && x > (CHUNK_SIZE * 0.55)) {
           matId[idx] = MAT_SAND;
           surfaceWater[idx] = 0.0;
           moisture[idx] = 0.10;
@@ -321,8 +323,8 @@ function initWorld() {
   for (let i = 0; i < HERBIVORES_COUNT; i++) {
     let rx = 40 + Math.random() * (CHUNK_SIZE - 120);
     let ry = 40 + Math.random() * (CHUNK_SIZE - 120);
-    if (currentScenario === 'amazon' && Math.hypot(rx - 256, ry - 256) < 40.0) {
-      rx += (rx >= 256 ? 50 : -50);
+    if (currentScenario === 'amazon' && Math.hypot(rx - lakeCenterX, ry - lakeCenterY) < 115.0) {
+      rx += (rx >= lakeCenterX ? 130 : -130);
     }
 
     const sex = (i % 2 === 0) ? 'female' : 'male';
@@ -408,8 +410,8 @@ function initWorld() {
   for (let i = 0; i < X_PREDATORS; i++) {
     let gx = 60 + Math.random() * (CHUNK_SIZE - 140);
     let gy = 60 + Math.random() * (CHUNK_SIZE - 140);
-    if (currentScenario === 'amazon' && Math.hypot(gx - 256, gy - 256) < 40.0) {
-      gx += (gx >= 256 ? 55 : -55);
+    if (currentScenario === 'amazon' && Math.hypot(gx - lakeCenterX, gy - lakeCenterY) < 115.0) {
+      gx += (gx >= lakeCenterX ? 135 : -135);
     }
 
     const sex = (i < maleCatsCount) ? 'male' : 'female';
@@ -493,6 +495,30 @@ function initWorld() {
     });
   }
 
+  // 3. Fauna Aquática: 2 espécies de peixes (Tambaqui passivo e Piranha-vermelha agressiva)
+  if (typeof AquaticSpecies !== 'undefined') {
+    const aquatic = AquaticSpecies.createInitialAquatic(lakeCenterX, lakeCenterY, lakeBaseRadius);
+    animals.push(...aquatic);
+  }
+
+  // 4. Répteis: 2 espécies (Jabuti-tinga passivo e Jacaré-açu predador semi-aquático)
+  if (typeof ReptileSpecies !== 'undefined') {
+    const reptiles = ReptileSpecies.createInitialReptiles(lakeCenterX, lakeCenterY, lakeBaseRadius);
+    animals.push(...reptiles);
+  }
+
+  // 5. Aves Adicionais: 2 espécies (Tucano-toco passivo e Carcará oportunista)
+  if (typeof BirdSpecies !== 'undefined') {
+    const birds = BirdSpecies.createInitialBirds(lakeCenterX, lakeCenterY, CHUNK_SIZE);
+    animals.push(...birds);
+  }
+
+  // 6. Insetos Neotropicais: 10 espécies da biodiversidade amazônica
+  if (typeof InsectSpecies !== 'undefined') {
+    const insects = InsectSpecies.createInitialInsects(lakeCenterX, lakeCenterY, lakeBaseRadius, CHUNK_SIZE);
+    animals.push(...insects);
+  }
+
   // Registra a biomassa vegetal total original do ecossistema
   let totalInitBio = 0;
   for (let bi = 0; bi < CELL_COUNT; bi += 8) totalInitBio += biomass[bi];
@@ -556,6 +582,7 @@ if (typeof window !== 'undefined') {
   window.harpies = harpies;
   window.animals = animals;
   window.naturalRefuges = naturalRefuges;
+  window.currentScenario = currentScenario;
   window.weather = weather;
   window.getIdx = getIdx;
   window.clearBiomassRadius = clearBiomassRadius;

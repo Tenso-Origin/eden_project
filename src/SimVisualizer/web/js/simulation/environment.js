@@ -23,10 +23,10 @@ function stepThermodynamics(dt) {
 
   const sunHeight = Math.sin(((timeOfDay - 6.0) / 12.0) * Math.PI);
   const isDay = sunHeight > 0;
-  const equatorY = 255.5;
+  const equatorY = (CHUNK_SIZE - 1) / 2.0;
 
   for (let y = 0; y < CHUNK_SIZE; y += 2) {
-    const latDist = Math.abs(y - equatorY) / 255.5;
+    const latDist = Math.abs(y - equatorY) / equatorY;
     const latFactor = Math.max(0, 1.0 - latDist);
 
     for (let x = 0; x < CHUNK_SIZE; x += 2) {
@@ -202,10 +202,12 @@ function stepHydrologyAndErosion(dt) {
  * - Evapotranspiração: Vegetação transcreve umidade para a atmosfera conforme taxa de crescimento e biomassa.
  */
 function stepFlora(dt) {
-  // Amostragem ampliada para 2048 células por tick para manter o recobrimento uniforme da grade 512x512
-  const sampleCount = 2048;
+  // Amostragem ampliada para 4096 células por tick para manter o recobrimento uniforme da grade 1024x1024
+  const sampleCount = 4096;
   const OPTIMAL_TEMP = 28.5; // Média térmica ótima da Amazônia (26°C a 31°C)
   const TEMP_WINDOW = 11.0;   // Janela fotossintética ativa [17.5°C .. 39.5°C]
+  const lakeCX = CHUNK_SIZE / 2.0;
+  const lakeCY = CHUNK_SIZE / 2.0;
 
   for (let i = 0; i < sampleCount; i++) {
     const rx = Math.floor(Math.random() * CHUNK_SIZE);
@@ -235,9 +237,9 @@ function stepFlora(dt) {
       let baseGrowthRate = 0.55; // Calibrado com a Produtividade Primária Líquida (NPP) real amazônica
 
       if (currentScenario === 'amazon') {
-        const distCenter = Math.hypot(rx - 256.0, ry - 256.0);
+        const distCenter = Math.hypot(rx - lakeCX, ry - lakeCY);
 
-        if (distCenter >= 48.0 && distCenter <= 145.0) {
+        if (distCenter >= 95.0 && distCenter <= 390.0) {
           // ZONA 1: VÁRZEA ALAGÁVEL E GRAMÍNEAS C4 (Paspalum / Echinochloa) - Rebrota em ~28-32 dias
           targetMaxBiomass = 55.0;
           baseGrowthRate = 0.95; // Taxa real pós-pastejo (~2.2 pontos de biomassa/dia)
@@ -252,11 +254,11 @@ function stepFlora(dt) {
           } else if (wDepth > 0.60 || m < 0.20) {
             if (grains[idx] > 0) grains[idx] = Math.max(0, grains[idx] - 0.25 * dt);
           }
-        } else if (distCenter > 145.0 && rx >= 150 && rx <= 465) {
+        } else if (distCenter > 390.0 && rx >= 300 && rx <= 930) {
           // ZONA 2: FLORESTA TROPICAL DENSA DE TERRA FIRME (Dossel Fechado) - Recomposição em ~75-90 dias
           targetMaxBiomass = 95.0;
           baseGrowthRate = 0.48;
-        } else if (rx < 150) {
+        } else if (rx < 300) {
           // ZONA 3: SERRA OCIDENTAL ELEVADA (Transição Montana até 550m)
           targetMaxBiomass = 65.0;
           baseGrowthRate = 0.35;
@@ -320,10 +322,13 @@ function initNaturalRefuges(initialRatCount = 180) {
   naturalRefuges = [];
   let nextId = 1;
 
+  const lakeCX = CHUNK_SIZE / 2.0;
+  const lakeCY = CHUNK_SIZE / 2.0;
+
   const refugeZones = [
-    { count: 8, minR: 56.0, maxR: 138.0, desc: 'grama_varzea' },       // 8 na zona de grama
-    { count: 20, minR: 140.0, maxR: 200.0, desc: 'borda_floresta' },  // Espalhados na borda da floresta
-    { count: 12, minR: 202.0, maxR: 245.0, desc: 'interior_floresta' } // Interior da floresta de terra firme
+    { count: 16, minR: 115.0, maxR: 360.0, desc: 'grama_varzea' },       // Várzea aberta
+    { count: 35, minR: 370.0, maxR: 520.0, desc: 'borda_floresta' },     // Borda da floresta
+    { count: 25, minR: 530.0, maxR: 700.0, desc: 'interior_floresta' }   // Interior da mata fechada
   ];
 
   for (const zone of refugeZones) {
@@ -333,8 +338,8 @@ function initNaturalRefuges(initialRatCount = 180) {
         if (currentScenario === 'amazon') {
           const angle = Math.random() * Math.PI * 2;
           const r = zone.minR + Math.random() * (zone.maxR - zone.minR);
-          rx = 256.0 + Math.cos(angle) * r;
-          ry = 256.0 + Math.sin(angle) * r;
+          rx = lakeCX + Math.cos(angle) * r;
+          ry = lakeCY + Math.sin(angle) * r;
         } else {
           rx = 25 + Math.random() * (CHUNK_SIZE - 50);
           ry = 25 + Math.random() * (CHUNK_SIZE - 50);

@@ -6,12 +6,13 @@ const MIN_ZOOM = 0.40;
 const MAX_ZOOM = 8.0;
 
 function clampPan() {
+  const center = CHUNK_SIZE / 2.0;
   if (zoomLevel <= 1.0) {
-    panX = 256.0;
-    panY = 256.0;
+    panX = center;
+    panY = center;
   } else {
-    const halfW = 256.0 / zoomLevel;
-    const halfH = 256.0 / zoomLevel;
+    const halfW = center / zoomLevel;
+    const halfH = center / zoomLevel;
     panX = Math.max(halfW, Math.min(CHUNK_SIZE - halfW, panX));
     panY = Math.max(halfH, Math.min(CHUNK_SIZE - halfH, panY));
   }
@@ -20,10 +21,11 @@ function clampPan() {
 function setZoom(newZoom, centerX = panX, centerY = panY) {
   const oldZoom = zoomLevel;
   zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
+  const center = CHUNK_SIZE / 2.0;
 
   if (zoomLevel <= 1.0) {
-    panX = 256.0;
-    panY = 256.0;
+    panX = center;
+    panY = center;
   } else if (oldZoom !== zoomLevel) {
     panX = centerX;
     panY = centerY;
@@ -47,8 +49,8 @@ function movePan(dx, dy) {
 
 function resetCamera() {
   zoomLevel = 1.0;
-  panX = 256.0;
-  panY = 256.0;
+  panX = CHUNK_SIZE / 2.0;
+  panY = CHUNK_SIZE / 2.0;
   const lbl = document.getElementById('lblZoomLevel');
   if (lbl) lbl.innerText = `1.0x`;
   render();
@@ -88,8 +90,8 @@ function screenToWorld(clientX, clientY) {
   };
 }
 
-var lastInspectedX = 256;
-var lastInspectedY = 256;
+var lastInspectedX = 512;
+var lastInspectedY = 512;
 
 function inspectCell(x, y) {
   if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
@@ -102,15 +104,16 @@ function inspectCell(x, y) {
 
   let region = "Planalto Continental";
   if (currentScenario === 'amazon') {
-    const distCenter = Math.hypot(x - 256, y - 256);
-    if (distCenter <= 36.0) region = "Lago de Várzea Central (~4.000m²)";
-    else if (distCenter <= 86.0) region = "Faixa de Gramíneas de Várzea (50m - Zona da Harpia)";
-    else if (x < 150) region = "Serra Ocidental Elevada (550m)";
-    else if (x > 465) region = "Delta / Mar Estuarino Leste";
+    const lakeCX = CHUNK_SIZE / 2.0, lakeCY = CHUNK_SIZE / 2.0;
+    const distCenter = Math.hypot(x - lakeCX, y - lakeCY);
+    if (distCenter <= 105.0) region = "Lago de Várzea Central (~35.000m²)";
+    else if (distCenter <= 390.0) region = "Faixa de Gramíneas de Várzea (Zona da Harpia e Carcará)";
+    else if (x < 300) region = "Serra Ocidental Elevada (550m)";
+    else if (x > 930) region = "Delta / Mar Estuarino Leste";
     else region = "Floresta Equatorial de Terra Firme";
   } else {
-    if (x <= 25 && y <= 25 && Math.hypot(x, y) <= 20) region = "Maciço Montanhoso NW (2km)";
-    else if (x >= 486 && y >= 486 && Math.hypot(511 - x, 511 - y) <= 20) region = "Oceano / Fossa Abissal SE (-100m)";
+    if (x <= 50 && y <= 50 && Math.hypot(x, y) <= 40) region = "Maciço Montanhoso NW (2km)";
+    else if (x >= (CHUNK_SIZE - 50) && y >= (CHUNK_SIZE - 50)) region = "Oceano / Fossa Abissal SE (-100m)";
     else if (Math.abs(y - 255.5) <= 4) region = "Linha do Equador";
     else if (y < 80) region = "Planície Boreal (Norte)";
     else if (y > 430) region = "Planície Austral (Sul)";
@@ -322,12 +325,14 @@ function updateStats() {
   const elAvgTemp = document.getElementById('statAvgTemp');
   if (elAvgTemp) {
     let tSum = 0;
-    for (let py = 64; py < 512; py += 128) {
-      for (let px = 64; px < 512; px += 128) {
+    let count = 0;
+    for (let py = 128; py < CHUNK_SIZE; py += 256) {
+      for (let px = 128; px < CHUNK_SIZE; px += 256) {
         tSum += temp[getIdx(px, py)];
+        count++;
       }
     }
-    elAvgTemp.innerText = (tSum / 16.0).toFixed(1) + "°C";
+    elAvgTemp.innerText = (tSum / (count || 1)).toFixed(1) + "°C";
   }
 
   const elErosion = document.getElementById('statErosion');
@@ -396,14 +401,36 @@ function updateStats() {
   const elPreg = document.getElementById('statPregnant');
   if (elPreg) elPreg.innerText = `${pregRats} ratas prenhes (${estrusRats} em cio) | ${pregCats} gatas prenhes (${estrusCats} em cio)`;
 
+  // Contadores das Novas Espécies Expandidas
+  const tambaquis = animals.filter(a => a.species === 'tambaqui' && a.hp > 0).length;
+  const piranhas = animals.filter(a => a.species === 'piranha' && a.hp > 0).length;
+  const tortoises = animals.filter(a => a.species === 'tortoise' && a.hp > 0).length;
+  const caimans = animals.filter(a => a.species === 'caiman' && a.hp > 0).length;
+  const toucans = animals.filter(a => a.species === 'toucan' && a.hp > 0).length;
+  const carcaras = animals.filter(a => a.species === 'carcara' && a.hp > 0).length;
+  const insectSpeciesList = ['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'];
+  const totalInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.hp > 0).length;
+
+  const elAquatic = document.getElementById('statAquatic');
+  if (elAquatic) elAquatic.innerText = `🐟 ${tambaquis} Tambaquis | 🦈 ${piranhas} Piranhas`;
+
+  const elReptiles = document.getElementById('statReptiles');
+  if (elReptiles) elReptiles.innerText = `🐢 ${tortoises} Jabutis | 🐊 ${caimans} Jacarés`;
+
+  const elBirds = document.getElementById('statBirds');
+  if (elBirds) elBirds.innerText = `🦜 ${toucans} Tucanos | 🪶 ${carcaras} Carcarás`;
+
+  const elInsects = document.getElementById('statInsects');
+  if (elInsects) elInsects.innerText = `🐜 Insetos Totais: ${totalInsects} (10 Espécies)`;
+
   const elPeak = document.getElementById('statPeak');
   if (elPeak) {
-    const peakElev = (currentScenario === 'amazon') ? elevation[getIdx(40, 256)] : elevation[getIdx(10, 10)];
+    const peakElev = (currentScenario === 'amazon') ? elevation[getIdx(80, 512)] : elevation[getIdx(10, 10)];
     elPeak.innerText = peakElev.toFixed(1) + " m";
   }
   const elAbyss = document.getElementById('statAbyss');
   if (elAbyss) {
-    const minElev = (currentScenario === 'amazon') ? elevation[getIdx(256, 256)] : elevation[getIdx(500, 500)];
+    const minElev = (currentScenario === 'amazon') ? elevation[getIdx(512, 512)] : elevation[getIdx(CHUNK_SIZE - 20, CHUNK_SIZE - 20)];
     elAbyss.innerText = minElev.toFixed(1) + " m";
   }
 

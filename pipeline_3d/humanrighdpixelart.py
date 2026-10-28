@@ -296,14 +296,33 @@ if not char_mesh.data.materials:
     char_mesh.data.materials.append(mat)
 
 # Vincular ao Rig
-char_mesh.parent = arm
-mod = char_mesh.modifiers.new("Armature", 'ARMATURE')
-mod.object = arm
-if has_external_file:
-    bpy.ops.object.select_all(action='DESELECT')
-    char_mesh.select_set(True)
-    arm.select_set(True)
-    bpy.context.view_layer.objects.active = arm
+bpy.ops.object.select_all(action='DESELECT')
+char_mesh.select_set(True)
+arm.select_set(True)
+bpy.context.view_layer.objects.active = arm
+try:
     bpy.ops.object.parent_set(type='ARMATURE_AUTO')
+except Exception as e:
+    char_mesh.parent = arm
+    mod = char_mesh.modifiers.new("Armature", 'ARMATURE')
+    mod.object = arm
 
 print(f"Modelo Low/Mid-Poly Estilizado ({AGE_CATEGORY} - {int(P['total_heads'])} Cabeças) pronto com sucesso!")
+
+# Salva arquivo .blend e exporta .glb para o Viewport
+output_dir = os.path.dirname(os.path.abspath(__file__))
+blend_out = os.path.join(output_dir, f"humanoide_canonico_{AGE_CATEGORY.lower()}_{int(P['total_heads'])}h.blend")
+glb_out = os.path.join(output_dir, f"humanoide_canonico_{AGE_CATEGORY.lower()}_{int(P['total_heads'])}h.glb")
+
+bpy.ops.wm.save_as_mainfile(filepath=blend_out)
+print(f"Arquivo Blend salvo: {blend_out}")
+
+bpy.ops.export_scene.gltf(
+    filepath=glb_out,
+    export_format='GLB',
+    export_skins=True,
+    export_all_influences=True,
+    export_yup=True
+)
+print(f"Arquivo GLB exportado: {glb_out}")
+

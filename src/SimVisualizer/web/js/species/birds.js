@@ -219,7 +219,7 @@ function updateCarcaraBehavior(a, dt, ctx) {
 
   // 2. Caça Oportunista na Várzea
   let bestPrey = null;
-  let bestDist = 45.0;
+  let bestDist = 65.0;
 
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
@@ -233,7 +233,7 @@ function updateCarcaraBehavior(a, dt, ctx) {
     }
   }
 
-  if (bestPrey && a.hunger > 18.0) {
+  if (bestPrey && a.hunger > 5.0) {
     const dirX = bestPrey.x - a.x;
     const dirY = bestPrey.y - a.y;
     const dist = Math.hypot(dirX, dirY) || 1.0;

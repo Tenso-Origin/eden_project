@@ -147,7 +147,7 @@ function updateInsectBehavior(a, dt, ctx) {
       }
     }
 
-    if (targetBug && a.hunger > 15.0) {
+    if (targetBug && a.hunger > 3.0) {
       const dirX = targetBug.x - a.x;
       const dirY = targetBug.y - a.y;
       const dist = Math.hypot(dirX, dirY) || 1.0;

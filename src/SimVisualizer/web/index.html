@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.1</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.2</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -953,7 +953,8 @@
         }
 
         // Fome e Metabolismo Basal
-        const hungerRate = (a.species === 'rat') ? 0.045 : 0.020;
+        const isPredator = (a.species === 'cat' || a.species === 'caiman' || a.species === 'traira' || a.species === 'carcara' || a.species === 'mantis' || a.species === 'dragonfly');
+        const hungerRate = isPredator ? 0.060 : ((a.species === 'rat') ? 0.045 : 0.025);
         a.hunger = Math.min(100, a.hunger + hungerRate * dt);
         if (a.hunger >= 90) {
           a.hp -= 0.18 * dt; // Dano de inanição suavizado para permitir busca e forrageamento sem morte súbita
@@ -1154,7 +1155,7 @@
           }
         } else if (a.species === 'caiman') {
           if (typeof ReptileSpecies !== 'undefined') {
-            const repCtx = { animals, GRID_WIDTH, GRID_HEIGHT, getIdx, matId, surfaceWater, MAT_WATER, applyDeathDecomposition, timeOfDay, onPredationSuccess: (prey, caiman) => {
+            const repCtx = { animals, GRID_WIDTH, GRID_HEIGHT, getIdx, matId, surfaceWater, MAT_WATER, MAT_SAND, applyDeathDecomposition, timeOfDay, onPredationSuccess: (prey, caiman) => {
               totalPredationDeaths++;
               hungryKillsCount++;
             }};
@@ -1181,30 +1182,89 @@
           }
         } else if (['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'].includes(a.species)) {
           if (typeof InsectSpecies !== 'undefined') {
-            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay };
+            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay, applyDeathDecomposition, onPredationSuccess: (prey, bug) => {
+              totalPredationDeaths++;
+              hungryKillsCount++;
+            } };
             const moveTarget = InsectSpecies.updateInsectBehavior(a, dt, insCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
           }
         }
 
-        // Cinemática e deslocamento
+        // 1. Repulsão Suave das Bordas do Mapa (Evita aprisionamento e aglomeração nas margens de 2048x1024)
+        const bMargin = 55.0;
+        if (a.x < bMargin) {
+          targetX += ((bMargin - a.x) / bMargin) * 25.0;
+          if (a.wanderAngle !== undefined) a.wanderAngle = 0.0 + (Math.random() - 0.5) * 0.8;
+        } else if (a.x > GRID_WIDTH - bMargin) {
+          targetX -= ((a.x - (GRID_WIDTH - bMargin)) / bMargin) * 25.0;
+          if (a.wanderAngle !== undefined) a.wanderAngle = Math.PI + (Math.random() - 0.5) * 0.8;
+        }
+        if (a.y < bMargin) {
+          targetY += ((bMargin - a.y) / bMargin) * 25.0;
+          if (a.wanderAngle !== undefined) a.wanderAngle = Math.PI * 0.5 + (Math.random() - 0.5) * 0.8;
+        } else if (a.y > GRID_HEIGHT - bMargin) {
+          targetY -= ((a.y - (GRID_HEIGHT - bMargin)) / bMargin) * 25.0;
+          if (a.wanderAngle !== undefined) a.wanderAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 0.8;
+        }
+
+        // 2. Cinemática e deslocamento
         const dirX = targetX - a.x;
         const dirY = targetY - a.y;
         const dist = Math.hypot(dirX, dirY);
 
         if (dist > 0.05) {
           const sprint = a.currentSprintBoost || 1.0;
+          const isFish = (a.species === 'tambaqui' || a.species === 'traira' || a.species === 'piranha');
+
           let waterFactor = 0.35;
           if (a.species === 'rat') waterFactor = a.isDiving ? 0.55 : 0.70;
-          else if (a.species === 'tambaqui' || a.species === 'traira' || a.species === 'piranha') waterFactor = 1.0;
-          else if (a.species === 'caiman') waterFactor = 1.35;
-          else if (a.species === 'dragonfly' || a.species === 'mosquito') waterFactor = 1.0;
-          const baseSpeed = inWater ? a.speed * waterFactor : a.speed;
+          else if (isFish) {
+            if (!inWater) {
+              // Asfixia e morte biológica fora d'água: perda rápida de HP
+              a.hp -= 4.0 * dt;
+              waterFactor = 0.05; // Quase imóvel se debatendo na lama
+            } else {
+              waterFactor = 1.0;
+            }
+          } else if (a.species === 'caiman') {
+            waterFactor = inWater ? 1.45 : 0.38; // Jacaré é ágil na água, mas lento e pesado em terra
+          } else if (a.species === 'dragonfly' || a.species === 'mosquito') {
+            waterFactor = 1.0;
+          }
+
+          const baseSpeed = inWater ? a.speed * waterFactor : (isFish ? a.speed * 0.05 : a.speed * waterFactor);
           const effectiveSpeed = a.isSleeping ? 0.0 : (baseSpeed * sprint);
           const step = Math.min(dist, effectiveSpeed * dt);
-          a.x = Math.max(2, Math.min(GRID_WIDTH - 3, a.x + (dirX / dist) * step));
-          a.y = Math.max(2, Math.min(GRID_HEIGHT - 3, a.y + (dirY / dist) * step));
+
+          let candX = a.x + (dirX / dist) * step;
+          let candY = a.y + (dirY / dist) * step;
+
+          // 3. BLOQUEIO FÍSICO RÍGIDO: Peixes JAMAIS cruzam a linha da margem para terra seca
+          if (isFish && inWater) {
+            const cIdx = getIdx(Math.floor(candX), Math.floor(candY));
+            const candIsWater = (matId[cIdx] === MAT_WATER || surfaceWater[cIdx] > 0.35);
+            if (!candIsWater) {
+              // Bloqueia avanço em terra: desliza apenas no eixo que tiver água
+              const cIdxX = getIdx(Math.floor(candX), Math.floor(a.y));
+              const isXWater = (matId[cIdxX] === MAT_WATER || surfaceWater[cIdxX] > 0.35);
+              const cIdxY = getIdx(Math.floor(a.x), Math.floor(candY));
+              const isYWater = (matId[cIdxY] === MAT_WATER || surfaceWater[cIdxY] > 0.35);
+
+              if (isXWater) {
+                candY = a.y;
+              } else if (isYWater) {
+                candX = a.x;
+              } else {
+                candX = a.x;
+                candY = a.y;
+              }
+            }
+          }
+
+          a.x = Math.max(3, Math.min(GRID_WIDTH - 4, candX));
+          a.y = Math.max(3, Math.min(GRID_HEIGHT - 4, candY));
         }
 
         aliveAnimals.push(a);

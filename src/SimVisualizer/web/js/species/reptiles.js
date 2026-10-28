@@ -227,39 +227,84 @@ function updateTortoiseBehavior(a, dt, ctx) {
  * Atualização comportamental do Jacaré-açu
  */
 function updateCaimanBehavior(a, dt, ctx) {
-  const { animals, getIdx, matId, surfaceWater, applyDeathDecomposition, onPredationSuccess, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const { animals, getIdx, matId, surfaceWater, applyDeathDecomposition, onPredationSuccess, timeOfDay, GRID_WIDTH, GRID_HEIGHT, MAT_WATER, MAT_SAND } = ctx;
   const gridW = GRID_WIDTH || 2048;
   const gridH = GRID_HEIGHT || 1024;
+  const matWaterId = (typeof MAT_WATER !== 'undefined') ? MAT_WATER : 1;
+  const matSandId = (typeof MAT_SAND !== 'undefined') ? MAT_SAND : 31;
+
   let targetX = a.x;
   let targetY = a.y;
 
-  if (a.lungeCooldown > 0) a.lungeCooldown -= dt;
+  const curX = Math.floor(a.x);
+  const curY = Math.floor(a.y);
+  const curIdx = getIdx(curX, curY);
 
-  // 1. Termorregulação (Banho de Sol na Praia)
-  if (a.hunger < 25.0 && a.baskingTimer <= 0 && Math.random() < 0.005) {
-    a.isBasking = true;
-    a.baskingTimer = 15.0 + Math.random() * 20.0;
-  }
+  // Status de estar na água
+  const inWater = (matId[curIdx] === matWaterId || surfaceWater[curIdx] > 0.30);
+
+  if (a.lungeCooldown > 0) a.lungeCooldown = Math.max(0, a.lungeCooldown - dt);
+
+  // 1. Termorregulação (Banho de Sol em Praias Fluviais / Margem Imediata)
+  const tod = (typeof timeOfDay !== 'undefined') ? timeOfDay : 12.0;
+  const isSunnyDay = (tod >= 8.5 && tod <= 16.0);
 
   if (a.isBasking) {
     a.baskingTimer -= dt;
-    if (a.baskingTimer <= 0) a.isBasking = false;
+    if (a.baskingTimer <= 0) {
+      a.isBasking = false;
+      // Ao terminar o banho de sol, retorna imediatamente para a água
+      const wCoords = (typeof getNearestWaterCoords === 'function') ? getNearestWaterCoords(a.x, a.y) : { x: a.x, y: 512.0 };
+      const dirX = wCoords.x - a.x;
+      const dirY = wCoords.y - a.y;
+      const d = Math.hypot(dirX, dirY) || 1.0;
+      return { targetX: a.x + (dirX / d) * 2.5, targetY: a.y + (dirY / d) * 2.5 };
+    }
+    // Permanece imóvel tomando sol na praia
     return { targetX: a.x, targetY: a.y };
   }
 
-  // 2. Cortejo Reprodutivo
-  const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && (
+  // Oportunidade de iniciar banho de sol se estiver no rio próximo a uma praia de areia
+  if (!a.isBasking && a.baskingTimer <= 0 && isSunnyDay && a.hunger < 45.0 && Math.random() < 0.015) {
+    // Procura praia de areia (MAT_SAND) em raio de 10 células
+    for (let dy = -8; dy <= 8; dy += 2) {
+      for (let dx = -8; dx <= 8; dx += 2) {
+        const nx = curX + dx, ny = curY + dy;
+        if (nx >= 2 && nx < gridW - 2 && ny >= 2 && ny < gridH - 2) {
+          const nIdx = getIdx(nx, ny);
+          if (matId[nIdx] === matSandId && surfaceWater[nIdx] < 0.10) {
+            a.isBasking = true;
+            a.baskingTimer = 20.0 + Math.random() * 25.0;
+            return { targetX: nx, targetY: ny };
+          }
+        }
+      }
+    }
+  }
+
+  // 2. Retorno Rígido à Água se estiver em terra seca e NÃO estiver tomando sol
+  if (!inWater && !a.isBasking) {
+    const wCoords = (typeof getNearestWaterCoords === 'function') ? getNearestWaterCoords(a.x, a.y) : { x: a.x, y: 512.0 };
+    const dirX = wCoords.x - a.x;
+    const dirY = wCoords.y - a.y;
+    const d = Math.hypot(dirX, dirY) || 1.0;
+    // Rasteja direto de volta para o rio ou meandro
+    return { targetX: a.x + (dirX / d) * 3.0, targetY: a.y + (dirY / d) * 3.0 };
+  }
+
+  // 3. Cortejo Reprodutivo na Água
+  const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 50.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
   ));
 
-  if (isReadyToMate && animals.filter(x => x.species === 'caiman').length < 18) {
+  if (isReadyToMate && animals.filter(x => x.species === 'caiman').length < 22) {
     let closestMate = null;
-    let mateDist = 60.0;
+    let mateDist = 70.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'caiman') continue;
-      if (other.sex !== a.sex && other.matingCooldown <= 0 && other.hunger < 50.0) {
+      if (other.sex !== a.sex && other.matingCooldown <= 0 && other.hunger < 55.0) {
         if (a.sex === 'male' && other.isPregnant) continue;
         if (a.sex === 'male' && (!other.estrusDurationRemaining || other.estrusDurationRemaining <= 0)) continue;
         const d = Math.hypot(other.x - a.x, other.y - a.y);
@@ -273,43 +318,61 @@ function updateCaimanBehavior(a, dt, ctx) {
     if (closestMate) {
       targetX = closestMate.x;
       targetY = closestMate.y;
-      if (mateDist < 3.0) {
+      if (mateDist < 3.2) {
         const female = (a.sex === 'female') ? a : closestMate;
         const male = (a.sex === 'male') ? a : closestMate;
         if (typeof SpeciesReproduction !== 'undefined') {
           SpeciesReproduction.tryMatePair(female, male);
+        } else {
+          female.isPregnant = true;
+          female.daysPregnant = 0.0;
+          female.gestationRemaining = 12.0;
+          female.litterSize = 2 + Math.floor(Math.random() * 3);
+          female.matingCooldown = 90.0;
+          male.matingCooldown = 30.0;
         }
       }
       return { targetX, targetY };
     }
   }
 
-  // 3. Detecção de presas fluviais e marginais
+  // 4. Predação Ativa de Topo na Água e na Margem (Gatilho hunger > 5.0)
   let targetPrey = null;
-  let minDist = 28.0;
+  let minDist = 35.0;
 
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
     if (prey === a || prey.hp <= 0 || prey.species === 'caiman') continue;
 
+    // Jacaré só caça presas aquáticas OU presas que estejam na beira imediata da água (até 7m da água)
+    const pIdx = getIdx(Math.floor(prey.x), Math.floor(prey.y));
+    const preyInWater = (matId[pIdx] === matWaterId || surfaceWater[pIdx] > 0.20);
     const d = Math.hypot(prey.x - a.x, prey.y - a.y);
-    if (d < minDist) {
-      minDist = d;
-      targetPrey = prey;
+
+    if (preyInWater || d <= 12.0) {
+      // Prioridade para peixes, roedores e pequenos animais
+      let score = (100.0 - d);
+      if (prey.species === 'tambaqui' || prey.species === 'traira') score += 30.0;
+      if (prey.species === 'rat') score += 20.0;
+
+      if (d < minDist) {
+        minDist = d;
+        targetPrey = prey;
+      }
     }
   }
 
-  // 4. Execução do Bote de Emboscada
-  if (targetPrey && a.hunger > 18.0) {
+  // Execução do Bote Fatal de Emboscada
+  if (targetPrey && a.hunger > 5.0) {
     const dirX = targetPrey.x - a.x;
     const dirY = targetPrey.y - a.y;
     const dist = Math.hypot(dirX, dirY) || 1.0;
 
-    if (dist <= 3.5 && a.lungeCooldown <= 0) {
-      a.lungeCooldown = 4.5;
-      const damage = a.attackPower * (0.85 + Math.random() * 0.4);
+    if (dist <= 3.8 && a.lungeCooldown <= 0) {
+      a.lungeCooldown = 4.0;
+      const damage = a.attackPower * (1.2 + Math.random() * 0.5); // Mordida esmagadora
       targetPrey.hp -= damage;
-      a.hunger = Math.max(0, a.hunger - 40.0);
+      a.hunger = Math.max(0, a.hunger - 55.0);
 
       if (targetPrey.hp <= 0) {
         if (applyDeathDecomposition) applyDeathDecomposition(targetPrey.x, targetPrey.y);
@@ -317,19 +380,34 @@ function updateCaimanBehavior(a, dt, ctx) {
       }
       return { targetX: targetPrey.x, targetY: targetPrey.y };
     } else {
-      targetX = a.x + (dirX / dist) * a.speed * 2.0;
-      targetY = a.y + (dirY / dist) * a.speed * 2.0;
+      // Natação veloz de aproximação
+      const rushSpeed = a.speed * 1.8;
+      targetX = a.x + (dirX / dist) * rushSpeed;
+      targetY = a.y + (dirY / dist) * rushSpeed;
       return { targetX, targetY };
     }
   }
 
-  // 5. Patrulha anfíbia suave entre o leito do rio e as praias
-  a.wanderAngle += (Math.random() - 0.5) * 0.4 * dt;
-  targetX = Math.max(20, Math.min(gridW - 20, a.x + Math.cos(a.wanderAngle) * (a.speed * 1.5)));
-  targetY = Math.max(20, Math.min(gridH - 20, a.y + Math.sin(a.wanderAngle) * (a.speed * 1.5)));
+  // 5. Patrulha Fluvial Contínua dentro do Leito dos Rios e Meandros
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const testAngle = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.45 : -attempt * 0.45));
+    const nextX = a.x + Math.cos(testAngle) * 2.2;
+    const nextY = a.y + Math.sin(testAngle) * 2.2;
+    if (nextX >= 4 && nextX < gridW - 4 && nextY >= 4 && nextY < gridH - 4) {
+      const nIdx = getIdx(Math.floor(nextX), Math.floor(nextY));
+      if (matId[nIdx] === matWaterId || surfaceWater[nIdx] > 0.25 || matId[nIdx] === matSandId) {
+        a.wanderAngle = testAngle + (Math.random() - 0.5) * 0.25 * dt;
+        return { targetX: nextX, targetY: nextY };
+      }
+    }
+  }
 
-  return { targetX, targetY };
+  // Se estiver encostando na terra, curva de volta para a calha do rio
+  const wCent = (typeof getNearestWaterCoords === 'function') ? getNearestWaterCoords(a.x, a.y) : { x: a.x, y: 512.0 };
+  a.wanderAngle = Math.atan2(wCent.y - a.y, wCent.x - a.x);
+  return { targetX: a.x + Math.cos(a.wanderAngle) * 2.0, targetY: a.y + Math.sin(a.wanderAngle) * 2.0 };
 }
+
 
 // Vinculação de escopo para ambiente browser
 if (typeof window !== 'undefined') {

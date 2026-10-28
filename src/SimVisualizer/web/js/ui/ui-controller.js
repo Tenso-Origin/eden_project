@@ -387,30 +387,48 @@ function updateStats() {
   if (elRats) elRats.innerText = `${rats.length} (♀${ratsF} | ♂${ratsM})`;
   const elCats = document.getElementById('statCats');
   if (elCats) elCats.innerText = `${cats.length} (♀${catsF} | ♂${catsM})`;
-  const elPreg = document.getElementById('statPregnant');
-  if (elPreg) elPreg.innerText = `${pregRats} ratas prenhes (${estrusRats} em cio) | ${pregCats} gatas prenhes (${estrusCats} em cio)`;
 
-  // Contadores das Novas Espécies Expandidas
+  // Contadores e Censos Reprodutivos das Novas Espécies Expandidas
   const tambaquis = animals.filter(a => a.species === 'tambaqui' && a.hp > 0).length;
+  const pregTambaqui = animals.filter(a => a.species === 'tambaqui' && a.isPregnant).length;
+  
   const trairas = animals.filter(a => (a.species === 'traira' || a.species === 'piranha') && a.hp > 0).length;
+  const pregTraira = animals.filter(a => (a.species === 'traira' || a.species === 'piranha') && a.isPregnant).length;
+
   const tortoises = animals.filter(a => a.species === 'tortoise' && a.hp > 0).length;
+  const pregTortoise = animals.filter(a => a.species === 'tortoise' && a.isPregnant).length;
+
   const caimans = animals.filter(a => a.species === 'caiman' && a.hp > 0).length;
+  const pregCaiman = animals.filter(a => a.species === 'caiman' && a.isPregnant).length;
+
   const toucans = animals.filter(a => a.species === 'toucan' && a.hp > 0).length;
+  const pregToucan = animals.filter(a => a.species === 'toucan' && a.isPregnant).length;
+
   const carcaras = animals.filter(a => a.species === 'carcara' && a.hp > 0).length;
+  const pregCarcara = animals.filter(a => a.species === 'carcara' && a.isPregnant).length;
+
   const insectSpeciesList = ['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'];
   const totalInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.hp > 0).length;
+  const pregInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.isPregnant).length;
+
+  const totalPregnantAll = animals.filter(a => a.sex === 'female' && a.isPregnant && a.hp > 0).length;
+
+  const elPreg = document.getElementById('statPregnant');
+  if (elPreg) {
+    elPreg.innerHTML = `🐭${pregRats} | 🐱${pregCats} | 🐟${pregTambaqui} | 🎣${pregTraira} | 🐢${pregTortoise} | 🐊${pregCaiman} | 🦜${pregToucan} | 🪶${pregCarcara} | 🐜${pregInsects} <span style="font-size:0.75rem; color:#fbcfe8;">(Total: ${totalPregnantAll} fêmeas gestantes/ovos)</span>`;
+  }
 
   const elAquatic = document.getElementById('statAquatic');
-  if (elAquatic) elAquatic.innerText = `🐟 ${tambaquis} Tambaquis | 🎣 ${trairas} Traíras (Noturnas)`;
+  if (elAquatic) elAquatic.innerText = `🐟 ${tambaquis} Tambaquis (${pregTambaqui}♀ prenhes) | 🎣 ${trairas} Traíras (${pregTraira}♀ prenhes)`;
 
   const elReptiles = document.getElementById('statReptiles');
-  if (elReptiles) elReptiles.innerText = `🐢 ${tortoises} Jabutis | 🐊 ${caimans} Jacarés`;
+  if (elReptiles) elReptiles.innerText = `🐢 ${tortoises} Jabutis (${pregTortoise}♀ ovos) | 🐊 ${caimans} Jacarés (${pregCaiman}♀ ninho)`;
 
   const elBirds = document.getElementById('statBirds');
-  if (elBirds) elBirds.innerText = `🦜 ${toucans} Tucanos | 🪶 ${carcaras} Carcarás`;
+  if (elBirds) elBirds.innerText = `🦜 ${toucans} Tucanos (${pregToucan}♀ chocando) | 🪶 ${carcaras} Carcarás (${pregCarcara}♀ chocando)`;
 
   const elInsects = document.getElementById('statInsects');
-  if (elInsects) elInsects.innerText = `🐜 Insetos Totais: ${totalInsects} (10 Espécies)`;
+  if (elInsects) elInsects.innerText = `🐜 Insetos Totais: ${totalInsects} (${pregInsects}♀ em postura)`;
 
   const elPeak = document.getElementById('statPeak');
   if (elPeak) {

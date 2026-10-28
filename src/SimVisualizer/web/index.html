@@ -770,17 +770,18 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/simulation/core.js?v=2.6.2"></script>
-  <script src="js/simulation/environment.js?v=2.6.2"></script>
-  <script src="js/species/rat.js?v=2.6.2"></script>
-  <script src="js/species/cat.js?v=2.6.2"></script>
-  <script src="js/species/harpy.js?v=2.6.2"></script>
-  <script src="js/species/aquatic.js?v=2.6.2"></script>
-  <script src="js/species/reptiles.js?v=2.6.2"></script>
-  <script src="js/species/birds.js?v=2.6.2"></script>
-  <script src="js/species/insects.js?v=2.6.2"></script>
-  <script src="js/rendering/renderer.js?v=2.6.2"></script>
-  <script src="js/ui/ui-controller.js?v=2.6.2"></script>
+  <script src="js/species/reproduction.js?v=2.6.3"></script>
+  <script src="js/simulation/core.js?v=2.6.3"></script>
+  <script src="js/simulation/environment.js?v=2.6.3"></script>
+  <script src="js/species/rat.js?v=2.6.3"></script>
+  <script src="js/species/cat.js?v=2.6.3"></script>
+  <script src="js/species/harpy.js?v=2.6.3"></script>
+  <script src="js/species/aquatic.js?v=2.6.3"></script>
+  <script src="js/species/reptiles.js?v=2.6.3"></script>
+  <script src="js/species/birds.js?v=2.6.3"></script>
+  <script src="js/species/insects.js?v=2.6.3"></script>
+  <script src="js/rendering/renderer.js?v=2.6.3"></script>
+  <script src="js/ui/ui-controller.js?v=2.6.3"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -823,7 +824,7 @@
           a.gestationRemaining -= simDeltaDays;
 
           // HABILIDADE MATERNA: após 3 dias de gestação, fêmea prenha constrói toca/covil onde estiver
-          if (a.daysPregnant >= 3.0 && !a.hasNest) {
+          if (a.daysPregnant >= 3.0 && !a.hasNest && (a.species === 'rat' || a.species === 'cat')) {
             const loc = findLocalNestLocation(a);
             a.hasNest = true;
             a.nestX = loc.x;
@@ -841,13 +842,19 @@
           }
 
           if (a.gestationRemaining <= 0) {
-            // Parto da ninhada (+30% natalidade para ratos: 8 a 13 filhotes)
+            // Eclosão / Parto da ninhada (UNIVERSAL PARA TODAS AS ESPÉCIES)
             a.isPregnant = false;
             a.daysPregnant = 0.0;
-            const litter = a.litterSize || (a.species === 'rat' ? (8 + Math.floor(Math.random() * 6)) : (3 + Math.floor(Math.random() * 3)));
+            const cfgRepro = (typeof SpeciesReproduction !== 'undefined') ? SpeciesReproduction.SPECIES_REPRODUCTION[a.species] : null;
+            const litter = a.litterSize || (cfgRepro ? (cfgRepro.litterMin + Math.floor(Math.random() * (cfgRepro.litterMax - cfgRepro.litterMin + 1))) : ((a.species === 'rat') ? (8 + Math.floor(Math.random() * 6)) : 4));
             a.litterSize = 0;
 
-            if (a.species === 'rat') {
+            // Restauração de ciclo fértil e cooldown pós-parto
+            if (cfgRepro) {
+              a.matingCooldown = cfgRepro.postPartumCooldown;
+              a.estrusDurationRemaining = 0.0;
+              a.estrusCycleTimer = cfgRepro.estrusInterval;
+            } else if (a.species === 'rat') {
               a.matingCooldown = 15.0;
               a.estrusDurationRemaining = 1.0;
               a.estrusCycleTimer = 0.0;
@@ -858,76 +865,42 @@
             }
 
             const curTotal = animals.filter(x => x.species === a.species).length;
-            const maxCap = (a.species === 'rat') ? 500 : 90;
+            const maxCap = cfgRepro ? cfgRepro.maxCap : ((a.species === 'rat') ? 500 : 90);
 
             if (curTotal < maxCap) {
               const pupsToCreate = Math.min(litter, maxCap - curTotal);
               totalBirthsCount += pupsToCreate;
               for (let k = 0; k < pupsToCreate; k++) {
-                const pupSex = (a.species === 'rat') 
-                  ? (Math.random() < 0.50 ? 'male' : 'female') 
-                  : (Math.random() < 0.51 ? 'male' : 'female');
+                const spawnX = a.hasNest ? a.nestX + (Math.random() - 0.5) * 1.5 : (a.x + (Math.random() - 0.5) * 2.0);
+                const spawnY = a.hasNest ? a.nestY + (Math.random() - 0.5) * 1.5 : (a.y + (Math.random() - 0.5) * 2.0);
+                const clampedX = Math.max(2, Math.min(CHUNK_SIZE - 3, spawnX));
+                const clampedY = Math.max(2, Math.min(CHUNK_SIZE - 3, spawnY));
 
-                let pupGenome = null;
-                let pupCatGenome = null;
-
-                if (a.species === 'rat') {
-                  pupGenome = recombineRatGenome(a.genome, a.mateGenome);
-                } else if (a.species === 'cat') {
-                  pupCatGenome = recombineCatGenome(a.catGenome, a.mateCatGenome);
+                if (typeof SpeciesReproduction !== 'undefined') {
+                  const pup = SpeciesReproduction.createOffspring(a, null, clampedX, clampedY);
+                  newOffspring.push(pup);
+                } else {
+                  // Fallback
+                  const pupSex = Math.random() < 0.5 ? 'male' : 'female';
+                  newOffspring.push({
+                    id: Date.now() + Math.random(),
+                    species: a.species,
+                    diet: a.diet,
+                    sex: pupSex,
+                    isPregnant: false,
+                    daysPregnant: 0,
+                    gestationRemaining: 0,
+                    litterSize: 0,
+                    x: clampedX,
+                    y: clampedY,
+                    hp: 100,
+                    hunger: 10,
+                    speed: a.speed,
+                    ageInDays: 0,
+                    maxLifespan: a.maxLifespan,
+                    matingCooldown: 30.0
+                  });
                 }
-
-                const spawnX = a.hasNest ? a.nestX + (Math.random() - 0.5) * 1.5 : a.x;
-                const spawnY = a.hasNest ? a.nestY + (Math.random() - 0.5) * 1.5 : a.y;
-
-                newOffspring.push({
-                  id: Date.now() + Math.random(),
-                  species: a.species,
-                  diet: a.diet,
-                  sex: pupSex,
-                  isPregnant: false,
-                  daysPregnant: 0,
-                  gestationRemaining: 0,
-                  litterSize: 0,
-                  estrusCycleTimer: (a.species === 'rat' ? 4.5 : 18.0),
-                  estrusDurationRemaining: 0.0,
-                  x: Math.max(2, Math.min(CHUNK_SIZE - 3, spawnX)),
-                  y: Math.max(2, Math.min(CHUNK_SIZE - 3, spawnY)),
-                  hasNest: a.hasNest,
-                  nestX: a.nestX,
-                  nestY: a.nestY,
-                  motherId: a.id,
-                  hp: 100,
-                  stamina: 100.0,
-                  maxStamina: 100.0,
-                  isExhausted: false,
-                  attackPower: (a.species === 'rat' ? 10.0 : 42.0),
-                  defensePower: (a.species === 'rat' ? 3.0 : 14.0),
-                  isCornered: false,
-                  hunger: 10,
-                  thirst: 5.0,
-                  fatigue: 0.0,
-                  isSleeping: false,
-                  foodMemoryX: a.hasFoodMemory ? a.foodMemoryX : a.x,
-                  foodMemoryY: a.hasFoodMemory ? a.foodMemoryY : a.y,
-                  hasFoodMemory: !!a.hasFoodMemory,
-                  chaseTimer: 0.0,
-                  chaseAbandonCooldown: 0.0,
-                  targetPreyId: null,
-                  breath: (a.species === 'rat' ? 7.0 : 0.0),
-                  maxBreath: (a.species === 'rat' ? 7.0 : 0.0),
-                  isDiving: false,
-                  speed: a.speed,
-                  ageInDays: 0,
-                  maxLifespan: a.maxLifespan,
-                  matingCooldown: (a.species === 'rat' ? 60.0 : 210.0),
-                  sensoryRadius: a.sensoryRadius,
-                  dailyFunKills: 0,
-                  genome: pupGenome,
-                  mateGenome: pupGenome,
-                  catGenome: pupCatGenome,
-                  mateCatGenome: pupCatGenome
-                });
               }
             }
           }
@@ -1034,22 +1007,26 @@
           ratScent[curIdx] = 1.0;
         }
 
-        const isAdult = a.ageInDays >= (a.maxLifespan * 0.08);
+        const cfgRepro = (typeof SpeciesReproduction !== 'undefined') ? SpeciesReproduction.SPECIES_REPRODUCTION[a.species] : null;
+        const matDays = cfgRepro ? cfgRepro.maturityDays : (a.maxLifespan * 0.08);
+        const isAdult = a.ageInDays >= matDays;
 
         if (a.sex === 'female' && isAdult) {
           if (a.isPregnant) {
             a.estrusDurationRemaining = 0.0;
             a.estrusCycleTimer = a.gestationRemaining;
           } else {
+            const eInterval = cfgRepro ? cfgRepro.estrusInterval : ((a.species === 'rat') ? 4.5 : 18.0);
+            const eDuration = cfgRepro ? cfgRepro.estrusDuration : ((a.species === 'rat') ? 0.8 : 5.0);
             if (a.estrusDurationRemaining > 0) {
               a.estrusDurationRemaining = Math.max(0, a.estrusDurationRemaining - simDeltaDays);
               if (a.estrusDurationRemaining <= 0) {
-                a.estrusCycleTimer = (a.species === 'rat') ? 4.5 : 18.0;
+                a.estrusCycleTimer = eInterval;
               }
             } else {
               a.estrusCycleTimer = Math.max(0, (a.estrusCycleTimer || 0) - simDeltaDays);
               if (a.estrusCycleTimer <= 0) {
-                a.estrusDurationRemaining = (a.species === 'rat') ? 0.8 : 5.0;
+                a.estrusDurationRemaining = eDuration;
               }
             }
           }

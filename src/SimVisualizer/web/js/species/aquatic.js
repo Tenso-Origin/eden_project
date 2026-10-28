@@ -1,5 +1,5 @@
 // =========================================================================
-// MÓDULO DE ESPÉCIES AQUÁTICAS: TAMBAQUI E TRAÍRA (EQUILÍBRIO TRÓFICO LACUSTRE)
+// MÓDULO DE ESPÉCIES AQUÁTICAS: TAMBAQUI E TRAÍRA (COM REPRODUÇÃO REAL)
 // =========================================================================
 
 /**
@@ -18,6 +18,9 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
     const x = lakeCenterX + Math.cos(angle) * r;
     const y = lakeCenterY + Math.sin(angle) * r;
     const sex = (i % 2 === 0) ? 'female' : 'male';
+    const isPregnantInit = (sex === 'female' && Math.random() < 0.25);
+    const gestationDays = 10.0;
+    const gestationRem = isPregnantInit ? (1.0 + Math.random() * (gestationDays - 1.0)) : 0.0;
 
     aquaticList.push({
       id: 2000 + i,
@@ -35,10 +38,16 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
       defensePower: 8.0,
       ageInDays: 300.0 + Math.random() * 400.0,
       maxLifespan: 9125.0, // ~25 anos
-      matingCooldown: 25.0 + Math.random() * 35.0,
-      isPregnant: false,
-      gestationRemaining: 0,
-      litterSize: 0,
+      
+      // Ciclo Reprodutivo
+      isPregnant: isPregnantInit,
+      daysPregnant: isPregnantInit ? (gestationDays - gestationRem) : 0.0,
+      gestationRemaining: gestationRem,
+      litterSize: isPregnantInit ? (5 + Math.floor(Math.random() * 6)) : 0,
+      matingCooldown: isPregnantInit ? (gestationRem + 35.0) : (5.0 + Math.random() * 20.0),
+      estrusCycleTimer: isPregnantInit ? gestationRem : (Math.random() * 28.0),
+      estrusDurationRemaining: (!isPregnantInit && sex === 'female' && Math.random() < 0.3) ? (Math.random() * 4.0) : 0.0,
+
       fearTimer: 0.0,
       wanderAngle: angle + Math.PI / 2
     });
@@ -47,11 +56,13 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
   // 2. Traíras (Hoplias malabaricus) - Predadores carnívoros solitários de emboscada noturna
   for (let i = 0; i < TRAIRA_COUNT; i++) {
     const angle = (i / TRAIRA_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-    // Distribuídas pelas margens com vegetação ou fundo lodoso
     const r = lakeRadius * (0.35 + Math.random() * 0.50);
     const x = lakeCenterX + Math.cos(angle) * r;
     const y = lakeCenterY + Math.sin(angle) * r;
     const sex = (i % 2 === 0) ? 'female' : 'male';
+    const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
+    const gestationDays = 6.0;
+    const gestationRem = isPregnantInit ? (1.0 + Math.random() * (gestationDays - 1.0)) : 0.0;
 
     aquaticList.push({
       id: 3000 + i,
@@ -63,18 +74,24 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
       y: y,
       hp: 120,
       maxHp: 120,
-      hunger: 5.0 + Math.random() * 15.0, // Saciedade inicial saudável
-      speed: 1.8,                        // Natação lenta de espreita / esconde-esconde
-      lungeSpeed: 6.2,                   // Bote explosivo veloz de curta distância
-      attackPower: 32.0,                 // Mordida fulminante com dentes cônicos caniniformes
+      hunger: 5.0 + Math.random() * 15.0,
+      speed: 1.8,
+      lungeSpeed: 6.2,
+      attackPower: 32.0,
       defensePower: 9.0,
       ageInDays: 350.0 + Math.random() * 300.0,
-      maxLifespan: 4380.0,               // ~12 anos
-      matingCooldown: 40.0 + Math.random() * 40.0,
-      isPregnant: false,
-      gestationRemaining: 0,
-      litterSize: 0,
-      isLurking: true,                   // Começa em camuflagem de tocaia
+      maxLifespan: 4380.0, // ~12 anos
+
+      // Ciclo Reprodutivo
+      isPregnant: isPregnantInit,
+      daysPregnant: isPregnantInit ? (gestationDays - gestationRem) : 0.0,
+      gestationRemaining: gestationRem,
+      litterSize: isPregnantInit ? (2 + Math.floor(Math.random() * 3)) : 0,
+      matingCooldown: isPregnantInit ? (gestationRem + 60.0) : (10.0 + Math.random() * 30.0),
+      estrusCycleTimer: isPregnantInit ? gestationRem : (Math.random() * 45.0),
+      estrusDurationRemaining: (!isPregnantInit && sex === 'female' && Math.random() < 0.25) ? (Math.random() * 3.5) : 0.0,
+
+      isLurking: true,
       lungeCooldown: 0.0,
       wanderAngle: angle
     });
@@ -84,7 +101,7 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
 }
 
 /**
- * Atualização comportamental do Tambaqui (Forrageamento, natação em cardume e fuga de ameaças)
+ * Atualização comportamental do Tambaqui (Forrageamento, natação em cardume, fuga e desova)
  */
 function updateTambaquiBehavior(a, dt, ctx) {
   const { animals, lakeCenterX, lakeCenterY, lakeRadius, getIdx, grains, biomass, weather } = ctx;
@@ -101,7 +118,7 @@ function updateTambaquiBehavior(a, dt, ctx) {
     return { targetX, targetY };
   }
 
-  // 2. Fuga de ameaças aquáticas (Traíras ativas e Jacarés)
+  // 2. Fuga de predadores (Traíras ativas e Jacarés)
   if (a.fearTimer > 0) a.fearTimer -= dt;
   let closestThreat = null;
   let minDist = 18.0;
@@ -109,7 +126,6 @@ function updateTambaquiBehavior(a, dt, ctx) {
   for (let j = 0; j < animals.length; j++) {
     const other = animals[j];
     if (other.hp <= 0) continue;
-    // Traíra só assusta se não estiver camuflada/inativa ou se estiver muito perto (<10m)
     if (other.species === 'traira') {
       const d = Math.hypot(other.x - a.x, other.y - a.y);
       const detectionThreshold = other.isLurking ? 9.0 : 20.0;
@@ -136,7 +152,51 @@ function updateTambaquiBehavior(a, dt, ctx) {
     return { targetX, targetY };
   }
 
-  // 3. Forrageamento pacífico: Sementes, frutos caídos na água ou biomassa aquática
+  // 3. Cortejo e Desova Fértil (Acasalamento de Tambaquis)
+  const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && a.hp > 50 && (
+    (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
+    (a.sex === 'male')
+  ));
+
+  if (isReadyToMate) {
+    let closestMate = null;
+    let mateDist = 28.0;
+    for (let j = 0; j < animals.length; j++) {
+      const other = animals[j];
+      if (other.id === a.id || other.hp <= 0 || other.species !== 'tambaqui') continue;
+      if (other.sex !== a.sex && other.matingCooldown <= 0 && other.hunger < 50.0) {
+        if (a.sex === 'male' && other.isPregnant) continue;
+        if (a.sex === 'male' && (!other.estrusDurationRemaining || other.estrusDurationRemaining <= 0)) continue;
+        const d = Math.hypot(other.x - a.x, other.y - a.y);
+        if (d < mateDist) {
+          mateDist = d;
+          closestMate = other;
+        }
+      }
+    }
+
+    if (closestMate) {
+      targetX = closestMate.x;
+      targetY = closestMate.y;
+      if (mateDist < 2.5) {
+        const female = (a.sex === 'female') ? a : closestMate;
+        const male = (a.sex === 'male') ? a : closestMate;
+        if (typeof SpeciesReproduction !== 'undefined') {
+          SpeciesReproduction.tryMatePair(female, male);
+        } else {
+          female.isPregnant = true;
+          female.daysPregnant = 0.0;
+          female.gestationRemaining = 10.0;
+          female.litterSize = 5 + Math.floor(Math.random() * 6);
+          female.matingCooldown = 45.0;
+          male.matingCooldown = 15.0;
+        }
+      }
+      return { targetX, targetY };
+    }
+  }
+
+  // 4. Forrageamento: Sementes, frutos e biomassa aquática
   if (a.hunger > 20.0) {
     const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
     if (grains && grains[curIdx] > 1.0) {
@@ -150,7 +210,7 @@ function updateTambaquiBehavior(a, dt, ctx) {
     }
   }
 
-  // 4. Dinâmica suave de cardume (Schooling): atração leve por outros tambaquis próximos
+  // 5. Dinâmica de cardume (Schooling)
   let avgX = 0, avgY = 0, neighborCount = 0;
   for (let j = 0; j < animals.length; j++) {
     const peer = animals[j];
@@ -183,9 +243,7 @@ function updateTambaquiBehavior(a, dt, ctx) {
 
 /**
  * Atualização comportamental da Traíra (Hoplias malabaricus):
- * - Hábito Noturno e Crepuscular: De dia fica em tocaia quieta (isLurking = true), metabolismo reduzido.
- * - Caça por Emboscada: Espreita solitária, sem frenesi em cardume; aproximação lenta e bote repentino.
- * - Alta Saciedade por Refeição: Alimenta-se espaçadamente, preservando a sustentabilidade do lago.
+ * Tocaia diurna, caça por emboscada noturna e reprodução territorial em ninhos aquáticos.
  */
 function updateTrairaBehavior(a, dt, ctx) {
   const { animals, lakeCenterX, lakeCenterY, lakeRadius, weather, applyDeathDecomposition, onPredationSuccess } = ctx;
@@ -203,7 +261,6 @@ function updateTrairaBehavior(a, dt, ctx) {
   }
 
   // 2. Determinação de ciclo circadiano (Dia vs Noite)
-  // Horário: 06:00 às 18:00 é dia. Antes das 06:00 ou após as 18:00 é noite/crepúsculo.
   const timeOfDay = (weather && weather.timeOfDay != null) ? weather.timeOfDay : 12.0;
   const isNight = (timeOfDay < 6.0 || timeOfDay > 18.0);
 
@@ -211,11 +268,53 @@ function updateTrairaBehavior(a, dt, ctx) {
     a.lungeCooldown = Math.max(0, a.lungeCooldown - dt);
   }
 
-  // 3. Estado Diurno: Tocaia e Camuflagem no fundo/vegetação
+  // 3. Cortejo Reprodutivo e Cópula Territorial (Ocorre principalmente no crepúsculo/noite)
+  const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 50.0 && (
+    (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
+    (a.sex === 'male')
+  ));
+
+  if (isReadyToMate && animals.filter(x => x.species === 'traira').length < 20) {
+    let closestMate = null;
+    let mateDist = 35.0;
+    for (let j = 0; j < animals.length; j++) {
+      const other = animals[j];
+      if (other.id === a.id || other.hp <= 0 || other.species !== 'traira') continue;
+      if (other.sex !== a.sex && other.matingCooldown <= 0 && other.hunger < 55.0) {
+        if (a.sex === 'male' && other.isPregnant) continue;
+        if (a.sex === 'male' && (!other.estrusDurationRemaining || other.estrusDurationRemaining <= 0)) continue;
+        const d = Math.hypot(other.x - a.x, other.y - a.y);
+        if (d < mateDist) {
+          mateDist = d;
+          closestMate = other;
+        }
+      }
+    }
+
+    if (closestMate) {
+      targetX = closestMate.x;
+      targetY = closestMate.y;
+      if (mateDist < 2.5) {
+        const female = (a.sex === 'female') ? a : closestMate;
+        const male = (a.sex === 'male') ? a : closestMate;
+        if (typeof SpeciesReproduction !== 'undefined') {
+          SpeciesReproduction.tryMatePair(female, male);
+        } else {
+          female.isPregnant = true;
+          female.daysPregnant = 0.0;
+          female.gestationRemaining = 6.0;
+          female.litterSize = 2 + Math.floor(Math.random() * 3);
+          female.matingCooldown = 65.0;
+          male.matingCooldown = 25.0;
+        }
+      }
+      return { targetX, targetY };
+    }
+  }
+
+  // 4. Estado Diurno: Tocaia e Camuflagem no fundo/vegetação
   if (!isNight) {
     a.isLurking = true;
-    // Metabolismo muito lento de dia: fome sobe muito pouco
-    // Só ataca se presa passar inadvertidamente bem na frente da boca (< 6.0m)
     let opportunisticPrey = null;
     let minDist = 6.0;
 
@@ -232,7 +331,6 @@ function updateTrairaBehavior(a, dt, ctx) {
     }
 
     if (opportunisticPrey && a.lungeCooldown <= 0) {
-      // Bote fulminante de surpresa a partir da tocaia
       const dirX = opportunisticPrey.x - a.x;
       const dirY = opportunisticPrey.y - a.y;
       const dist = Math.hypot(dirX, dirY) || 1.0;
@@ -243,7 +341,7 @@ function updateTrairaBehavior(a, dt, ctx) {
         const damage = a.attackPower * (0.9 + Math.random() * 0.3);
         opportunisticPrey.hp -= damage;
         a.lungeCooldown = 5.0;
-        a.hunger = Math.max(0, a.hunger - 70.0); // Saciedade prolongada
+        a.hunger = Math.max(0, a.hunger - 70.0);
 
         if (opportunisticPrey.hp <= 0) {
           if (applyDeathDecomposition) applyDeathDecomposition(opportunisticPrey.x, opportunisticPrey.y);
@@ -253,17 +351,14 @@ function updateTrairaBehavior(a, dt, ctx) {
       return { targetX, targetY };
     }
 
-    // De dia fica quase estacionária (flutuação imperceptível na água)
     a.wanderAngle += (Math.random() - 0.5) * 0.1 * dt;
     targetX = a.x + Math.cos(a.wanderAngle) * 0.3;
     targetY = a.y + Math.sin(a.wanderAngle) * 0.3;
     return { targetX, targetY };
   }
 
-  // 4. Estado Noturno: Caçador Ativo por Emboscada
+  // 5. Estado Noturno: Caçador Ativo por Emboscada
   a.isLurking = false;
-
-  // Busca presas aquáticas (Tambaqui) ou terrestres vulneráveis na água (Ratos, Baratas-d'água)
   let bestPrey = null;
   let bestScore = -999;
   const detectionRadius = (a.hunger > 35.0) ? 26.0 : 16.0;
@@ -288,7 +383,7 @@ function updateTrairaBehavior(a, dt, ctx) {
     }
   }
 
-  // 5. Ataque e Perseguição Curta
+  // 6. Ataque e Perseguição Curta
   if (bestPrey && a.hunger > 12.0) {
     const dirX = bestPrey.x - a.x;
     const dirY = bestPrey.y - a.y;
@@ -298,18 +393,16 @@ function updateTrairaBehavior(a, dt, ctx) {
     targetY = bestPrey.y;
 
     if (dist <= 2.2 && a.lungeCooldown <= 0) {
-      // Bote veloz com mordida esmagadora
       const damage = a.attackPower * (0.85 + Math.random() * 0.4);
       bestPrey.hp -= damage;
       a.lungeCooldown = 4.0;
-      a.hunger = Math.max(0, a.hunger - 65.0); // Alta saciedade
+      a.hunger = Math.max(0, a.hunger - 65.0);
 
       if (bestPrey.hp <= 0) {
         if (applyDeathDecomposition) applyDeathDecomposition(bestPrey.x, bestPrey.y);
         if (onPredationSuccess) onPredationSuccess(bestPrey, a);
       }
     } else {
-      // Aproximação furtiva antes do bote
       const rush = (dist < 10.0 && a.lungeCooldown <= 0) ? a.lungeSpeed : a.speed;
       targetX = a.x + (dirX / dist) * rush * 1.5;
       targetY = a.y + (dirY / dist) * rush * 1.5;
@@ -318,8 +411,7 @@ function updateTrairaBehavior(a, dt, ctx) {
     return { targetX, targetY };
   }
 
-  // 6. Patrulha noturna solitária e territorial
-  // Evita aproximação de outras traíras para manter territórios separados
+  // 7. Patrulha noturna territorial
   let repX = 0, repY = 0;
   for (let j = 0; j < animals.length; j++) {
     const peer = animals[j];
@@ -346,6 +438,6 @@ if (typeof window !== 'undefined') {
     createInitialAquatic,
     updateTambaquiBehavior,
     updateTrairaBehavior,
-    updatePiranhaBehavior: updateTrairaBehavior // Alias de compatibilidade
+    updatePiranhaBehavior: updateTrairaBehavior
   };
 }

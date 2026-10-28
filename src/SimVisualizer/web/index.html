@@ -187,7 +187,7 @@
     canvas {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       border-radius: 10px;
       image-rendering: pixelated;
       cursor: crosshair;
@@ -428,6 +428,7 @@
         <canvas id="viewportCanvas" width="1024" height="1024"></canvas>
         <!-- Overlay flutuante de navegação rápida sobre o mapa -->
         <div class="map-nav-overlay">
+          <div id="liveHoverBadge" style="margin-bottom:6px; background:rgba(10,14,20,0.92); border:1px solid #58a6ff; border-radius:6px; padding:3px 8px; font-size:0.73rem; color:#58a6ff; font-family:'JetBrains Mono',monospace; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.5);">🎯 <span id="liveHoverCoord">X: 512 | Y: 512</span></div>
           <button class="nav-btn" id="btnOverlayUp" title="Navegar Cima (Seta ↑)">⬆️</button>
           <div class="map-nav-row">
             <button class="nav-btn" id="btnOverlayLeft" title="Navegar Esquerda (Seta ←)">⬅️</button>
@@ -439,7 +440,7 @@
       </div>
 
       <div class="legend-bar">
-        <span id="layerInfo">Modo: Bioma HD (Lago Central ~8.000m² | Várzea de Gramíneas 150m | Floresta de Borda | Arroz Silvestre & Casal de Harpias)</span>
+        <span id="layerInfo">Modo: Bioma HD (Lago Central R=105m | Várzea 290m | Área Total 1024×1024m | Floresta de Borda | Arroz Silvestre & Casal de Harpias)</span>
         <div class="gradient-legend">
           <span id="legendMin">-100m</span>
           <div id="legendGradient" class="gradient-bar" style="background: linear-gradient(to right, #0044ff, #00ddff, #3fb950, #d29922, #ffffff);"></div>
@@ -704,7 +705,7 @@
       </div>
 
       <div class="side-card">
-        <h2>Inspetor de Célula (512x512)</h2>
+        <h2>Inspetor de Célula (1024x1024)</h2>
         <div class="inspector-box" id="inspectorContent">
           <div class="inspector-row"><span>Coordenadas:</span><span class="inspector-val" id="inspCoord">(X: 256, Y: 256)</span></div>
           <div class="inspector-row"><span>Zona Geográfica:</span><span class="inspector-val" id="inspRegion">Equador Central</span></div>
@@ -735,7 +736,7 @@
           <button class="brush-btn" data-brush="heat">🔥 Onda de Calor</button>
         </div>
         <p style="font-size:0.73rem; color:var(--text-dim); margin-top:2px;">
-          Clique ou arraste no grid de 512x512 para intervir no relevo, clima ou introduzir animais.
+          Clique ou arraste no grid de 1024x1024 (1.048.576 células) para intervir no relevo, clima ou introduzir animais.
         </p>
       </div>
 
@@ -769,17 +770,17 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/simulation/core.js"></script>
-  <script src="js/simulation/environment.js"></script>
-  <script src="js/species/rat.js"></script>
-  <script src="js/species/cat.js"></script>
-  <script src="js/species/harpy.js"></script>
-  <script src="js/species/aquatic.js"></script>
-  <script src="js/species/reptiles.js"></script>
-  <script src="js/species/birds.js"></script>
-  <script src="js/species/insects.js"></script>
-  <script src="js/rendering/renderer.js"></script>
-  <script src="js/ui/ui-controller.js"></script>
+  <script src="js/simulation/core.js?v=2.6.1"></script>
+  <script src="js/simulation/environment.js?v=2.6.1"></script>
+  <script src="js/species/rat.js?v=2.6.1"></script>
+  <script src="js/species/cat.js?v=2.6.1"></script>
+  <script src="js/species/harpy.js?v=2.6.1"></script>
+  <script src="js/species/aquatic.js?v=2.6.1"></script>
+  <script src="js/species/reptiles.js?v=2.6.1"></script>
+  <script src="js/species/birds.js?v=2.6.1"></script>
+  <script src="js/species/insects.js?v=2.6.1"></script>
+  <script src="js/rendering/renderer.js?v=2.6.1"></script>
+  <script src="js/ui/ui-controller.js?v=2.6.1"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>

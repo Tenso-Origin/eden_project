@@ -198,9 +198,59 @@ function render() {
   ctx.drawImage(offscreenCanvas, 0, 0);
 
   if (zoomLevel < 1.0) {
-    ctx.strokeStyle = 'rgba(88, 166, 255, 0.45)';
-    ctx.lineWidth = 1.0 / zoomLevel;
+    ctx.save();
+    // Borda exterior do mundo 1024x1024
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = Math.max(1.5, 2.0 / zoomLevel);
     ctx.strokeRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+
+    // Linhas guias do grid a cada 256 células (0, 256, 512, 768, 1024)
+    ctx.strokeStyle = 'rgba(88, 166, 255, 0.22)';
+    ctx.lineWidth = Math.max(0.8, 1.0 / zoomLevel);
+    ctx.setLineDash([4 / zoomLevel, 4 / zoomLevel]);
+    for (let g = 256; g < CHUNK_SIZE; g += 256) {
+      // Linhas verticais
+      ctx.beginPath();
+      ctx.moveTo(g, 0);
+      ctx.lineTo(g, CHUNK_SIZE);
+      ctx.stroke();
+
+      // Linhas horizontais
+      ctx.beginPath();
+      ctx.moveTo(0, g);
+      ctx.lineTo(CHUNK_SIZE, g);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Rótulos numéricos nos eixos
+    const fontSize = Math.max(12, Math.round(14 / zoomLevel));
+    ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+    ctx.fillStyle = '#58a6ff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText('0', 15, -6 / zoomLevel);
+    ctx.fillText('256', 256, -6 / zoomLevel);
+    ctx.fillText('512 (CENTRO)', 512, -6 / zoomLevel);
+    ctx.fillText('768', 768, -6 / zoomLevel);
+    ctx.fillText('1024 (BORDA)', 1024 - 40, -6 / zoomLevel);
+
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('0', -8 / zoomLevel, 15);
+    ctx.fillText('256', -8 / zoomLevel, 256);
+    ctx.fillText('512', -8 / zoomLevel, 512);
+    ctx.fillText('768', -8 / zoomLevel, 768);
+    ctx.fillText('1024', -8 / zoomLevel, 1024 - 15);
+
+    // Título explícito de Dimensão Total do Mundo
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#3fb950';
+    ctx.font = `bold ${Math.max(14, Math.round(18 / zoomLevel))}px 'Outfit', sans-serif`;
+    ctx.fillText('LARGURA DO PLANETA: 1024 CHUNKS / 1024 METROS DE CADA LADO (1.048.576 CÉLULAS)', CHUNK_SIZE / 2, CHUNK_SIZE + 12 / zoomLevel);
+
+    ctx.restore();
   }
 
   // Refúgios Naturais

@@ -59,23 +59,12 @@ function resetCamera() {
 function getCanvasCoordinates(clientX, clientY) {
   const canvasElem = document.getElementById('viewportCanvas');
   const rect = canvasElem.getBoundingClientRect();
-  const elemAspect = rect.width / rect.height;
-  let renderedW, renderedH, offsetX, offsetY;
+  const size = Math.min(rect.width, rect.height);
+  const offsetX = (rect.width - size) / 2;
+  const offsetY = (rect.height - size) / 2;
 
-  if (elemAspect >= 1.0) {
-    renderedW = rect.width;
-    renderedH = rect.width;
-    offsetX = 0;
-    offsetY = (rect.height - renderedH) / 2;
-  } else {
-    renderedH = rect.height;
-    renderedW = rect.height;
-    offsetX = (rect.width - renderedW) / 2;
-    offsetY = 0;
-  }
-
-  const canvasX = (clientX - rect.left - offsetX) * (canvasElem.width / renderedW);
-  const canvasY = (clientY - rect.top - offsetY) * (canvasElem.height / renderedH);
+  const canvasX = (clientX - rect.left - offsetX) * (canvasElem.width / size);
+  const canvasY = (clientY - rect.top - offsetY) * (canvasElem.height / size);
   return { canvasX, canvasY };
 }
 
@@ -681,6 +670,12 @@ function initUI() {
   });
 
   canvasElem.addEventListener('mousemove', (e) => {
+    const hoverCoord = screenToWorld(e.clientX, e.clientY);
+    const elHover = document.getElementById('liveHoverCoord');
+    if (elHover) {
+      elHover.innerText = `X: ${hoverCoord.x} | Y: ${hoverCoord.y}`;
+    }
+
     if (isMouseDown) {
       const dx = e.clientX - lastMouseX;
       const dy = e.clientY - lastMouseY;

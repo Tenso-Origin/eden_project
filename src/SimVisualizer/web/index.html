@@ -563,7 +563,7 @@
           </div>
           <div class="stat-box" style="border-left: 3px solid #10b981;">
             <div class="stat-label">PEIXES DO LAGO (2 ESPÉCIES)</div>
-            <div id="statAquatic" class="stat-val" style="color:#34d399; font-size:0.85rem;">🐟 0 Tambaquis | 🦈 0 Piranhas</div>
+            <div id="statAquatic" class="stat-val" style="color:#34d399; font-size:0.85rem;">🐟 0 Tambaquis | 🎣 0 Traíras (Noturnas)</div>
           </div>
           <div class="stat-box" style="border-left: 3px solid #84cc16;">
             <div class="stat-label">RÉPTEIS (2 ESPÉCIES)</div>
@@ -770,17 +770,17 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/simulation/core.js?v=2.6.1"></script>
-  <script src="js/simulation/environment.js?v=2.6.1"></script>
-  <script src="js/species/rat.js?v=2.6.1"></script>
-  <script src="js/species/cat.js?v=2.6.1"></script>
-  <script src="js/species/harpy.js?v=2.6.1"></script>
-  <script src="js/species/aquatic.js?v=2.6.1"></script>
-  <script src="js/species/reptiles.js?v=2.6.1"></script>
-  <script src="js/species/birds.js?v=2.6.1"></script>
-  <script src="js/species/insects.js?v=2.6.1"></script>
-  <script src="js/rendering/renderer.js?v=2.6.1"></script>
-  <script src="js/ui/ui-controller.js?v=2.6.1"></script>
+  <script src="js/simulation/core.js?v=2.6.2"></script>
+  <script src="js/simulation/environment.js?v=2.6.2"></script>
+  <script src="js/species/rat.js?v=2.6.2"></script>
+  <script src="js/species/cat.js?v=2.6.2"></script>
+  <script src="js/species/harpy.js?v=2.6.2"></script>
+  <script src="js/species/aquatic.js?v=2.6.2"></script>
+  <script src="js/species/reptiles.js?v=2.6.2"></script>
+  <script src="js/species/birds.js?v=2.6.2"></script>
+  <script src="js/species/insects.js?v=2.6.2"></script>
+  <script src="js/rendering/renderer.js?v=2.6.2"></script>
+  <script src="js/ui/ui-controller.js?v=2.6.2"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -1141,13 +1141,24 @@
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
           }
-        } else if (a.species === 'piranha') {
+        } else if (a.species === 'traira' || a.species === 'piranha') {
           if (typeof AquaticSpecies !== 'undefined') {
-            const aquaticCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, getIdx, matId, MAT_WATER, applyDeathDecomposition, onPredationSuccess: (prey, piranha) => {
-              totalPredationDeaths++;
-              hungryKillsCount++;
-            }};
-            const moveTarget = AquaticSpecies.updatePiranhaBehavior(a, dt, aquaticCtx);
+            const aquaticCtx = {
+              animals,
+              lakeCenterX: CHUNK_SIZE / 2.0,
+              lakeCenterY: CHUNK_SIZE / 2.0,
+              lakeRadius: 105.0,
+              getIdx,
+              matId,
+              MAT_WATER,
+              applyDeathDecomposition,
+              weather: (typeof weatherController !== 'undefined') ? weatherController.getCurrentWeather() : null,
+              onPredationSuccess: (prey, predator) => {
+                totalPredationDeaths++;
+                hungryKillsCount++;
+              }
+            };
+            const moveTarget = AquaticSpecies.updateTrairaBehavior ? AquaticSpecies.updateTrairaBehavior(a, dt, aquaticCtx) : AquaticSpecies.updatePiranhaBehavior(a, dt, aquaticCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
           }
@@ -1203,7 +1214,7 @@
           const sprint = a.currentSprintBoost || 1.0;
           let waterFactor = 0.35;
           if (a.species === 'rat') waterFactor = a.isDiving ? 0.55 : 0.70;
-          else if (a.species === 'tambaqui' || a.species === 'piranha') waterFactor = 1.0;
+          else if (a.species === 'tambaqui' || a.species === 'traira' || a.species === 'piranha') waterFactor = 1.0;
           else if (a.species === 'caiman') waterFactor = 1.35;
           else if (a.species === 'dragonfly' || a.species === 'mosquito') waterFactor = 1.0;
           const baseSpeed = inWater ? a.speed * waterFactor : a.speed;

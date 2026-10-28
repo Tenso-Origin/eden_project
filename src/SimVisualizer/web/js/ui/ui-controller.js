@@ -392,7 +392,7 @@ function updateStats() {
 
   // Contadores das Novas Espécies Expandidas
   const tambaquis = animals.filter(a => a.species === 'tambaqui' && a.hp > 0).length;
-  const piranhas = animals.filter(a => a.species === 'piranha' && a.hp > 0).length;
+  const trairas = animals.filter(a => (a.species === 'traira' || a.species === 'piranha') && a.hp > 0).length;
   const tortoises = animals.filter(a => a.species === 'tortoise' && a.hp > 0).length;
   const caimans = animals.filter(a => a.species === 'caiman' && a.hp > 0).length;
   const toucans = animals.filter(a => a.species === 'toucan' && a.hp > 0).length;
@@ -401,7 +401,7 @@ function updateStats() {
   const totalInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.hp > 0).length;
 
   const elAquatic = document.getElementById('statAquatic');
-  if (elAquatic) elAquatic.innerText = `🐟 ${tambaquis} Tambaquis | 🦈 ${piranhas} Piranhas`;
+  if (elAquatic) elAquatic.innerText = `🐟 ${tambaquis} Tambaquis | 🎣 ${trairas} Traíras (Noturnas)`;
 
   const elReptiles = document.getElementById('statReptiles');
   if (elReptiles) elReptiles.innerText = `🐢 ${tortoises} Jabutis | 🐊 ${caimans} Jacarés`;

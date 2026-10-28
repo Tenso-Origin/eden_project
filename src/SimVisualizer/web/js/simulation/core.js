@@ -495,7 +495,7 @@ function initWorld() {
     });
   }
 
-  // 3. Fauna Aquática: 2 espécies de peixes (Tambaqui passivo e Piranha-vermelha agressiva)
+  // 3. Fauna Aquática: 2 espécies de peixes (Tambaqui passivo e Traíra de emboscada noturna)
   if (typeof AquaticSpecies !== 'undefined') {
     const aquatic = AquaticSpecies.createInitialAquatic(lakeCenterX, lakeCenterY, lakeBaseRadius);
     animals.push(...aquatic);

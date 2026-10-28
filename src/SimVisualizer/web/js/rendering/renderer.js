@@ -22,6 +22,7 @@ const SPECIES_VISUALS = {
 
   // Peixes do Lago
   'tambaqui':    { icon: '🐟', label: 'Tambaqui', color: '#34d399', bg: 'rgba(6, 40, 28, 0.88)', border: '#10b981', size: 12 },
+  'traira':      { icon: '🎣', label: 'Traíra', color: '#4ade80', bg: 'rgba(15, 38, 22, 0.92)', border: '#16a34a', size: 13 },
   'piranha':     { icon: '🦈', label: 'Piranha', color: '#f43f5e', bg: 'rgba(55, 10, 20, 0.92)', border: '#e11d48', size: 12 },
 
   // Répteis
@@ -395,7 +396,18 @@ function render() {
         ctx.stroke();
       }
 
-      // Piranha em Frenesi
+      // Traíra em Tocaia / Emboscada
+      if (a.isLurking) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 2.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(74, 222, 128, 0.75)';
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([2, 2]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      // Piranha / Predador em Frenesi
       if (a.frenzyTimer > 0) {
         ctx.beginPath();
         ctx.arc(px, py, badgeR + 3.0, 0, Math.PI * 2);

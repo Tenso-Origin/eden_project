@@ -128,7 +128,8 @@ public static class SpeciesCatalog
     public const ushort IdToucan = 31;      // Tucano-toco (Ramphastos toco) - Ave Frugívora/Passiva
     public const ushort IdCarcara = 32;     // Carcará (Caracara plancus) - Ave Predadora Oportunista
     public const ushort IdTambaqui = 40;    // Tambaqui (Colossoma macropomum) - Peixe Passivo/Frugívoro
-    public const ushort IdPiranha = 41;     // Piranha-vermelha (Pygocentrus nattereri) - Peixe Agressivo/Carnívoro
+        public const ushort IdTraira = 41;      // Traíra (Hoplias malabaricus) - Predador de Emboscada Noturna
+        public const ushort IdPiranha = 41;     // Alias mantido para compatibilidade
     public const ushort IdTortoise = 50;    // Jabuti-tinga (Chelonoidis denticulatus) - Réptil Passivo/Herbívoro
     public const ushort IdCaiman = 51;      // Jacaré-açu / Coroa (Melanosuchus niger) - Réptil Predador Semi-aquático
     public const ushort IdAnt = 60;         // Formiga-saúva (Atta sexdens) - Inseto Herbívoro Social
@@ -322,30 +323,31 @@ public static class SpeciesCatalog
         );
 
         // -------------------------------------------------------------------------
-        // 7. ESPÉCIE: Pygocentrus nattereri (Piranha-vermelha / Peixe Predador)
         // -------------------------------------------------------------------------
-        _speciesRegistry[IdPiranha] = new SpeciesDef(
-            id: IdPiranha,
+        // 7. ESPÉCIE: Hoplias malabaricus (Traíra / Predador Lacustre de Emboscada Noturna)
+        // -------------------------------------------------------------------------
+        _speciesRegistry[IdTraira] = new SpeciesDef(
+            id: IdTraira,
             guild: TrophicGuild.SecondaryConsumer,
             trophicLevel: 3,
-            massGrams: 1200f,
-            bmrWatts: 1.8f,
-            moveCost: 0.07f,
-            maxEnergy: 1300f,
+            massGrams: 2200f,
+            bmrWatts: 0.95f,           // Metabolismo basal econômico de espreita/tocaia
+            moveCost: 0.05f,
+            maxEnergy: 2400f,
             waterMl: 0f,
-            maxLifespan: 3650.0f,
-            maturityDays: 365.0f,
-            gestationDays: 7.0f,
-            litterSize: 30.0f,
-            reproCost: 140.0f,
+            maxLifespan: 4380.0f,      // ~12 anos
+            maturityDays: 450.0f,
+            gestationDays: 5.0f,
+            litterSize: 20.0f,
+            reproCost: 180.0f,
             femaleRatio: 0.50f,
-            postPartumCooldown: 90.0f,
-            estrusInterval: 180.0f,
-            estrusDuration: 8.0f,
-            minTemp: 20.0f,
-            maxTemp: 35.0f,
-            visualRadius: 28,
-            olfactoryRadius: 75
+            postPartumCooldown: 120.0f,
+            estrusInterval: 240.0f,
+            estrusDuration: 10.0f,
+            minTemp: 18.0f,
+            maxTemp: 34.0f,
+            visualRadius: 22,
+            olfactoryRadius: 65
         );
 
         // -------------------------------------------------------------------------
@@ -455,16 +457,16 @@ public static class SpeciesCatalog
             new TrophicInteraction(IdTambaqui, IdVegetation, 120.0f, 1.0f, 0.2f, 40.0f),
             new TrophicInteraction(IdTambaqui, IdGrain, 200.0f, 1.0f, 0.15f, 60.0f),
 
-            // Piranha preda Tambaqui jovem, Ratos na água e carcaças
-            new TrophicInteraction(IdPiranha, IdTambaqui, 850.0f, 0.70f, 0.6f, 80.0f),
-            new TrophicInteraction(IdPiranha, IdRat, 350.0f, 0.85f, 0.3f, 70.0f),
+        // Traíra preda Tambaqui jovem/adulto por emboscada e pequenos animais na água
+        new TrophicInteraction(IdTraira, IdTambaqui, 650.0f, 0.55f, 0.5f, 75.0f),
+        new TrophicInteraction(IdTraira, IdRat, 320.0f, 0.80f, 0.3f, 65.0f),
 
             // Jabuti consome Vegetação e Detritos orgânicos
             new TrophicInteraction(IdTortoise, IdVegetation, 85.0f, 1.0f, 0.4f, 50.0f),
 
             // Jacaré preda Peixes (Tambaqui, Piranha), Ratos e Gatos na margem
             new TrophicInteraction(IdCaiman, IdTambaqui, 3500.0f, 0.80f, 1.5f, 95.0f),
-            new TrophicInteraction(IdCaiman, IdPiranha, 950.0f, 0.65f, 0.8f, 65.0f),
+        new TrophicInteraction(IdCaiman, IdTraira, 950.0f, 0.65f, 0.8f, 65.0f),
             new TrophicInteraction(IdCaiman, IdRat, 450.0f, 0.90f, 0.3f, 50.0f),
             new TrophicInteraction(IdCaiman, IdCat, 2200.0f, 0.70f, 1.2f, 90.0f),
 

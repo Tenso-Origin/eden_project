@@ -5,14 +5,14 @@
 /**
  * Inicialização do casal monogâmico de harpias com ninho na samaúma
  */
-function createInitialHarpies(CHUNK_SIZE = 1024) {
-  const is1024 = (CHUNK_SIZE >= 1024);
-  const nestX = is1024 ? 870.0 : 435.0;
-  const nestY = is1024 ? 170.0 : 85.0;
-  const cx = is1024 ? 512.0 : 256.0;
-  const cy = is1024 ? 512.0 : 256.0;
-  const rMale = is1024 ? 280.0 : 140.0;
-  const rFemale = is1024 ? 320.0 : 165.0;
+function createInitialHarpies(CHUNK_SIZE = 2048) {
+  const is2048 = (CHUNK_SIZE >= 1500);
+  const nestX = is2048 ? 1680.0 : (CHUNK_SIZE >= 1024 ? 870.0 : 435.0);
+  const nestY = is2048 ? 180.0 : (CHUNK_SIZE >= 1024 ? 170.0 : 85.0);
+  const cx = is2048 ? 1024.0 : 512.0;
+  const cy = is2048 ? 512.0 : 512.0;
+  const rMale = is2048 ? 550.0 : 280.0;
+  const rFemale = is2048 ? 650.0 : 320.0;
 
   return [
     {
@@ -293,7 +293,9 @@ function stepHarpies(dt, ctx) {
       }
 
       const pX = Math.floor(prey.x), pY = Math.floor(prey.y);
-      const pIdx = ctx.getIdx(Math.max(0, Math.min(CHUNK_SIZE - 1, pX)), Math.max(0, Math.min(CHUNK_SIZE - 1, pY)));
+      const gridW = ctx.GRID_WIDTH || 2048;
+      const gridH = ctx.GRID_HEIGHT || 1024;
+      const pIdx = ctx.getIdx(Math.max(0, Math.min(gridW - 1, pX)), Math.max(0, Math.min(gridH - 1, pY)));
 
       // Se a presa alcançar refúgio, água, toca ou vegetação densa: aborta rasante!
       if (biomass[pIdx] > 55.0 || matId[pIdx] === MAT_WATER || surfaceWater[pIdx] > 0.15 || isProtectedInBurrowOrRefuge(prey) || prey.isDiving) {
@@ -371,6 +373,11 @@ function stepHarpies(dt, ctx) {
 }
 
 // Vinculação de escopo para ambiente browser
+var HarpySpecies = {
+  createInitialHarpies,
+  stepHarpies
+};
+
 if (typeof window !== 'undefined') {
   window.HarpySpecies = {
     createInitialHarpies,

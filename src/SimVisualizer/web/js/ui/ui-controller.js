@@ -2,30 +2,32 @@
 // MÓDULO UI: CONTROLE DE CÂMERA, INTERAÇÃO, INSPEÇÃO E TELEMETRIA
 // =========================================================================
 
-const MIN_ZOOM = 0.40;
+const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 8.0;
 
 function clampPan() {
-  const center = CHUNK_SIZE / 2.0;
-  if (zoomLevel <= 1.0) {
-    panX = center;
-    panY = center;
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+  if (zoomLevel <= 0.50) {
+    panX = gw / 2.0;
+    panY = gh / 2.0;
   } else {
-    const halfW = center / zoomLevel;
-    const halfH = center / zoomLevel;
-    panX = Math.max(halfW, Math.min(CHUNK_SIZE - halfW, panX));
-    panY = Math.max(halfH, Math.min(CHUNK_SIZE - halfH, panY));
+    const halfW = (gw / 2) / zoomLevel;
+    const halfH = (gh / 2) / zoomLevel;
+    panX = Math.max(halfW, Math.min(gw - halfW, panX));
+    panY = Math.max(halfH, Math.min(gh - halfH, panY));
   }
 }
 
 function setZoom(newZoom, centerX = panX, centerY = panY) {
   const oldZoom = zoomLevel;
   zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newZoom));
-  const center = CHUNK_SIZE / 2.0;
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
 
-  if (zoomLevel <= 1.0) {
-    panX = center;
-    panY = center;
+  if (zoomLevel <= 0.50) {
+    panX = gw / 2.0;
+    panY = gh / 2.0;
   } else if (oldZoom !== zoomLevel) {
     panX = centerX;
     panY = centerY;
@@ -33,7 +35,7 @@ function setZoom(newZoom, centerX = panX, centerY = panY) {
   }
 
   const lbl = document.getElementById('lblZoomLevel');
-  if (lbl) lbl.innerText = `${zoomLevel.toFixed(1)}x`;
+  if (lbl) lbl.innerText = `${zoomLevel.toFixed(2)}x`;
   render();
 }
 
@@ -48,34 +50,36 @@ function movePan(dx, dy) {
 }
 
 function resetCamera() {
-  zoomLevel = 1.0;
-  panX = CHUNK_SIZE / 2.0;
-  panY = CHUNK_SIZE / 2.0;
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+  zoomLevel = 0.50; // Inicia em visão panorâmica 2048x1024
+  panX = gw / 2.0;
+  panY = gh / 2.0;
   const lbl = document.getElementById('lblZoomLevel');
-  if (lbl) lbl.innerText = `1.0x`;
+  if (lbl) lbl.innerText = `0.50x`;
   render();
 }
 
 function getCanvasCoordinates(clientX, clientY) {
   const canvasElem = document.getElementById('viewportCanvas');
   const rect = canvasElem.getBoundingClientRect();
-  const size = Math.min(rect.width, rect.height);
-  const offsetX = (rect.width - size) / 2;
-  const offsetY = (rect.height - size) / 2;
-
-  const canvasX = (clientX - rect.left - offsetX) * (canvasElem.width / size);
-  const canvasY = (clientY - rect.top - offsetY) * (canvasElem.height / size);
+  const scaleX = canvasElem.width / rect.width;
+  const scaleY = canvasElem.height / rect.height;
+  const canvasX = (clientX - rect.left) * scaleX;
+  const canvasY = (clientY - rect.top) * scaleY;
   return { canvasX, canvasY };
 }
 
 function screenToWorld(clientX, clientY) {
   const canvasElem = document.getElementById('viewportCanvas');
   const { canvasX, canvasY } = getCanvasCoordinates(clientX, clientY);
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
   const wx = (canvasX - canvasElem.width / 2) / zoomLevel + panX;
   const wy = (canvasY - canvasElem.height / 2) / zoomLevel + panY;
   return {
-    x: Math.max(0, Math.min(CHUNK_SIZE - 1, Math.floor(wx))),
-    y: Math.max(0, Math.min(CHUNK_SIZE - 1, Math.floor(wy)))
+    x: Math.max(0, Math.min(gw - 1, Math.floor(wx))),
+    y: Math.max(0, Math.min(gh - 1, Math.floor(wy)))
   };
 }
 
@@ -83,7 +87,9 @@ var lastInspectedX = 512;
 var lastInspectedY = 512;
 
 function inspectCell(x, y) {
-  if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= CHUNK_SIZE) return;
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+  if (x < 0 || x >= gw || y < 0 || y >= gh) return;
   lastInspectedX = x;
   lastInspectedY = y;
   const idx = getIdx(x, y);
@@ -178,7 +184,7 @@ function handleCanvasInteraction(e) {
     for (let dy = -6; dy <= 6; dy++) {
       for (let dx = -6; dx <= 6; dx++) {
         const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
+        if (nx >= 0 && nx < GRID_WIDTH && ny >= 0 && ny < GRID_HEIGHT) {
           surfaceWater[getIdx(nx, ny)] += 5.0;
         }
       }
@@ -269,7 +275,7 @@ function handleCanvasInteraction(e) {
     for (let dy = -4; dy <= 4; dy++) {
       for (let dx = -4; dx <= 4; dx++) {
         const nx = x + dx, ny = y + dy;
-        if (nx >= 0 && nx < CHUNK_SIZE && ny >= 0 && ny < CHUNK_SIZE) {
+        if (nx >= 0 && nx < GRID_WIDTH && ny >= 0 && ny < GRID_HEIGHT) {
           biomass[getIdx(nx, ny)] = Math.min(100, biomass[getIdx(nx, ny)] + 50);
         }
       }
@@ -295,7 +301,12 @@ function updateStats() {
   const elDateBadge = document.getElementById('dateBadge');
   if (elDateBadge) elDateBadge.innerText = `📅 ${simDate.fullStr}`;
   const elStatDate = document.getElementById('statDate');
-  if (elStatDate) elStatDate.innerText = simDate.fullStr;
+  if (elStatDate) {
+    const floodTxt = (weather && weather.floodPulseLevel != null) ? `+${weather.floodPulseLevel.toFixed(2)}m` : '0.00m';
+    const windDir = (weather && weather.speedX < 0) ? 'Leste -> Oeste (Alísios)' : 'Oeste -> Leste';
+    const windSpd = (weather && weather.windSpeedKmH) ? weather.windSpeedKmH.toFixed(0) : '15';
+    elStatDate.innerHTML = `${simDate.fullStr}<br><span style="color:#38bdf8; font-size:0.80rem;">🌊 Pulso Fluvial: ${floodTxt} | 💨 ${windDir} (${windSpd} km/h)</span>`;
+  }
 
   const hrs = Math.floor(timeOfDay);
   const mins = Math.floor((timeOfDay - hrs) * 60);
@@ -437,7 +448,7 @@ function updateStats() {
   }
   const elAbyss = document.getElementById('statAbyss');
   if (elAbyss) {
-    const minElev = (currentScenario === 'amazon') ? elevation[getIdx(512, 512)] : elevation[getIdx(CHUNK_SIZE - 20, CHUNK_SIZE - 20)];
+    const minElev = (currentScenario === 'amazon') ? elevation[getIdx(2000, 512)] : elevation[getIdx(GRID_WIDTH - 20, GRID_HEIGHT - 20)];
     elAbyss.innerText = minElev.toFixed(1) + " m";
   }
 

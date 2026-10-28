@@ -1,22 +1,47 @@
 // =========================================================================
-// MÓDULO DE ESPÉCIES AQUÁTICAS: TAMBAQUI E TRAÍRA (COM REPRODUÇÃO REAL)
+// MÓDULO DE ESPÉCIES AQUÁTICAS: TAMBAQUI E TRAÍRA (BACIA FLUVIAL AMAZÔNICA)
 // =========================================================================
 
 /**
- * Criação da fauna aquática inicial do lago
- * Calibração Lotka-Volterra: Alta proporção de presas (Tambaquis) para poucos predadores de emboscada (Traíras).
+ * Criação da fauna aquática inicial distribuída na rede fluvial e lagos de meandro
  */
-function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadius = 100.0) {
+function createInitialAquatic(oxbowLakes, gridWidth = 2048, gridHeight = 1024) {
   const aquaticList = [];
-  const TAMBAQUI_COUNT = 65; // População base sólida de peixes frugívoros/herbívoros
-  const TRAIRA_COUNT = 8;    // Predadores solitários noturnos em baixa densidade (~8:1)
+  const TAMBAQUI_COUNT = 75; // Cardumes de tambaquis ao longo de toda a bacia fluvial
+  const TRAIRA_COUNT = 14;   // Predadores solitários territoriais de emboscada
 
-  // 1. Tambaquis (Colossoma macropomum) - Herbívoros/Frugívoros pacíficos em cardume
+  // Função auxiliar para obter pontos de desova fluviais válidos
+  function getRandomAquaticSpawn(preferLakes = false) {
+    if (preferLakes && oxbowLakes && oxbowLakes.length > 0 && Math.random() < 0.65) {
+      // Lago de ferradura
+      const lake = oxbowLakes[Math.floor(Math.random() * oxbowLakes.length)];
+      const ang = lake.startAng + Math.random() * (lake.endAng - lake.startAng);
+      const rad = lake.r + (Math.random() - 0.5) * (lake.width * 0.7);
+      return {
+        x: Math.max(10, Math.min(gridWidth - 10, lake.cx + Math.cos(ang) * rad)),
+        y: Math.max(10, Math.min(gridHeight - 10, lake.cy + Math.sin(ang) * rad))
+      };
+    } else {
+      // Calha do rio principal ou afluente
+      const rx = 100 + Math.random() * (gridWidth - 200);
+      let ry = 0;
+      if (typeof getRiverTributaryY === 'function' && rx < 1200 && Math.random() < 0.35) {
+        ry = getRiverTributaryY(rx) + (Math.random() - 0.5) * 16.0;
+      } else if (typeof getRiverMainY === 'function') {
+        ry = getRiverMainY(rx) + (Math.random() - 0.5) * 24.0;
+      } else {
+        ry = 512.0 + Math.sin(rx * 0.003) * 150.0;
+      }
+      return {
+        x: Math.max(10, Math.min(gridWidth - 10, rx)),
+        y: Math.max(10, Math.min(gridHeight - 10, ry))
+      };
+    }
+  }
+
+  // 1. Tambaquis (Colossoma macropomum) - Herbívoros/Frugívoros da calha dos rios e várzeas
   for (let i = 0; i < TAMBAQUI_COUNT; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const r = Math.random() * (lakeRadius * 0.82);
-    const x = lakeCenterX + Math.cos(angle) * r;
-    const y = lakeCenterY + Math.sin(angle) * r;
+    const pt = getRandomAquaticSpawn(false);
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.25);
     const gestationDays = 10.0;
@@ -28,12 +53,12 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
       diet: 'herbivore',
       name: 'Tambaqui da Amazônia',
       sex: sex,
-      x: x,
-      y: y,
+      x: pt.x,
+      y: pt.y,
       hp: 100,
       maxHp: 100,
       hunger: 5.0 + Math.random() * 15.0,
-      speed: 2.2,
+      speed: 2.3,
       attackPower: 4.0,
       defensePower: 8.0,
       ageInDays: 300.0 + Math.random() * 400.0,
@@ -49,16 +74,13 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
       estrusDurationRemaining: (!isPregnantInit && sex === 'female' && Math.random() < 0.3) ? (Math.random() * 4.0) : 0.0,
 
       fearTimer: 0.0,
-      wanderAngle: angle + Math.PI / 2
+      wanderAngle: Math.random() * Math.PI * 2
     });
   }
 
-  // 2. Traíras (Hoplias malabaricus) - Predadores carnívoros solitários de emboscada noturna
+  // 2. Traíras (Hoplias malabaricus) - Predadores de emboscada em remansos e lagos de ferradura
   for (let i = 0; i < TRAIRA_COUNT; i++) {
-    const angle = (i / TRAIRA_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-    const r = lakeRadius * (0.35 + Math.random() * 0.50);
-    const x = lakeCenterX + Math.cos(angle) * r;
-    const y = lakeCenterY + Math.sin(angle) * r;
+    const pt = getRandomAquaticSpawn(true);
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
     const gestationDays = 6.0;
@@ -70,8 +92,8 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
       diet: 'carnivore',
       name: 'Traíra da Amazônia',
       sex: sex,
-      x: x,
-      y: y,
+      x: pt.x,
+      y: pt.y,
       hp: 120,
       maxHp: 120,
       hunger: 5.0 + Math.random() * 15.0,
@@ -93,7 +115,7 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
 
       isLurking: true,
       lungeCooldown: 0.0,
-      wanderAngle: angle
+      wanderAngle: Math.random() * Math.PI * 2
     });
   }
 
@@ -101,24 +123,25 @@ function createInitialAquatic(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadi
 }
 
 /**
- * Atualização comportamental do Tambaqui (Forrageamento, natação em cardume, fuga e desova)
+ * Função utilitária que detecta se uma coordenada tem água navegável para peixes
+ */
+function isNavigableWater(x, y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER) {
+  if (x < 2 || x >= gridW - 2 || y < 2 || y >= gridH - 2) return false;
+  const idx = getIdx(Math.floor(x), Math.floor(y));
+  return (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.35);
+}
+
+/**
+ * Atualização comportamental do Tambaqui na rede fluvial
  */
 function updateTambaquiBehavior(a, dt, ctx) {
-  const { animals, lakeCenterX, lakeCenterY, lakeRadius, getIdx, grains, biomass, weather } = ctx;
+  const { animals, matId, surfaceWater, getIdx, grains, biomass, weather, MAT_WATER, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
-  // 1. Manutenção de confinamento rigoroso no lago
-  const dToCenter = Math.hypot(a.x - lakeCenterX, a.y - lakeCenterY);
-  if (dToCenter > lakeRadius * 0.88) {
-    const toCX = (lakeCenterX - a.x) / dToCenter;
-    const toCY = (lakeCenterY - a.y) / dToCenter;
-    targetX = a.x + toCX * 8.0;
-    targetY = a.y + toCY * 8.0;
-    return { targetX, targetY };
-  }
-
-  // 2. Fuga de predadores (Traíras ativas e Jacarés)
+  // 1. Fuga de ameaças aquáticas (Traíras ativas e Jacarés)
   if (a.fearTimer > 0) a.fearTimer -= dt;
   let closestThreat = null;
   let minDist = 18.0;
@@ -147,12 +170,14 @@ function updateTambaquiBehavior(a, dt, ctx) {
     const escapeX = a.x - closestThreat.x;
     const escapeY = a.y - closestThreat.y;
     const escDist = Math.hypot(escapeX, escapeY) || 1.0;
-    targetX = a.x + (escapeX / escDist) * 11.0;
-    targetY = a.y + (escapeY / escDist) * 11.0;
-    return { targetX, targetY };
+    const testEscX = a.x + (escapeX / escDist) * 8.0;
+    const testEscY = a.y + (escapeY / escDist) * 8.0;
+    if (isNavigableWater(testEscX, testEscY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      return { targetX: testEscX, targetY: testEscY };
+    }
   }
 
-  // 3. Cortejo e Desova Fértil (Acasalamento de Tambaquis)
+  // 2. Cortejo e Desova Fértil
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && a.hp > 50 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -160,7 +185,7 @@ function updateTambaquiBehavior(a, dt, ctx) {
 
   if (isReadyToMate) {
     let closestMate = null;
-    let mateDist = 28.0;
+    let mateDist = 32.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'tambaqui') continue;
@@ -196,8 +221,8 @@ function updateTambaquiBehavior(a, dt, ctx) {
     }
   }
 
-  // 4. Forrageamento: Sementes, frutos e biomassa aquática
-  if (a.hunger > 20.0) {
+  // 3. Forrageamento: Sementes caídas, frutos e macrófitas na várzea alagada
+  if (a.hunger > 18.0) {
     const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
     if (grains && grains[curIdx] > 1.0) {
       const bite = Math.min(grains[curIdx], 5.0 * dt);
@@ -210,65 +235,43 @@ function updateTambaquiBehavior(a, dt, ctx) {
     }
   }
 
-  // 5. Dinâmica de cardume (Schooling)
-  let avgX = 0, avgY = 0, neighborCount = 0;
-  for (let j = 0; j < animals.length; j++) {
-    const peer = animals[j];
-    if (peer !== a && peer.species === 'tambaqui' && peer.hp > 0) {
-      const d = Math.hypot(peer.x - a.x, peer.y - a.y);
-      if (d < 16.0 && d > 2.0) {
-        avgX += peer.x;
-        avgY += peer.y;
-        neighborCount++;
-      }
+  // 4. Navegação fluvial contínua: testa células à frente e curva suavemente se terra firme
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const testAngle = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.4 : -attempt * 0.4));
+    const nextX = a.x + Math.cos(testAngle) * 3.5;
+    const nextY = a.y + Math.sin(testAngle) * 3.5;
+
+    if (isNavigableWater(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      a.wanderAngle = testAngle + (Math.random() - 0.5) * 0.25 * dt;
+      targetX = nextX;
+      targetY = nextY;
+      return { targetX, targetY };
     }
   }
 
-  if (neighborCount > 0) {
-    avgX /= neighborCount;
-    avgY /= neighborCount;
-    const pullX = (avgX - a.x) * 0.08;
-    const pullY = (avgY - a.y) * 0.08;
-    a.wanderAngle += (Math.random() - 0.5) * 0.3 * dt;
-    targetX = a.x + Math.cos(a.wanderAngle) * 3.5 + pullX;
-    targetY = a.y + Math.sin(a.wanderAngle) * 3.5 + pullY;
-  } else {
-    a.wanderAngle += (Math.random() - 0.5) * 0.4 * dt;
-    targetX = a.x + Math.cos(a.wanderAngle) * 3.5;
-    targetY = a.y + Math.sin(a.wanderAngle) * 3.5;
-  }
-
+  // Se preso perto da margem, inverte rumo
+  a.wanderAngle += Math.PI * 0.8;
+  targetX = a.x + Math.cos(a.wanderAngle) * 2.0;
+  targetY = a.y + Math.sin(a.wanderAngle) * 2.0;
   return { targetX, targetY };
 }
 
 /**
- * Atualização comportamental da Traíra (Hoplias malabaricus):
- * Tocaia diurna, caça por emboscada noturna e reprodução territorial em ninhos aquáticos.
+ * Atualização comportamental da Traíra na rede fluvial
  */
 function updateTrairaBehavior(a, dt, ctx) {
-  const { animals, lakeCenterX, lakeCenterY, lakeRadius, weather, applyDeathDecomposition, onPredationSuccess } = ctx;
+  const { animals, matId, surfaceWater, getIdx, weather, applyDeathDecomposition, onPredationSuccess, MAT_WATER, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
-  // 1. Manutenção no lago
-  const dToCenter = Math.hypot(a.x - lakeCenterX, a.y - lakeCenterY);
-  if (dToCenter > lakeRadius * 0.90) {
-    const toCX = (lakeCenterX - a.x) / dToCenter;
-    const toCY = (lakeCenterY - a.y) / dToCenter;
-    targetX = a.x + toCX * 8.0;
-    targetY = a.y + toCY * 8.0;
-    return { targetX, targetY };
-  }
-
-  // 2. Determinação de ciclo circadiano (Dia vs Noite)
   const timeOfDay = (weather && weather.timeOfDay != null) ? weather.timeOfDay : 12.0;
   const isNight = (timeOfDay < 6.0 || timeOfDay > 18.0);
 
-  if (a.lungeCooldown > 0) {
-    a.lungeCooldown = Math.max(0, a.lungeCooldown - dt);
-  }
+  if (a.lungeCooldown > 0) a.lungeCooldown = Math.max(0, a.lungeCooldown - dt);
 
-  // 3. Cortejo Reprodutivo e Cópula Territorial (Ocorre principalmente no crepúsculo/noite)
+  // 1. Cortejo territorial no crepúsculo/noite
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 50.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -276,7 +279,7 @@ function updateTrairaBehavior(a, dt, ctx) {
 
   if (isReadyToMate && animals.filter(x => x.species === 'traira').length < 20) {
     let closestMate = null;
-    let mateDist = 35.0;
+    let mateDist = 40.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'traira') continue;
@@ -312,16 +315,16 @@ function updateTrairaBehavior(a, dt, ctx) {
     }
   }
 
-  // 4. Estado Diurno: Tocaia e Camuflagem no fundo/vegetação
+  // 2. Estado Diurno: Tocaia e Camuflagem no fundo/vegetação
   if (!isNight) {
     a.isLurking = true;
     let opportunisticPrey = null;
-    let minDist = 6.0;
+    let minDist = 7.0;
 
     for (let j = 0; j < animals.length; j++) {
       const p = animals[j];
       if (p === a || p.hp <= 0) continue;
-      if (p.species === 'tambaqui' || (p.species === 'rat' && Math.hypot(p.x - lakeCenterX, p.y - lakeCenterY) < lakeRadius * 0.92) || p.species === 'giant_water_bug') {
+      if (p.species === 'tambaqui' || p.species === 'rat' || p.species === 'dragonfly') {
         const d = Math.hypot(p.x - a.x, p.y - a.y);
         if (d < minDist) {
           minDist = d;
@@ -351,26 +354,27 @@ function updateTrairaBehavior(a, dt, ctx) {
       return { targetX, targetY };
     }
 
+    // De dia quase estacionária
     a.wanderAngle += (Math.random() - 0.5) * 0.1 * dt;
-    targetX = a.x + Math.cos(a.wanderAngle) * 0.3;
-    targetY = a.y + Math.sin(a.wanderAngle) * 0.3;
+    targetX = a.x + Math.cos(a.wanderAngle) * 0.25;
+    targetY = a.y + Math.sin(a.wanderAngle) * 0.25;
     return { targetX, targetY };
   }
 
-  // 5. Estado Noturno: Caçador Ativo por Emboscada
+  // 3. Estado Noturno: Caçador Ativo por Emboscada
   a.isLurking = false;
   let bestPrey = null;
   let bestScore = -999;
-  const detectionRadius = (a.hunger > 35.0) ? 26.0 : 16.0;
+  const detectionRadius = (a.hunger > 35.0) ? 28.0 : 18.0;
 
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
     if (prey === a || prey.hp <= 0) continue;
 
-    const isAquatic = (prey.species === 'tambaqui' || prey.species === 'giant_water_bug');
-    const isTerrestrialInWater = (prey.species === 'rat' && Math.hypot(prey.x - lakeCenterX, prey.y - lakeCenterY) < lakeRadius * 0.92);
+    const isAquatic = (prey.species === 'tambaqui' || prey.species === 'dragonfly');
+    const isVulnerable = (prey.species === 'rat' && isNavigableWater(prey.x, prey.y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER));
 
-    if (!isAquatic && !isTerrestrialInWater) continue;
+    if (!isAquatic && !isVulnerable) continue;
 
     const d = Math.hypot(prey.x - a.x, prey.y - a.y);
     if (d <= detectionRadius) {
@@ -383,12 +387,10 @@ function updateTrairaBehavior(a, dt, ctx) {
     }
   }
 
-  // 6. Ataque e Perseguição Curta
   if (bestPrey && a.hunger > 12.0) {
     const dirX = bestPrey.x - a.x;
     const dirY = bestPrey.y - a.y;
     const dist = Math.hypot(dirX, dirY) || 1.0;
-
     targetX = bestPrey.x;
     targetY = bestPrey.y;
 
@@ -407,28 +409,26 @@ function updateTrairaBehavior(a, dt, ctx) {
       targetX = a.x + (dirX / dist) * rush * 1.5;
       targetY = a.y + (dirY / dist) * rush * 1.5;
     }
-
     return { targetX, targetY };
   }
 
-  // 7. Patrulha noturna territorial
-  let repX = 0, repY = 0;
-  for (let j = 0; j < animals.length; j++) {
-    const peer = animals[j];
-    if (peer !== a && peer.species === 'traira' && peer.hp > 0) {
-      const d = Math.hypot(peer.x - a.x, peer.y - a.y);
-      if (d < 25.0 && d > 0.1) {
-        repX += (a.x - peer.x) / d;
-        repY += (a.y - peer.y) / d;
-      }
+  // 4. Patrulha territorial aquática
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const testAngle = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.4 : -attempt * 0.4));
+    const nextX = a.x + Math.cos(testAngle) * 2.2;
+    const nextY = a.y + Math.sin(testAngle) * 2.2;
+
+    if (isNavigableWater(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      a.wanderAngle = testAngle + (Math.random() - 0.5) * 0.3 * dt;
+      targetX = nextX;
+      targetY = nextY;
+      return { targetX, targetY };
     }
   }
 
-  a.wanderAngle += (Math.random() - 0.5) * 0.5 * dt;
-  const patrolSpeed = 2.0;
-  targetX = a.x + Math.cos(a.wanderAngle) * patrolSpeed + repX * 1.2;
-  targetY = a.y + Math.sin(a.wanderAngle) * patrolSpeed + repY * 1.2;
-
+  a.wanderAngle += Math.PI * 0.7;
+  targetX = a.x + Math.cos(a.wanderAngle) * 1.5;
+  targetY = a.y + Math.sin(a.wanderAngle) * 1.5;
   return { targetX, targetY };
 }
 

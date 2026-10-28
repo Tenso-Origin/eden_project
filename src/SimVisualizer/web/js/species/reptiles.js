@@ -1,21 +1,27 @@
 // =========================================================================
-// MÓDULO DE RÉPTEIS: JABUTI-TINGA (HERBÍVORO) E JACARÉ-AÇU (COM REPRODUÇÃO REAL)
+// MÓDULO DE RÉPTEIS: JABUTI-TINGA E JACARÉ-AÇU (BACIA AMAZÔNICA 2048x1024)
 // =========================================================================
 
 /**
- * Criação da população de répteis
+ * Criação da população de répteis distribuída por habitat real
  */
-function createInitialReptiles(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRadius = 100.0) {
+function createInitialReptiles(oxbowLakes, gridWidth = 2048, gridHeight = 1024) {
   const reptileList = [];
-  const TORTOISE_COUNT = 18;
-  const CAIMAN_COUNT = 8;
+  const TORTOISE_COUNT = 24; // Jabutis em platôs de terra firme
+  const CAIMAN_COUNT = 14;   // Jacarés nas praias e meandros fluviais
 
-  // 1. Jabuti-tinga (Chelonoidis denticulatus) - Terrestre lento com carapaça
+  // 1. Jabuti-tinga (Chelonoidis denticulatus) - Platôs de Terra Firme elevados
   for (let i = 0; i < TORTOISE_COUNT; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const distFromCenter = lakeRadius + 60.0 + Math.random() * 260.0;
-    const x = Math.max(30, Math.min(1024 - 30, lakeCenterX + Math.cos(angle) * distFromCenter));
-    const y = Math.max(30, Math.min(1024 - 30, lakeCenterY + Math.sin(angle) * distFromCenter));
+    // Escolhe pontos distantes do rio em terra firme
+    let x = 100 + Math.random() * (gridWidth - 200);
+    let y = 80 + Math.random() * (gridHeight - 160);
+    if (typeof isPointInWaterBody === 'function') {
+      while (isPointInWaterBody(x, y)) {
+        x = 100 + Math.random() * (gridWidth - 200);
+        y = 80 + Math.random() * (gridHeight - 160);
+      }
+    }
+
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
     const gestationDays = 40.0;
@@ -54,12 +60,25 @@ function createInitialReptiles(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRad
     });
   }
 
-  // 2. Jacaré-açu (Melanosuchus niger) - Predador semi-aquático de topo
+  // 2. Jacaré-açu (Melanosuchus niger) - Praias dos meandros e remansos
   for (let i = 0; i < CAIMAN_COUNT; i++) {
-    const angle = (i / CAIMAN_COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-    const distFromCenter = lakeRadius * (0.85 + Math.random() * 0.25);
-    const x = lakeCenterX + Math.cos(angle) * distFromCenter;
-    const y = lakeCenterY + Math.sin(angle) * distFromCenter;
+    // Posiciona em praias fluviais ou margens de lagos de ferradura
+    let x, y;
+    if (oxbowLakes && oxbowLakes.length > 0 && Math.random() < 0.50) {
+      const lake = oxbowLakes[Math.floor(Math.random() * oxbowLakes.length)];
+      const ang = lake.startAng + Math.random() * (lake.endAng - lake.startAng);
+      const rad = lake.r + lake.width * 1.1; // Na praia ao lado do lago
+      x = lake.cx + Math.cos(ang) * rad;
+      y = lake.cy + Math.sin(ang) * rad;
+    } else {
+      x = 150 + Math.random() * (gridWidth - 300);
+      const yRiver = (typeof getRiverMainY === 'function') ? getRiverMainY(x) : 512.0;
+      y = yRiver + (Math.random() < 0.5 ? 35 : -35);
+    }
+
+    x = Math.max(20, Math.min(gridWidth - 20, x));
+    y = Math.max(20, Math.min(gridHeight - 20, y));
+
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
     const gestationDays = 45.0;
@@ -96,7 +115,7 @@ function createInitialReptiles(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRad
       estrusCycleTimer: isPregnantInit ? gestationRem : (Math.random() * 90.0),
       estrusDurationRemaining: (!isPregnantInit && sex === 'female' && Math.random() < 0.20) ? (Math.random() * 10.0) : 0.0,
 
-      wanderAngle: angle
+      wanderAngle: Math.random() * Math.PI * 2
     });
   }
 
@@ -104,14 +123,16 @@ function createInitialReptiles(lakeCenterX = 512.0, lakeCenterY = 512.0, lakeRad
 }
 
 /**
- * Atualização comportamental do Jabuti-tinga (Forrageamento lento, retração na carapaça e cortejo)
+ * Atualização comportamental do Jabuti-tinga
  */
 function updateTortoiseBehavior(a, dt, ctx) {
-  const { animals, biomass, getIdx, matId, MAT_WATER, temp, CHUNK_SIZE } = ctx;
+  const { animals, biomass, getIdx, matId, surfaceWater, MAT_WATER, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
-  // 1. Defesa Passiva: Retração na Carapaça se predador perigoso próximo (< 8.0m)
+  // 1. Defesa Passiva: Retração na Carapaça se ameaçado
   if (a.retractedTimer > 0) {
     a.retractedTimer -= dt;
     a.isRetracted = true;
@@ -133,7 +154,7 @@ function updateTortoiseBehavior(a, dt, ctx) {
     }
   }
 
-  // 2. Cortejo e Acasalamento de Jabutis
+  // 2. Cortejo e Acasalamento
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -141,7 +162,7 @@ function updateTortoiseBehavior(a, dt, ctx) {
 
   if (isReadyToMate && animals.filter(x => x.species === 'tortoise').length < 45) {
     let closestMate = null;
-    let mateDist = 40.0;
+    let mateDist = 45.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'tortoise') continue;
@@ -164,20 +185,13 @@ function updateTortoiseBehavior(a, dt, ctx) {
         const male = (a.sex === 'male') ? a : closestMate;
         if (typeof SpeciesReproduction !== 'undefined') {
           SpeciesReproduction.tryMatePair(female, male);
-        } else {
-          female.isPregnant = true;
-          female.daysPregnant = 0.0;
-          female.gestationRemaining = 40.0;
-          female.litterSize = 3 + Math.floor(Math.random() * 4);
-          female.matingCooldown = 120.0;
-          male.matingCooldown = 40.0;
         }
       }
       return { targetX, targetY };
     }
   }
 
-  // 3. Forrageamento de Vegetação Rasteira e Fungos
+  // 3. Forrageamento de Vegetação Rasteira
   if (a.hunger > 15.0) {
     const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
     if (biomass && biomass[curIdx] > 5.0) {
@@ -187,25 +201,41 @@ function updateTortoiseBehavior(a, dt, ctx) {
     }
   }
 
-  // 4. Locomoção lenta e segura em terra firme
-  a.wanderAngle += (Math.random() - 0.5) * 0.25 * dt;
-  targetX = Math.max(15, Math.min(CHUNK_SIZE - 15, a.x + Math.cos(a.wanderAngle) * (a.speed * 1.5)));
-  targetY = Math.max(15, Math.min(CHUNK_SIZE - 15, a.y + Math.sin(a.wanderAngle) * (a.speed * 1.5)));
+  // 4. Locomoção em terra firme (evita entrar na água funda)
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const testAng = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.45 : -attempt * 0.45));
+    const nextX = Math.max(15, Math.min(gridW - 15, a.x + Math.cos(testAng) * (a.speed * 1.5)));
+    const nextY = Math.max(15, Math.min(gridH - 15, a.y + Math.sin(testAng) * (a.speed * 1.5)));
+    const nIdx = getIdx(Math.floor(nextX), Math.floor(nextY));
 
+    // Jabuti não nada em água funda
+    if (matId[nIdx] !== MAT_WATER && (!surfaceWater || surfaceWater[nIdx] < 0.35)) {
+      a.wanderAngle = testAng + (Math.random() - 0.5) * 0.2 * dt;
+      targetX = nextX;
+      targetY = nextY;
+      return { targetX, targetY };
+    }
+  }
+
+  a.wanderAngle += Math.PI * 0.8;
+  targetX = Math.max(15, Math.min(gridW - 15, a.x + Math.cos(a.wanderAngle) * 1.0));
+  targetY = Math.max(15, Math.min(gridH - 15, a.y + Math.sin(a.wanderAngle) * 1.0));
   return { targetX, targetY };
 }
 
 /**
- * Atualização comportamental do Jacaré-açu (Basking, emboscada na margem e acasalamento)
+ * Atualização comportamental do Jacaré-açu
  */
 function updateCaimanBehavior(a, dt, ctx) {
-  const { animals, lakeCenterX, lakeCenterY, lakeRadius, getIdx, matId, MAT_WATER, applyDeathDecomposition, onPredationSuccess } = ctx;
+  const { animals, getIdx, matId, surfaceWater, applyDeathDecomposition, onPredationSuccess, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
   if (a.lungeCooldown > 0) a.lungeCooldown -= dt;
 
-  // 1. Termorregulação (Banho de Sol / Basking na Praia se bem alimentado)
+  // 1. Termorregulação (Banho de Sol na Praia)
   if (a.hunger < 25.0 && a.baskingTimer <= 0 && Math.random() < 0.005) {
     a.isBasking = true;
     a.baskingTimer = 15.0 + Math.random() * 20.0;
@@ -217,7 +247,7 @@ function updateCaimanBehavior(a, dt, ctx) {
     return { targetX: a.x, targetY: a.y };
   }
 
-  // 2. Cortejo Reprodutivo de Jacarés na Margem
+  // 2. Cortejo Reprodutivo
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -225,7 +255,7 @@ function updateCaimanBehavior(a, dt, ctx) {
 
   if (isReadyToMate && animals.filter(x => x.species === 'caiman').length < 18) {
     let closestMate = null;
-    let mateDist = 50.0;
+    let mateDist = 60.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'caiman') continue;
@@ -248,22 +278,15 @@ function updateCaimanBehavior(a, dt, ctx) {
         const male = (a.sex === 'male') ? a : closestMate;
         if (typeof SpeciesReproduction !== 'undefined') {
           SpeciesReproduction.tryMatePair(female, male);
-        } else {
-          female.isPregnant = true;
-          female.daysPregnant = 0.0;
-          female.gestationRemaining = 45.0;
-          female.litterSize = 3 + Math.floor(Math.random() * 3);
-          female.matingCooldown = 150.0;
-          male.matingCooldown = 50.0;
         }
       }
       return { targetX, targetY };
     }
   }
 
-  // 3. Detecção de presas próximas (Tambaqui, Traíra, Rato, Gato)
+  // 3. Detecção de presas fluviais e marginais
   let targetPrey = null;
-  let minDist = 25.0;
+  let minDist = 28.0;
 
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
@@ -276,7 +299,7 @@ function updateCaimanBehavior(a, dt, ctx) {
     }
   }
 
-  // 4. Execução do Bote de Emboscada (Lunge)
+  // 4. Execução do Bote de Emboscada
   if (targetPrey && a.hunger > 18.0) {
     const dirX = targetPrey.x - a.x;
     const dirY = targetPrey.y - a.y;
@@ -300,11 +323,10 @@ function updateCaimanBehavior(a, dt, ctx) {
     }
   }
 
-  // 5. Patrulha anfíbia suave entre o lago e a praia
+  // 5. Patrulha anfíbia suave entre o leito do rio e as praias
   a.wanderAngle += (Math.random() - 0.5) * 0.4 * dt;
-  const targetDist = lakeRadius * (0.92 + Math.sin(a.wanderAngle) * 0.12);
-  targetX = lakeCenterX + Math.cos(a.wanderAngle) * targetDist;
-  targetY = lakeCenterY + Math.sin(a.wanderAngle) * targetDist;
+  targetX = Math.max(20, Math.min(gridW - 20, a.x + Math.cos(a.wanderAngle) * (a.speed * 1.5)));
+  targetY = Math.max(20, Math.min(gridH - 20, a.y + Math.sin(a.wanderAngle) * (a.speed * 1.5)));
 
   return { targetX, targetY };
 }

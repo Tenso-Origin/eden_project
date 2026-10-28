@@ -48,15 +48,19 @@ const SPECIES_VISUALS = {
 function initRenderer() {
   canvas = document.getElementById('viewportCanvas');
   if (!canvas) return;
-  canvas.width = CHUNK_SIZE;
-  canvas.height = CHUNK_SIZE;
+
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+
+  canvas.width = gw;
+  canvas.height = gh;
   ctx = canvas.getContext('2d');
-  imgData = ctx.createImageData(CHUNK_SIZE, CHUNK_SIZE);
+  imgData = ctx.createImageData(gw, gh);
   pixelBuffer = new Uint32Array(imgData.data.buffer);
 
   offscreenCanvas = document.createElement('canvas');
-  offscreenCanvas.width = CHUNK_SIZE;
-  offscreenCanvas.height = CHUNK_SIZE;
+  offscreenCanvas.width = gw;
+  offscreenCanvas.height = gh;
   offscreenCtx = offscreenCanvas.getContext('2d');
 }
 
@@ -69,11 +73,14 @@ function render() {
     if (!canvas || !ctx || !pixelBuffer) return;
   }
 
-  // Loop contíguo sobre 1.048.576 pixels diretamente no buffer nativo
-  for (let y = 0; y < CHUNK_SIZE; y++) {
-    const rowOffset = y * CHUNK_SIZE;
+  const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
 
-    for (let x = 0; x < CHUNK_SIZE; x++) {
+  // Loop contíguo sobre 2.097.152 pixels (2048x1024) diretamente no buffer nativo
+  for (let y = 0; y < gh; y++) {
+    const rowOffset = y * gw;
+
+    for (let x = 0; x < gw; x++) {
       const idx = rowOffset + x;
       let r = 0, g = 0, b = 0;
 
@@ -176,7 +183,7 @@ function render() {
         }
       }
 
-      if (y === (CHUNK_SIZE / 2 - 1) && currentLayer === 'composite') {
+      if (y === Math.floor(gh / 2 - 1) && currentLayer === 'composite') {
         r = Math.min(255, r + 50);
         g = Math.min(255, g + 40);
       }
@@ -200,56 +207,59 @@ function render() {
 
   if (zoomLevel < 1.0) {
     ctx.save();
-    // Borda exterior do mundo 1024x1024
+    // Borda exterior do mundo 2048x1024
     ctx.strokeStyle = '#58a6ff';
     ctx.lineWidth = Math.max(1.5, 2.0 / zoomLevel);
-    ctx.strokeRect(0, 0, CHUNK_SIZE, CHUNK_SIZE);
+    ctx.strokeRect(0, 0, gw, gh);
 
-    // Linhas guias do grid a cada 256 células (0, 256, 512, 768, 1024)
+    // Linhas guias do grid a cada 256 metros
     ctx.strokeStyle = 'rgba(88, 166, 255, 0.22)';
     ctx.lineWidth = Math.max(0.8, 1.0 / zoomLevel);
     ctx.setLineDash([4 / zoomLevel, 4 / zoomLevel]);
-    for (let g = 256; g < CHUNK_SIZE; g += 256) {
-      // Linhas verticais
+    
+    // Linhas verticais (X de 256 a 2048)
+    for (let gx = 256; gx < gw; gx += 256) {
       ctx.beginPath();
-      ctx.moveTo(g, 0);
-      ctx.lineTo(g, CHUNK_SIZE);
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, gh);
       ctx.stroke();
-
-      // Linhas horizontais
+    }
+    // Linhas horizontais (Y de 256 a 1024)
+    for (let gy = 256; gy < gh; gy += 256) {
       ctx.beginPath();
-      ctx.moveTo(0, g);
-      ctx.lineTo(CHUNK_SIZE, g);
+      ctx.moveTo(0, gy);
+      ctx.lineTo(gw, gy);
       ctx.stroke();
     }
     ctx.setLineDash([]);
 
-    // Rótulos numéricos nos eixos
+    // Rótulos numéricos no eixo X (Oeste -> Leste)
     const fontSize = Math.max(12, Math.round(14 / zoomLevel));
     ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
     ctx.fillStyle = '#58a6ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('0', 15, -6 / zoomLevel);
-    ctx.fillText('256', 256, -6 / zoomLevel);
-    ctx.fillText('512 (CENTRO)', 512, -6 / zoomLevel);
-    ctx.fillText('768', 768, -6 / zoomLevel);
-    ctx.fillText('1024 (BORDA)', 1024 - 40, -6 / zoomLevel);
+    ctx.fillText('0m (Oeste/Serras)', 70, -6 / zoomLevel);
+    ctx.fillText('512m', 512, -6 / zoomLevel);
+    ctx.fillText('1024m (Centro Fluvial)', 1024, -6 / zoomLevel);
+    ctx.fillText('1536m', 1536, -6 / zoomLevel);
+    ctx.fillText('2048m (Leste/Foz)', gw - 70, -6 / zoomLevel);
 
+    // Rótulos numéricos no eixo Y (Norte -> Sul)
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
-    ctx.fillText('0', -8 / zoomLevel, 15);
-    ctx.fillText('256', -8 / zoomLevel, 256);
-    ctx.fillText('512', -8 / zoomLevel, 512);
-    ctx.fillText('768', -8 / zoomLevel, 768);
-    ctx.fillText('1024', -8 / zoomLevel, 1024 - 15);
+    ctx.fillText('0m', -8 / zoomLevel, 15);
+    ctx.fillText('256m', -8 / zoomLevel, 256);
+    ctx.fillText('512m (Rio Solimões)', -8 / zoomLevel, 512);
+    ctx.fillText('768m', -8 / zoomLevel, 768);
+    ctx.fillText('1024m', -8 / zoomLevel, gh - 15);
 
-    // Título explícito de Dimensão Total do Mundo
+    // Título de Dimensão da Bacia Amazônica
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillStyle = '#3fb950';
     ctx.font = `bold ${Math.max(14, Math.round(18 / zoomLevel))}px 'Outfit', sans-serif`;
-    ctx.fillText('LARGURA DO PLANETA: 1024 CHUNKS / 1024 METROS DE CADA LADO (1.048.576 CÉLULAS)', CHUNK_SIZE / 2, CHUNK_SIZE + 12 / zoomLevel);
+    ctx.fillText('BACIA AMAZÔNICA: 2048 METROS (OESTE-LESTE) x 1024 METROS (NORTE-SUL) [2.097.152 CÉLULAS]', gw / 2, gh + 12 / zoomLevel);
 
     ctx.restore();
   }

@@ -51,6 +51,9 @@ function updateCatBehavior(a, dt, ctx) {
     applyDeathDecomposition
   } = ctx;
 
+  const gridW = ctx.GRID_WIDTH || 2048;
+  const gridH = ctx.GRID_HEIGHT || 1024;
+
   const CAT_HUNTING_ZONE = 25; // Percepção direta visual e auditiva de caça (25 metros)
   const CAT_OLFACTORY_RANGE = 90; // Faro químico de presas e trilha de odor (90 metros)
 

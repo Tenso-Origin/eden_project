@@ -70,6 +70,9 @@ function updateRatBehavior(a, dt, ctx) {
     CHUNK_SIZE
   } = ctx;
 
+  const gridW = ctx.GRID_WIDTH || ctx.CHUNK_SIZE || 2048;
+  const gridH = ctx.GRID_HEIGHT || 1024;
+
   // 1. Inicialização de segurança dos atributos de combate e fisiologia
   if (a.stamina === undefined) {
     a.stamina = 100.0;
@@ -308,10 +311,10 @@ function updateRatBehavior(a, dt, ctx) {
 
         for (let dy = -searchRadius; dy <= searchRadius; dy += 3) {
           const ny = curY + dy;
-          if (ny < 0 || ny >= CHUNK_SIZE) continue;
+          if (ny < 0 || ny >= gridH) continue;
           for (let dx = -searchRadius; dx <= searchRadius; dx += 3) {
             const nx = curX + dx;
-            if (nx < 0 || nx >= CHUNK_SIZE) continue;
+            if (nx < 0 || nx >= gridW) continue;
             if (dx * dx + dy * dy > searchRadius * searchRadius) continue;
 
             const nIdx = ctx.getIdx(nx, ny);

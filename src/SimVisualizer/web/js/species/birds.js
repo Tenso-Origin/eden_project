@@ -1,21 +1,20 @@
 // =========================================================================
-// MÓDULO DE AVES ADICIONAIS: TUCANO-TOCO E CARCARÁ (COM REPRODUÇÃO REAL)
+// MÓDULO DE AVES ADICIONAIS: TUCANO-TOCO E CARCARÁ (BACIA AMAZÔNICA 2048x1024)
 // =========================================================================
 
 /**
- * Criação da população de aves adicionais (Tucanos e Carcarás)
+ * Criação da população de aves adicionais distribuída por habitat
  */
-function createInitialBirds(lakeCenterX = 512.0, lakeCenterY = 512.0, CHUNK_SIZE = 1024) {
+function createInitialBirds(gridWidth = 2048, gridHeight = 1024) {
   const birdsList = [];
-  const TOUCAN_COUNT = 16;
-  const CARCARA_COUNT = 10;
+  const TOUCAN_COUNT = 25; // Tucanos no dossel da terra firme
+  const CARCARA_COUNT = 16; // Carcarás nas várzeas e praias dos meandros
 
-  // 1. Tucanos (Ramphastos toco) - Frugívoros pacíficos das copas
+  // 1. Tucanos (Ramphastos toco) - Frugívoros do dossel de terra firme
   for (let i = 0; i < TOUCAN_COUNT; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 320.0 + Math.random() * 160.0;
-    const x = Math.max(40, Math.min(CHUNK_SIZE - 40, lakeCenterX + Math.cos(angle) * dist));
-    const y = Math.max(40, Math.min(CHUNK_SIZE - 40, lakeCenterY + Math.sin(angle) * dist));
+    // Espalham-se pela floresta densa de terra firme
+    let x = 120 + Math.random() * (gridWidth - 240);
+    let y = 80 + Math.random() * (gridHeight - 160);
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
     const gestationDays = 18.0;
@@ -51,12 +50,13 @@ function createInitialBirds(lakeCenterX = 512.0, lakeCenterY = 512.0, CHUNK_SIZE
     });
   }
 
-  // 2. Carcarás (Caracara plancus) - Predadores e necrófagos oportunistas
+  // 2. Carcarás (Caracara plancus) - Várzeas abertas e praias fluviais
   for (let i = 0; i < CARCARA_COUNT; i++) {
-    const angle = (i / CARCARA_COUNT) * Math.PI * 2;
-    const dist = 120.0 + Math.random() * 140.0;
-    const x = Math.max(40, Math.min(CHUNK_SIZE - 40, lakeCenterX + Math.cos(angle) * dist));
-    const y = Math.max(40, Math.min(CHUNK_SIZE - 40, lakeCenterY + Math.sin(angle) * dist));
+    let x = 100 + Math.random() * (gridWidth - 200);
+    const yRiver = (typeof getRiverMainY === 'function') ? getRiverMainY(x) : 512.0;
+    let y = yRiver + (Math.random() - 0.5) * 180.0;
+    y = Math.max(30, Math.min(gridHeight - 30, y));
+
     const sex = (i % 2 === 0) ? 'female' : 'male';
     const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
     const gestationDays = 30.0;
@@ -96,17 +96,18 @@ function createInitialBirds(lakeCenterX = 512.0, lakeCenterY = 512.0, CHUNK_SIZE
 }
 
 /**
- * Atualização comportamental do Tucano-toco (Frugivoria em copas, voo gracioso e cortejo)
+ * Atualização comportamental do Tucano-toco
  */
 function updateToucanBehavior(a, dt, ctx) {
-  const { animals, biomass, grains, getIdx, CHUNK_SIZE } = ctx;
+  const { animals, biomass, grains, getIdx, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
-  // 1. Poleiro nas copas das árvores
+  // 1. Poleiro nas copas
   if (a.perchTimer > 0) {
     a.perchTimer -= dt;
-    // Alimentação de frutos e sementes nas copas se com fome
     if (a.hunger > 15.0) {
       const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
       if (grains && grains[curIdx] > 1.0) {
@@ -122,7 +123,7 @@ function updateToucanBehavior(a, dt, ctx) {
     return { targetX: a.x, targetY: a.y };
   }
 
-  // 2. Cortejo e Pareamento Arbóreo
+  // 2. Cortejo Arbóreo
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -130,7 +131,7 @@ function updateToucanBehavior(a, dt, ctx) {
 
   if (isReadyToMate && animals.filter(x => x.species === 'toucan').length < 40) {
     let closestMate = null;
-    let mateDist = 60.0;
+    let mateDist = 80.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'toucan') continue;
@@ -153,41 +154,33 @@ function updateToucanBehavior(a, dt, ctx) {
         const male = (a.sex === 'male') ? a : closestMate;
         if (typeof SpeciesReproduction !== 'undefined') {
           SpeciesReproduction.tryMatePair(female, male);
-        } else {
-          female.isPregnant = true;
-          female.daysPregnant = 0.0;
-          female.gestationRemaining = 18.0;
-          female.litterSize = 2 + Math.floor(Math.random() * 3);
-          female.matingCooldown = 68.0;
-          male.matingCooldown = 25.0;
         }
       }
       return { targetX, targetY };
     }
   }
 
-  // 3. Voo livre entre árvores frutíferas
+  // 3. Voo livre entre árvores
   a.wanderAngle += (Math.random() - 0.5) * 0.4 * dt;
-  targetX = Math.max(30, Math.min(CHUNK_SIZE - 30, a.x + Math.cos(a.wanderAngle) * (a.speed * 2.0)));
-  targetY = Math.max(30, Math.min(CHUNK_SIZE - 30, a.y + Math.sin(a.wanderAngle) * (a.speed * 2.0)));
+  targetX = Math.max(30, Math.min(gridW - 30, a.x + Math.cos(a.wanderAngle) * (a.speed * 2.0)));
+  targetY = Math.max(30, Math.min(gridH - 30, a.y + Math.sin(a.wanderAngle) * (a.speed * 2.0)));
 
-  // Chance de pousar em galho frondoso
-  if (Math.random() < 0.03) {
-    a.perchTimer = 5.0 + Math.random() * 8.0;
-  }
+  if (Math.random() < 0.03) a.perchTimer = 5.0 + Math.random() * 8.0;
 
   return { targetX, targetY };
 }
 
 /**
- * Atualização comportamental do Carcará (Voo planado, caça de pequenos vertebrados/insetos e cortejo)
+ * Atualização comportamental do Carcará
  */
 function updateCarcaraBehavior(a, dt, ctx) {
-  const { animals, CHUNK_SIZE, applyDeathDecomposition, onPredationSuccess } = ctx;
+  const { animals, applyDeathDecomposition, onPredationSuccess, GRID_WIDTH, GRID_HEIGHT } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
   let targetX = a.x;
   let targetY = a.y;
 
-  // 1. Cortejo Aéreo e Acasalamento
+  // 1. Cortejo Aéreo
   const isReadyToMate = (!a.isPregnant && a.matingCooldown <= 0 && a.hunger < 45.0 && (
     (a.sex === 'female' && a.estrusDurationRemaining > 0) ||
     (a.sex === 'male')
@@ -195,7 +188,7 @@ function updateCarcaraBehavior(a, dt, ctx) {
 
   if (isReadyToMate && animals.filter(x => x.species === 'carcara').length < 25) {
     let closestMate = null;
-    let mateDist = 80.0;
+    let mateDist = 90.0;
     for (let j = 0; j < animals.length; j++) {
       const other = animals[j];
       if (other.id === a.id || other.hp <= 0 || other.species !== 'carcara') continue;
@@ -218,22 +211,15 @@ function updateCarcaraBehavior(a, dt, ctx) {
         const male = (a.sex === 'male') ? a : closestMate;
         if (typeof SpeciesReproduction !== 'undefined') {
           SpeciesReproduction.tryMatePair(female, male);
-        } else {
-          female.isPregnant = true;
-          female.daysPregnant = 0.0;
-          female.gestationRemaining = 30.0;
-          female.litterSize = 2 + Math.floor(Math.random() * 2);
-          female.matingCooldown = 90.0;
-          male.matingCooldown = 35.0;
         }
       }
       return { targetX, targetY };
     }
   }
 
-  // 2. Caça Oportunista (Ratos, Insetos grandes, Pequenos vertebrados)
+  // 2. Caça Oportunista na Várzea
   let bestPrey = null;
-  let bestDist = 38.0;
+  let bestDist = 45.0;
 
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
@@ -270,10 +256,10 @@ function updateCarcaraBehavior(a, dt, ctx) {
     return { targetX, targetY };
   }
 
-  // 3. Voo circular planado de vigilância
+  // 3. Voo circular planado
   a.wanderAngle += (Math.random() - 0.5) * 0.3 * dt;
-  targetX = Math.max(30, Math.min(CHUNK_SIZE - 30, a.x + Math.cos(a.wanderAngle) * (a.speed * 2.2)));
-  targetY = Math.max(30, Math.min(CHUNK_SIZE - 30, a.y + Math.sin(a.wanderAngle) * (a.speed * 2.2)));
+  targetX = Math.max(30, Math.min(gridW - 30, a.x + Math.cos(a.wanderAngle) * (a.speed * 2.2)));
+  targetY = Math.max(30, Math.min(gridH - 30, a.y + Math.sin(a.wanderAngle) * (a.speed * 2.2)));
 
   return { targetX, targetY };
 }

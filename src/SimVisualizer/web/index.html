@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Planeta 1024x1024 DOD (1.048.576 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.6.0</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.0</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -425,10 +425,10 @@
     <!-- Viewport Central: Exclusivo para o Mapa -->
     <div class="viewport-card">
       <div class="canvas-container">
-        <canvas id="viewportCanvas" width="1024" height="1024"></canvas>
+        <canvas id="viewportCanvas" width="2048" height="1024"></canvas>
         <!-- Overlay flutuante de navegação rápida sobre o mapa -->
         <div class="map-nav-overlay">
-          <div id="liveHoverBadge" style="margin-bottom:6px; background:rgba(10,14,20,0.92); border:1px solid #58a6ff; border-radius:6px; padding:3px 8px; font-size:0.73rem; color:#58a6ff; font-family:'JetBrains Mono',monospace; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.5);">🎯 <span id="liveHoverCoord">X: 512 | Y: 512</span></div>
+          <div id="liveHoverBadge" style="margin-bottom:6px; background:rgba(10,14,20,0.92); border:1px solid #58a6ff; border-radius:6px; padding:3px 8px; font-size:0.73rem; color:#58a6ff; font-family:'JetBrains Mono',monospace; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.5);">🎯 <span id="liveHoverCoord">X: 1024 | Y: 512</span></div>
           <button class="nav-btn" id="btnOverlayUp" title="Navegar Cima (Seta ↑)">⬆️</button>
           <div class="map-nav-row">
             <button class="nav-btn" id="btnOverlayLeft" title="Navegar Esquerda (Seta ←)">⬅️</button>
@@ -770,18 +770,18 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.6.3"></script>
-  <script src="js/simulation/core.js?v=2.6.3"></script>
-  <script src="js/simulation/environment.js?v=2.6.3"></script>
-  <script src="js/species/rat.js?v=2.6.3"></script>
-  <script src="js/species/cat.js?v=2.6.3"></script>
-  <script src="js/species/harpy.js?v=2.6.3"></script>
-  <script src="js/species/aquatic.js?v=2.6.3"></script>
-  <script src="js/species/reptiles.js?v=2.6.3"></script>
-  <script src="js/species/birds.js?v=2.6.3"></script>
-  <script src="js/species/insects.js?v=2.6.3"></script>
-  <script src="js/rendering/renderer.js?v=2.6.3"></script>
-  <script src="js/ui/ui-controller.js?v=2.6.3"></script>
+  <script src="js/species/reproduction.js?v=2.7.0"></script>
+  <script src="js/simulation/core.js?v=2.7.0"></script>
+  <script src="js/simulation/environment.js?v=2.7.0"></script>
+  <script src="js/species/rat.js?v=2.7.0"></script>
+  <script src="js/species/cat.js?v=2.7.0"></script>
+  <script src="js/species/harpy.js?v=2.7.0"></script>
+  <script src="js/species/aquatic.js?v=2.7.0"></script>
+  <script src="js/species/reptiles.js?v=2.7.0"></script>
+  <script src="js/species/birds.js?v=2.7.0"></script>
+  <script src="js/species/insects.js?v=2.7.0"></script>
+  <script src="js/rendering/renderer.js?v=2.7.0"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.0"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -873,8 +873,8 @@
               for (let k = 0; k < pupsToCreate; k++) {
                 const spawnX = a.hasNest ? a.nestX + (Math.random() - 0.5) * 1.5 : (a.x + (Math.random() - 0.5) * 2.0);
                 const spawnY = a.hasNest ? a.nestY + (Math.random() - 0.5) * 1.5 : (a.y + (Math.random() - 0.5) * 2.0);
-                const clampedX = Math.max(2, Math.min(CHUNK_SIZE - 3, spawnX));
-                const clampedY = Math.max(2, Math.min(CHUNK_SIZE - 3, spawnY));
+                const clampedX = Math.max(2, Math.min(GRID_WIDTH - 3, spawnX));
+                const clampedY = Math.max(2, Math.min(GRID_HEIGHT - 3, spawnY));
 
                 if (typeof SpeciesReproduction !== 'undefined') {
                   const pup = SpeciesReproduction.createOffspring(a, null, clampedX, clampedY);
@@ -969,8 +969,7 @@
         const moistureMitigation = (moisture[curIdx] > 0.50) ? 0.80 : 1.0;
         a.thirst = Math.min(100, a.thirst + baseThirstRate * moistureMitigation * dt);
 
-        const distToLake = (currentScenario === 'amazon') ? Math.hypot(a.x - (CHUNK_SIZE / 2.0), a.y - (CHUNK_SIZE / 2.0)) : 999.0;
-        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || distToLake <= 112.0);
+        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || (typeof isPointInWaterBody === 'function' && isPointInWaterBody(a.x, a.y)));
         if (inWaterOrBank) {
           a.thirst = Math.max(0, a.thirst - 50.0 * dt);
         }
@@ -1048,7 +1047,7 @@
             for (let dx = -1; dx <= 1; dx++) {
               if (dx === 0 && dy === 0) continue;
               const nx = curX + dx, ny = curY + dy;
-              if (nx < 0 || nx >= CHUNK_SIZE || ny < 0 || ny >= CHUNK_SIZE) continue;
+              if (nx < 0 || nx >= GRID_WIDTH || ny < 0 || ny >= GRID_HEIGHT) continue;
               const nIdx = getIdx(nx, ny);
               const nw = (matId[nIdx] === MAT_WATER) ? 999.0 : surfaceWater[nIdx];
               if (nw < lowestW) {
@@ -1083,6 +1082,8 @@
             isReadyToMate,
             isInEstrus,
             CHUNK_SIZE,
+            GRID_WIDTH,
+            GRID_HEIGHT,
             MAT_WATER,
             getIdx
           };
@@ -1099,6 +1100,11 @@
             isReadyToMate,
             isInEstrus,
             currentScenario,
+            GRID_WIDTH,
+            GRID_HEIGHT,
+            matId,
+            surfaceWater,
+            MAT_WATER,
             getIdx,
             isProtectedInBurrowOrRefuge,
             applyDeathDecomposition,
@@ -1113,7 +1119,7 @@
           targetY = moveTarget.targetY;
         } else if (a.species === 'tambaqui') {
           if (typeof AquaticSpecies !== 'undefined') {
-            const aquaticCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, matId, MAT_WATER, getIdx, grains, biomass, weather };
+            const aquaticCtx = { animals, GRID_WIDTH, GRID_HEIGHT, matId, surfaceWater, MAT_WATER, getIdx, grains, biomass, weather: (typeof weatherController !== "undefined") ? weatherController.getCurrentWeather() : null };
             const moveTarget = AquaticSpecies.updateTambaquiBehavior(a, dt, aquaticCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
@@ -1122,11 +1128,11 @@
           if (typeof AquaticSpecies !== 'undefined') {
             const aquaticCtx = {
               animals,
-              lakeCenterX: CHUNK_SIZE / 2.0,
-              lakeCenterY: CHUNK_SIZE / 2.0,
-              lakeRadius: 105.0,
+              GRID_WIDTH,
+              GRID_HEIGHT,
               getIdx,
               matId,
+              surfaceWater,
               MAT_WATER,
               applyDeathDecomposition,
               weather: (typeof weatherController !== 'undefined') ? weatherController.getCurrentWeather() : null,
@@ -1141,14 +1147,14 @@
           }
         } else if (a.species === 'tortoise') {
           if (typeof ReptileSpecies !== 'undefined') {
-            const repCtx = { animals, biomass, getIdx, matId, MAT_WATER, temp, CHUNK_SIZE };
+            const repCtx = { animals, biomass, getIdx, matId, surfaceWater, MAT_WATER, temp, GRID_WIDTH, GRID_HEIGHT };
             const moveTarget = ReptileSpecies.updateTortoiseBehavior(a, dt, repCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
           }
         } else if (a.species === 'caiman') {
           if (typeof ReptileSpecies !== 'undefined') {
-            const repCtx = { animals, lakeCenterX: CHUNK_SIZE / 2.0, lakeCenterY: CHUNK_SIZE / 2.0, lakeRadius: 105.0, getIdx, matId, MAT_WATER, applyDeathDecomposition, timeOfDay, onPredationSuccess: (prey, caiman) => {
+            const repCtx = { animals, GRID_WIDTH, GRID_HEIGHT, getIdx, matId, surfaceWater, MAT_WATER, applyDeathDecomposition, timeOfDay, onPredationSuccess: (prey, caiman) => {
               totalPredationDeaths++;
               hungryKillsCount++;
             }};
@@ -1158,14 +1164,14 @@
           }
         } else if (a.species === 'toucan') {
           if (typeof BirdSpecies !== 'undefined') {
-            const birdCtx = { biomass, grains, getIdx, CHUNK_SIZE };
+            const birdCtx = { biomass, grains, getIdx, GRID_WIDTH, GRID_HEIGHT };
             const moveTarget = BirdSpecies.updateToucanBehavior(a, dt, birdCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
           }
         } else if (a.species === 'carcara') {
           if (typeof BirdSpecies !== 'undefined') {
-            const birdCtx = { animals, grains, getIdx, CHUNK_SIZE, applyDeathDecomposition, onPredationSuccess: (prey, carcara) => {
+            const birdCtx = { animals, grains, getIdx, GRID_WIDTH, GRID_HEIGHT, applyDeathDecomposition, onPredationSuccess: (prey, carcara) => {
               totalPredationDeaths++;
               hungryKillsCount++;
             }};
@@ -1175,7 +1181,7 @@
           }
         } else if (['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'].includes(a.species)) {
           if (typeof InsectSpecies !== 'undefined') {
-            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, CHUNK_SIZE, timeOfDay };
+            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay };
             const moveTarget = InsectSpecies.updateInsectBehavior(a, dt, insCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
@@ -1197,8 +1203,8 @@
           const baseSpeed = inWater ? a.speed * waterFactor : a.speed;
           const effectiveSpeed = a.isSleeping ? 0.0 : (baseSpeed * sprint);
           const step = Math.min(dist, effectiveSpeed * dt);
-          a.x = Math.max(2, Math.min(CHUNK_SIZE - 3, a.x + (dirX / dist) * step));
-          a.y = Math.max(2, Math.min(CHUNK_SIZE - 3, a.y + (dirY / dist) * step));
+          a.x = Math.max(2, Math.min(GRID_WIDTH - 3, a.x + (dirX / dist) * step));
+          a.y = Math.max(2, Math.min(GRID_HEIGHT - 3, a.y + (dirY / dist) * step));
         }
 
         aliveAnimals.push(a);
@@ -1214,6 +1220,8 @@
         timeOfDay,
         simDeltaHours,
         CHUNK_SIZE,
+        GRID_WIDTH,
+        GRID_HEIGHT,
         matId,
         MAT_WATER,
         surfaceWater,
@@ -1285,7 +1293,7 @@
     initUI();
     initWorld();
     updateStats();
-    inspectCell(512, 512);
+    inspectCell(1024, 512);
     render();
     requestAnimationFrame(loop);
   </script>

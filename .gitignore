@@ -25,3 +25,15 @@ env/
 ## 3D Pipeline External Dependencies
 pipeline_3d/Hunyuan3D-2/
 
+## 3D Pipeline Media & Generated Assets
+pipeline_3d/*.glb
+pipeline_3d/*.gltf
+pipeline_3d/*.blend
+pipeline_3d/*.blend1
+pipeline_3d/*.obj
+pipeline_3d/*.fbx
+pipeline_3d/*.png
+pipeline_3d/*.jpg
+pipeline_3d/*.jpeg
+pipeline_3d/*.webp
+

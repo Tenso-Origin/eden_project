@@ -723,7 +723,13 @@
             child.material = clayMaterial;
           } else if (mode === 'original') {
             const orig = originalMaterials.get(child);
-            if (orig) child.material = orig;
+            if (orig) {
+              if (child.geometry && child.geometry.attributes.color) {
+                orig.vertexColors = true;
+                orig.needsUpdate = true;
+              }
+              child.material = orig;
+            }
           } else if (mode === 'wireframe') {
             child.material = wireframeMaterial;
           } else if (mode === 'normals') {

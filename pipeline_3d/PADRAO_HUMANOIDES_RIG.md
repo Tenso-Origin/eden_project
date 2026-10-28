@@ -40,7 +40,7 @@ Root (0.0H)
     │   └── Chest (3.0H -> 4.0H)
     │       ├── Head (4.0H -> 5.0H)
     │       ├── Shoulder.L -> UpperArm.L -> Forearm.L -> Hand.L -> Weapon.L
-    │       └── Shoulder.R -> UpperArm.R -> Forearm.R -> Hand.R -> Weapon.R (Machete Assimétrico)
+    │       └── Shoulder.R -> UpperArm.R -> Forearm.R -> Hand.R -> Weapon.R
     ├── Thigh.L -> Shin.L -> Foot.L
     └── Thigh.R -> Shin.R -> Foot.R
 ```

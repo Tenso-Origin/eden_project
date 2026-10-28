@@ -360,7 +360,7 @@ function updateStats() {
         elHarpies.innerText = `🦅 ${activeCount}/2 Ativas (Biomassa < 50%) | ♂ ${stM} | ♀ ${stF}`;
       }
     } else {
-      elHarpies.innerText = "Inativo neste bioma";
+      elHarpies.innerText = "Desativada temporariamente";
     }
   }
 

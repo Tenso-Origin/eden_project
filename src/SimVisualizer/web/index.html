@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.0</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.1</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -770,18 +770,18 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.7.0"></script>
-  <script src="js/simulation/core.js?v=2.7.0"></script>
-  <script src="js/simulation/environment.js?v=2.7.0"></script>
-  <script src="js/species/rat.js?v=2.7.0"></script>
-  <script src="js/species/cat.js?v=2.7.0"></script>
-  <script src="js/species/harpy.js?v=2.7.0"></script>
-  <script src="js/species/aquatic.js?v=2.7.0"></script>
-  <script src="js/species/reptiles.js?v=2.7.0"></script>
-  <script src="js/species/birds.js?v=2.7.0"></script>
-  <script src="js/species/insects.js?v=2.7.0"></script>
-  <script src="js/rendering/renderer.js?v=2.7.0"></script>
-  <script src="js/ui/ui-controller.js?v=2.7.0"></script>
+  <script src="js/species/reproduction.js?v=2.7.1"></script>
+  <script src="js/simulation/core.js?v=2.7.1"></script>
+  <script src="js/simulation/environment.js?v=2.7.1"></script>
+  <script src="js/species/rat.js?v=2.7.1"></script>
+  <script src="js/species/cat.js?v=2.7.1"></script>
+  <script src="js/species/harpy.js?v=2.7.1"></script>
+  <script src="js/species/aquatic.js?v=2.7.1"></script>
+  <script src="js/species/reptiles.js?v=2.7.1"></script>
+  <script src="js/species/birds.js?v=2.7.1"></script>
+  <script src="js/species/insects.js?v=2.7.1"></script>
+  <script src="js/rendering/renderer.js?v=2.7.1"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.1"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -1212,7 +1212,8 @@
 
       animals = aliveAnimals.concat(newOffspring);
 
-      // DELEGAÇÃO DA HARPIA AMAZÔNICA
+      /* Harpia desativada temporariamente
+// DELEGAÇÃO DA HARPIA AMAZÔNICA
       const harpyContext = {
         harpies,
         animals,
@@ -1235,6 +1236,7 @@
         }
       };
       stepHarpies(dt, harpyContext);
+*/
 
       // Atualização efêmera maternal de tocas e covis
       updateNestLifecycles();
@@ -1245,7 +1247,7 @@
       const dt = 0.15;
       stepThermodynamics(dt);
       stepHydrologyAndErosion(dt);
-      stepFlora(dt);
+      stepVegetationAndBiomass(dt);
       stepFauna(dt);
 
       tickCount++;

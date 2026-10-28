@@ -1,3 +1,7 @@
+function stepFlora(dt) {
+  stepVegetationAndBiomass(dt);
+}
+
 // =========================================================================
 // MÓDULO DE AMBIENTE: TERMODINÂMICA, CLIMA AMAZÔNICO, PULSO DE INUNDAÇÃO E FLORA
 // =========================================================================
@@ -273,11 +277,190 @@ function stepVegetationAndBiomass(dt) {
   }
 }
 
+/**
+ * Alias de compatibilidade para stepVegetationAndBiomass
+ */
+function stepFlora(dt) {
+  stepVegetationAndBiomass(dt);
+}
+
+/**
+ * Decomposição orgânica de cadáveres e reciclagem biogeoquímica de nutrientes
+ */
+function applyDeathDecomposition(centerX, centerY) {
+  if (typeof totalDecomposedCount !== 'undefined') totalDecomposedCount++;
+  if (typeof totalNutrientsRecycledKg !== 'undefined') totalNutrientsRecycledKg += 0.28;
+
+  const cx = Math.floor(centerX);
+  const cy = Math.floor(centerY);
+  const gridW = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gridH = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+
+  for (let dy = -2; dy <= 2; dy++) {
+    const ny = cy + dy;
+    if (ny < 0 || ny >= gridH) continue;
+    for (let dx = -2; dx <= 2; dx++) {
+      const nx = cx + dx;
+      if (nx < 0 || nx >= gridW) continue;
+      const d = Math.hypot(dx, dy);
+      if (d <= 2.2) {
+        const idx = getIdx(nx, ny);
+        if (matId[idx] !== MAT_WATER && matId[idx] !== MAT_ICE) {
+          biomass[idx] = Math.min(100, biomass[idx] + (2.5 - d) * 35.0);
+          moisture[idx] = Math.min(1.0, moisture[idx] + 0.30);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Refúgios Naturais: Troncos caídos, pedras e vegetação densa
+ * Distribuídos pela bacia amazônica 2048x1024
+ */
+function initNaturalRefuges(initialRatCount = 180) {
+  naturalRefuges = [];
+  let nextId = 1;
+  const gridW = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gridH = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+
+  const totalRefuges = 80;
+  for (let i = 0; i < totalRefuges; i++) {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const rx = 25 + Math.random() * (gridW - 50);
+      const ry = 25 + Math.random() * (gridH - 50);
+      const idx = getIdx(Math.floor(rx), Math.floor(ry));
+
+      if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
+        const typeRoll = Math.random();
+        const type = typeRoll < 0.40 ? 'log' : (typeRoll < 0.75 ? 'rock' : 'brush');
+        naturalRefuges.push({
+          id: nextId++,
+          x: rx,
+          y: ry,
+          type: type,
+          radius: 1.0
+        });
+        clearBiomassRadius(rx, ry, 1.5);
+        break;
+      }
+    }
+  }
+}
+
+/**
+ * Localização de Toca ou Covil Maternal sem restrição de bioma
+ */
+function findLocalNestLocation(animal) {
+  const gridW = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
+  const gridH = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
+
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * 4.0;
+    const nx = Math.max(8, Math.min(gridW - 9, animal.x + Math.cos(angle) * dist));
+    const ny = Math.max(8, Math.min(gridH - 9, animal.y + Math.sin(angle) * dist));
+    const idx = getIdx(Math.floor(nx), Math.floor(ny));
+    if (matId[idx] !== MAT_WATER && surfaceWater[idx] < 0.15) {
+      return { x: nx, y: ny };
+    }
+  }
+  return { x: animal.x, y: animal.y };
+}
+
+/**
+ * Imunidade de Predação em Tocas, Covis e Refúgios Naturais (Raio de 1m)
+ */
+function isProtectedInBurrowOrRefuge(animal) {
+  if (animal.hasNest && Math.hypot(animal.x - animal.nestX, animal.y - animal.nestY) <= 1.2) {
+    return true;
+  }
+  for (let ni = 0; ni < nests.length; ni++) {
+    const n = nests[ni];
+    if (n.species === animal.species && Math.hypot(n.x - animal.x, n.y - animal.y) <= 1.2) {
+      return true;
+    }
+  }
+  if (animal.species === 'rat' && typeof naturalRefuges !== 'undefined') {
+    for (let ri = 0; ri < naturalRefuges.length; ri++) {
+      const r = naturalRefuges[ri];
+      if (Math.hypot(r.x - animal.x, r.y - animal.y) <= 1.0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Ciclo de vida efêmero maternal de tocas e covis
+ */
+function updateNestLifecycles() {
+  const RAT_MATURITY_AGE = 60.0;
+  const CAT_MATURITY_AGE = 210.0;
+  const survivingNests = [];
+
+  for (let ni = 0; ni < nests.length; ni++) {
+    const nest = nests[ni];
+    if (nest.species === 'harpy') {
+      survivingNests.push(nest);
+      continue;
+    }
+
+    const mId = nest.motherId;
+    const mother = animals.find(a => a.id === mId && a.hp > 0);
+    const maturityAge = (nest.species === 'rat') ? RAT_MATURITY_AGE : CAT_MATURITY_AGE;
+
+    const isMotherPregnant = (mother && mother.isPregnant);
+    const hasImmaturePups = animals.some(a => a.motherId === mId && a.hp > 0 && a.ageInDays < maturityAge);
+
+    if (isMotherPregnant || hasImmaturePups) {
+      survivingNests.push(nest);
+    } else {
+      if (mother) mother.hasNest = false;
+      for (let ai = 0; ai < animals.length; ai++) {
+        if (animals[ai].motherId === mId) {
+          animals[ai].hasNest = false;
+        }
+      }
+    }
+  }
+  nests = survivingNests;
+}
+
 // Vinculação de escopo para ambiente browser
 if (typeof window !== 'undefined') {
-  window.SimulationEnvironment = {
+  window.Environment = {
     stepThermodynamics,
     stepHydrologyAndErosion,
-    stepVegetationAndBiomass
+    stepVegetationAndBiomass,
+    stepFlora,
+    applyDeathDecomposition,
+    initNaturalRefuges,
+    findLocalNestLocation,
+    isProtectedInBurrowOrRefuge,
+    updateNestLifecycles
+  };
+  window.stepThermodynamics = stepThermodynamics;
+  window.stepHydrologyAndErosion = stepHydrologyAndErosion;
+  window.stepVegetationAndBiomass = stepVegetationAndBiomass;
+  window.stepFlora = stepFlora;
+  window.applyDeathDecomposition = applyDeathDecomposition;
+  window.initNaturalRefuges = initNaturalRefuges;
+  window.findLocalNestLocation = findLocalNestLocation;
+  window.isProtectedInBurrowOrRefuge = isProtectedInBurrowOrRefuge;
+  window.updateNestLifecycles = updateNestLifecycles;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    stepThermodynamics,
+    stepHydrologyAndErosion,
+    stepVegetationAndBiomass,
+    stepFlora,
+    applyDeathDecomposition,
+    initNaturalRefuges,
+    findLocalNestLocation,
+    isProtectedInBurrowOrRefuge,
+    updateNestLifecycles
   };
 }

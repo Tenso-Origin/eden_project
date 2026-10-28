@@ -390,7 +390,10 @@ function initWorld() {
     }
 
     // Inicialização da Harpia na Samaúma monumental em platô de terra firme a Nordeste
-    if (typeof HarpySpecies !== 'undefined') {
+    // Harpia temporariamente desligada a pedido do usuario
+    harpies = [];
+    /*
+if (typeof HarpySpecies !== 'undefined') {
       harpies = HarpySpecies.createInitialHarpies(GRID_WIDTH);
     }
 
@@ -403,6 +406,7 @@ function initWorld() {
       x: 1680.0,
       y: 180.0
     });
+    */
   }
 
   // =========================================================================

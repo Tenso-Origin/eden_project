@@ -478,6 +478,46 @@ public static class FaunaSystem
     }
 
     /// <summary>
+    /// Controle de histerese e dispersão das Harpias Amazônicas com base no Índice de Homeostase Ecológica:
+    /// - 1ª Harpia: remove (migra) quando Homeostase <= 85%, retorna quando Homeostase >= 90%.
+    /// - 2ª Harpia: remove (migra) quando Homeostase <= 75%, retorna quando Homeostase >= 80%.
+    /// </summary>
+    public static void UpdateHarpyHomeostasisHysteresis(Span<AnimalAgent> agents, float homeostasisPercent)
+    {
+        int harpyCount = 0;
+        for (int i = 0; i < agents.Length; i++)
+        {
+            ref var a = ref agents[i];
+            if (a.Diet == AnimalDiet.AvianApex && a.Health > 0f)
+            {
+                if (harpyCount == 0) // 1ª Harpia (primeira a dispersar)
+                {
+                    if (!a.IsMigrated && homeostasisPercent <= 85.0f)
+                    {
+                        a.IsMigrated = true;
+                    }
+                    else if (a.IsMigrated && homeostasisPercent >= 90.0f)
+                    {
+                        a.IsMigrated = false;
+                    }
+                }
+                else if (harpyCount == 1) // 2ª Harpia (dispersa sob crise severa)
+                {
+                    if (!a.IsMigrated && homeostasisPercent <= 75.0f)
+                    {
+                        a.IsMigrated = true;
+                    }
+                    else if (a.IsMigrated && homeostasisPercent >= 80.0f)
+                    {
+                        a.IsMigrated = false;
+                    }
+                }
+                harpyCount++;
+            }
+        }
+    }
+
+    /// <summary>
     /// Controle de Harpias por Biomassa Vegetal Planetária:
     /// Removidas por padrão; surgem somente quando a biomassa estiver ameaçada (< 50% da original).
     /// </summary>
@@ -659,7 +699,7 @@ public static class FaunaSystem
                         if (agents[k].Health <= 0f)
                         {
                             agents[k] = new AnimalAgent(
-                                id: (uint)(currentTick * 1000 + k),
+                                id: (uint)(currentTick * 1000UL + (ulong)k),
                                 species: a.SpeciesId,
                                 diet: a.Diet,
                                 x: a.HasNest ? a.NestPosX : a.PosX,

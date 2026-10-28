@@ -5,6 +5,8 @@ using SimCore.SpatialGrid;
 
 namespace SimServer;
 
+public delegate void DeltaPacketSender(int playerId, ReadOnlySpan<DeltaCell> delta);
+
 /// <summary>
 /// FASE 6: Gerenciador de Rede e Sincronização do Servidor Headless.
 /// Orquestra sessões de clientes, filtragem de Área de Interesse (AoI)
@@ -41,7 +43,7 @@ public sealed class NetworkManager
         Chunk currentChunk,
         Chunk? previousAck,
         IEnumerable<int> playerIds,
-        Action<int, ReadOnlySpan<DeltaCell>> packetSender)
+        DeltaPacketSender packetSender)
     {
         // Codifica os deltas uma única vez no buffer estático reutilizável (Zero GC)
         int deltaCount = StateSerializer.EncodeDelta(currentChunk, previousAck, _sendBuffer);

@@ -12,3 +12,16 @@ obj/
 Thumbs.db
 [Dd]esktop.ini
 .DS_Store
+
+## Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+
+## 3D Pipeline External Dependencies
+pipeline_3d/Hunyuan3D-2/
+

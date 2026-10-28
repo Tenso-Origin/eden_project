@@ -45,6 +45,13 @@ public readonly struct AxeStats
     public readonly float ShockAbsorption; // Durabilidade do item a impactos
     public readonly float TotalWeight;
 
+    public AxeStats(float choppingPower, float shockAbsorption, float totalWeight)
+    {
+        ChoppingPower = choppingPower;
+        ShockAbsorption = shockAbsorption;
+        TotalWeight = totalWeight;
+    }
+
     // Um machado obriga o jogador a alocar dois materiais diferentes: Lâmina e Cabo.
     public static AxeStats Craft(in MaterialDef headMat, float headVolume, 
                                  in MaterialDef handleMat, float handleVolume)

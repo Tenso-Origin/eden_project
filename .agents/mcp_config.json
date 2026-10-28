@@ -1,0 +1,55 @@
+{
+  "mcpServers": {
+    "godot": {
+      "command": "node",
+      "args": [
+        "D:/MCPs/godot-mcp/build/index.js"
+      ],
+      "env": {
+        "GODOT_PATH": "E:/Godot/Godot_v4.7.2-stable_win64_console.exe"
+      }
+    },
+    "blender-3d-cad": {
+      "command": "python",
+      "args": [
+        "D:/MCPs/blender-3d-cad/mcp_server.py"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    },
+    "ferramentas-dev-lyra": {
+      "command": "node",
+      "args": [
+        "D:/MCPs/orquestrador/mcp-local.js"
+      ]
+    },
+    "pixelforge": {
+      "command": "node",
+      "args": [
+        "D:/MCPs/pixelforge-mcp/node_modules/pixelforge-mcp/dist/index.js"
+      ],
+      "env": {
+        "GEMINI_API_KEY": ""
+      }
+    },
+    "game-asset-generator": {
+      "command": "node",
+      "args": [
+        "D:/MCPs/game-asset-mcp/src/index.js"
+      ],
+      "env": {
+        "HF_TOKEN": ""
+      }
+    },
+    "unreal-mcp": {
+      "command": "python",
+      "args": [
+        "D:/MCPs/unreal-mcp/unreal_mcp_server.py"
+      ],
+      "env": {
+        "PYTHONIOENCODING": "utf-8"
+      }
+    }
+  }
+}

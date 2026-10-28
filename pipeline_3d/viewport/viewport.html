@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Blender 3D CAD - Viewport Three.js (Port 8088)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #090d14;
+      --panel: rgba(15, 23, 42, 0.88);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.35);
+      --text: #cbd5e1;
+      --text-bright: #f8fafc;
+      --text-dim: #64748b;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --cad-clay: #c2c2c2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: 'Outfit', sans-serif;
+      color: var(--text);
+      user-select: none;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    /* Header Superior */
+    header {
+      position: absolute;
+      top: 14px;
+      left: 18px;
+      right: 18px;
+      height: 52px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 10;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #ea580c, #f97316);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      color: white;
+      font-size: 16px;
+      box-shadow: 0 0 14px rgba(234, 88, 12, 0.45);
+    }
+    .brand h1 {
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: var(--text-bright);
+      letter-spacing: -0.3px;
+    }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    select, button {
+      background: rgba(30, 41, 59, 0.8);
+      color: var(--text-bright);
+      border: 1px solid var(--panel-border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    select:hover, button:hover {
+      background: rgba(51, 65, 85, 0.9);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+    select:focus, button:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    button.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    /* Painel Esquerdo: Modos de Renderização */
+    .left-panel {
+      position: absolute;
+      top: 78px;
+      left: 18px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 12px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 210px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .panel-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+
+    .btn-mode {
+      width: 100%;
+      justify-content: flex-start;
+      padding: 7px 10px;
+      font-size: 0.8rem;
+    }
+
+    /* Painel Direito: Métricas CAD e Biometria */
+    .right-panel {
+      position: absolute;
+      top: 78px;
+      right: 18px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 14px;
+      z-index: 10;
+      width: 260px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .metric-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.78rem;
+    }
+    .metric-label {
+      color: var(--text-dim);
+    }
+    .metric-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--text-bright);
+    }
+    .metric-divider {
+      height: 1px;
+      background: var(--panel-border);
+      margin: 2px 0;
+    }
+
+    /* Barra Inferior: Controles de Câmera e Animação */
+    .bottom-bar {
+      position: absolute;
+      bottom: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 8px 14px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Overlay de Drop */
+    #drop-zone {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 3px dashed var(--accent);
+      z-index: 100;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-bright);
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    /* Loading Spinner */
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--panel);
+      padding: 16px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--panel-border);
+      display: none;
+      align-items: center;
+      gap: 12px;
+      z-index: 50;
+      font-size: 0.85rem;
+      font-weight: 600;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6);
+    }
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+
+  <!-- Scripts Three.js Locais com fallback CDN -->
+  <script src="/vendor/three.min.js"></script>
+  <script src="/vendor/OrbitControls.js"></script>
+  <script src="/vendor/GLTFLoader.js"></script>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">3D</div>
+      <div>
+        <h1>Blender CAD Viewport</h1>
+      </div>
+      <div class="badge">
+        <span class="pulse-dot"></span>
+        <span id="sse-status">Port 8088 Live</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <select id="model-select" title="Selecione o modelo para inspecionar">
+        <option value="">Carregando modelos...</option>
+      </select>
+      <button id="btn-reload" title="Recarregar modelo atual">🔄 Recarregar</button>
+      <button id="btn-file-upload" title="Abrir arquivo GLB local">📂 Abrir GLB</button>
+      <input type="file" id="file-input" accept=".glb,.gltf" style="display: none;">
+      <a href="http://127.0.0.1:8090" target="_blank" style="text-decoration: none;">
+        <button type="button" title="Ir para o Simulador Planetário">🌍 Simulador (8090)</button>
+      </a>
+    </div>
+  </header>
+
+  <!-- Painel Esquerdo: Modos de Renderização CAD -->
+  <div class="left-panel">
+    <div class="panel-title">Modos de Visualização</div>
+    <button class="btn-mode active" id="mode-clay">
+      🔘 Clay Técnico CAD (Shape-First)
+    </button>
+    <button class="btn-mode" id="mode-original">
+      🎨 Texturizado (PBR Original)
+    </button>
+    <button class="btn-mode" id="mode-wireframe">
+      🕸️ Wireframe (Malha)
+    </button>
+    <button class="btn-mode" id="mode-normals">
+      🧭 Normais de Superfície
+    </button>
+    <button class="btn-mode" id="mode-skeleton">
+      🦴 Esqueleto / Rig (Bones)
+    </button>
+
+    <div class="metric-divider"></div>
+    <div class="panel-title">Elementos de Referência</div>
+    <button class="btn-mode active" id="toggle-grid">
+      📐 Grade de Solo (Z-Up)
+    </button>
+    <button class="btn-mode active" id="toggle-axes">
+      🧭 Eixos CAD (XYZ)
+    </button>
+  </div>
+
+  <!-- Painel Direito: Métricas CAD e Biometria -->
+  <div class="right-panel">
+    <div class="panel-title">Métricas de Geometria CAD</div>
+    <div class="metric-group">
+      <div class="metric-row">
+        <span class="metric-label">Arquivo:</span>
+        <span class="metric-value" id="meta-name" style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Tamanho:</span>
+        <span class="metric-value" id="meta-size">-</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Vértices:</span>
+        <span class="metric-value" id="meta-verts">0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Triângulos:</span>
+        <span class="metric-value" id="meta-tris">0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Submalhas:</span>
+        <span class="metric-value" id="meta-meshes">0</span>
+      </div>
+    </div>
+
+    <div class="metric-divider"></div>
+    <div class="panel-title">Dimensões Bounding Box (CAD)</div>
+    <div class="metric-group">
+      <div class="metric-row">
+        <span class="metric-label" style="color: #ef4444;">X (Comprimento):</span>
+        <span class="metric-value" id="dim-x">0.00 mm</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label" style="color: #22c55e;">Y (Largura):</span>
+        <span class="metric-value" id="dim-y">0.00 mm</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label" style="color: #3b82f6;">Z (Altura Vertical):</span>
+        <span class="metric-value" id="dim-z">0.00 mm</span>
+      </div>
+    </div>
+
+    <div class="metric-divider"></div>
+    <div class="panel-title">Armature / Rig</div>
+    <div class="metric-group">
+      <div class="metric-row">
+        <span class="metric-label">Status Rig:</span>
+        <span class="metric-value" id="meta-rig">Não detectado</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Ossos (Bones):</span>
+        <span class="metric-value" id="meta-bones">0</span>
+      </div>
+      <div class="metric-row">
+        <span class="metric-label">Animações:</span>
+        <span class="metric-value" id="meta-anims">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Barra Inferior: Câmeras e Ações -->
+  <div class="bottom-bar">
+    <button id="cam-iso" class="active">📐 Perspectiva</button>
+    <button id="cam-front">👤 Frente (X-Z)</button>
+    <button id="cam-side">↔️ Lateral (Y-Z)</button>
+    <button id="cam-top">🔝 Topo (X-Y)</button>
+    <div style="width: 1px; height: 18px; background: var(--panel-border);"></div>
+    <button id="btn-turntable">🔄 Auto-Rotação</button>
+    <button id="btn-center">🎯 Enquadrar</button>
+    <button id="btn-screenshot">📸 Capturar Imagem</button>
+  </div>
+
+  <!-- Loading Indicator -->
+  <div id="loading">
+    <div class="spinner"></div>
+    <span id="loading-text">Carregando modelo 3D...</span>
+  </div>
+
+  <!-- Drag and Drop Overlay -->
+  <div id="drop-zone">
+    <div style="font-size: 3rem;">📦</div>
+    <div>Solte o arquivo .GLB ou .GLTF aqui para inspecionar</div>
+  </div>
+
+  <script>
+    // Configuração Three.js com padrão Z-Up Rigoroso (Regra mcp_3d_modeling.md)
+    let scene, camera, renderer, controls;
+    let currentModel = null;
+    let skeletonHelper = null;
+    let gridHelper = null;
+    let axesHelper = null;
+    let mixer = null;
+    let clock = new THREE.Clock();
+    let currentRenderMode = 'clay';
+    let isAutoRotating = false;
+
+    // Cache de materiais originais para alternância limpa
+    const originalMaterials = new Map();
+
+    // Material Clay Técnico Neutro PBR (RGB ~0.76, Roughness ~0.38, Metallic ~0.08)
+    const clayMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc2c2c2,
+      roughness: 0.38,
+      metalness: 0.08,
+      flatShading: false
+    });
+
+    const wireframeMaterial = new THREE.MeshBasicMaterial({
+      color: 0x38bdf8,
+      wireframe: true
+    });
+
+    const normalMaterial = new THREE.MeshNormalMaterial({
+      flatShading: false
+    });
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      // Cena com fundo gradiente moderno
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x090d14);
+
+      // Câmera com Z-Up Rigoroso
+      camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 1000);
+      camera.up.set(0, 0, 1); // Z-Up CAD rigoroso!
+      camera.position.set(2.5, -3.5, 2.0);
+
+      // Renderer com Antialiasing e Tonemapping PBR
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.1;
+      renderer.outputEncoding = THREE.sRGBEncoding;
+      container.appendChild(renderer.domElement);
+
+      // Controles Orbitais
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+      controls.target.set(0, 0, 0.5);
+
+      // Iluminação de Estúdio PBR
+      setupLighting();
+
+      // Grade e Eixos CAD
+      setupCADHelpers();
+
+      // Eventos de redimensionamento e janelas
+      window.addEventListener('resize', onWindowResize);
+      setupUIEventListeners();
+      setupDragAndDrop();
+      setupSSE();
+
+      // Carrega catálogo de modelos
+      fetchModelCatalog();
+
+      // Loop de renderização
+      animate();
+    }
+
+    function setupLighting() {
+      // Luz ambiente suave
+      const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+      scene.add(ambient);
+
+      // Luz Direcional Principal (Key Light)
+      const keyLight = new THREE.DirectionalLight(0xfff6ea, 1.4);
+      keyLight.position.set(4, -5, 6);
+      keyLight.castShadow = true;
+      keyLight.shadow.mapSize.width = 2048;
+      keyLight.shadow.mapSize.height = 2048;
+      keyLight.shadow.bias = -0.0001;
+      scene.add(keyLight);
+
+      // Luz de Preenchimento (Fill Light)
+      const fillLight = new THREE.DirectionalLight(0xdbeafe, 0.65);
+      fillLight.position.set(-4, 3, 4);
+      scene.add(fillLight);
+
+      // Rim Light posterior para realçar silhueta e geometria
+      const rimLight = new THREE.DirectionalLight(0xffffff, 0.7);
+      rimLight.position.set(0, 5, -2);
+      scene.add(rimLight);
+    }
+
+    function setupCADHelpers() {
+      // Grade CAD no plano XY (Solo Z=0)
+      gridHelper = new THREE.GridHelper(10, 40, 0x38bdf8, 0x1e293b);
+      gridHelper.rotation.x = Math.PI / 2; // Alinha com plano XY no sistema Z-Up
+      gridHelper.position.z = 0;
+      scene.add(gridHelper);
+
+      // Eixos CAD (X: Vermelho, Y: Verde, Z: Azul)
+      axesHelper = new THREE.AxesHelper(1.5);
+      axesHelper.renderOrder = 2;
+      axesHelper.material.depthTest = false;
+      scene.add(axesHelper);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+
+      if (controls) {
+        controls.autoRotate = isAutoRotating;
+        controls.update();
+      }
+
+      if (mixer) {
+        mixer.update(delta);
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    // Carregamento de Modelo GLTF / GLB
+    function loadGLBFromUrl(url, filename, preserveCamera = false) {
+      showLoading(true, `Carregando ${filename}...`);
+      const loader = new THREE.GLTFLoader();
+
+      loader.load(url, (gltf) => {
+        // Remove modelo anterior
+        if (currentModel) {
+          scene.remove(currentModel);
+        }
+        if (skeletonHelper) {
+          scene.remove(skeletonHelper);
+          skeletonHelper = null;
+        }
+
+        currentModel = gltf.scene;
+        originalMaterials.clear();
+
+        // Extrai métricas biométricas e materiais
+        let vertCount = 0;
+        let triCount = 0;
+        let meshCount = 0;
+        let hasArmature = false;
+        let boneCount = 0;
+
+        currentModel.traverse((child) => {
+          if (child.isMesh) {
+            meshCount++;
+            child.castShadow = true;
+            child.receiveShadow = true;
+
+            // Salva material original
+            originalMaterials.set(child, child.material);
+
+            if (child.geometry) {
+              const geom = child.geometry;
+              if (geom.attributes.position) {
+                vertCount += geom.attributes.position.count;
+              }
+              if (geom.index) {
+                triCount += geom.index.count / 3;
+              } else if (geom.attributes.position) {
+                triCount += geom.attributes.position.count / 3;
+              }
+            }
+          }
+
+          if (child.isBone) {
+            hasArmature = true;
+            boneCount++;
+          }
+        });
+
+        // Adiciona skeleton helper se houver rig
+        if (hasArmature) {
+          skeletonHelper = new THREE.SkeletonHelper(currentModel);
+          skeletonHelper.visible = (currentRenderMode === 'skeleton');
+          scene.add(skeletonHelper);
+        }
+
+        // Calcula Bounding Box no sistema Z-Up
+        const bbox = new THREE.Box3().setFromObject(currentModel);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const center = new THREE.Vector3();
+        bbox.getCenter(center);
+
+        // Alinha a base do modelo com o solo (Z=0)
+        currentModel.position.x -= center.x;
+        currentModel.position.y -= center.y;
+        currentModel.position.z -= bbox.min.z;
+
+        scene.add(currentModel);
+
+        // Animações
+        if (gltf.animations && gltf.animations.length > 0) {
+          mixer = new THREE.AnimationMixer(currentModel);
+          gltf.animations.forEach((clip) => mixer.clipAction(clip).play());
+          document.getElementById('meta-anims').textContent = `${gltf.animations.length} ativa(s)`;
+        } else {
+          mixer = null;
+          document.getElementById('meta-anims').textContent = '0';
+        }
+
+        // Atualiza painel de métricas
+        document.getElementById('meta-name').textContent = filename;
+        document.getElementById('meta-verts').textContent = vertCount.toLocaleString();
+        document.getElementById('meta-tris').textContent = Math.round(triCount).toLocaleString();
+        document.getElementById('meta-meshes').textContent = meshCount.toString();
+        document.getElementById('meta-rig').textContent = hasArmature ? 'Ativo (Blender Armature)' : 'Sem Rig';
+        document.getElementById('meta-rig').style.color = hasArmature ? '#10b981' : '#94a3b8';
+        document.getElementById('meta-bones').textContent = boneCount.toString();
+
+        document.getElementById('dim-x').textContent = `${size.x.toFixed(2)} u (${(size.x * 100).toFixed(1)} mm)`;
+        document.getElementById('dim-y').textContent = `${size.y.toFixed(2)} u (${(size.y * 100).toFixed(1)} mm)`;
+        document.getElementById('dim-z').textContent = `${size.z.toFixed(2)} u (${(size.z * 100).toFixed(1)} mm)`;
+
+        // Aplica modo visual ativo
+        applyRenderMode(currentRenderMode);
+
+        // Enquadra câmera se não for preserveCamera
+        if (!preserveCamera) {
+          fitCameraToObject(currentModel);
+        }
+
+        showLoading(false);
+      }, undefined, (error) => {
+        console.error('Erro ao carregar modelo:', error);
+        showLoading(false);
+        alert(`Erro ao abrir ${filename}: ` + error.message);
+      });
+    }
+
+    function fitCameraToObject(obj) {
+      const bbox = new THREE.Box3().setFromObject(obj);
+      const center = new THREE.Vector3();
+      bbox.getCenter(center);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      const maxDim = Math.max(size.x, size.y, size.z);
+      const fov = camera.fov * (Math.PI / 180);
+      let cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.5;
+
+      controls.target.copy(center);
+      camera.position.set(center.x + cameraZ * 0.7, center.y - cameraZ * 0.9, center.z + cameraZ * 0.6);
+      controls.update();
+    }
+
+    function applyRenderMode(mode) {
+      currentRenderMode = mode;
+      document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+
+      const activeBtn = document.getElementById(`mode-${mode}`);
+      if (activeBtn) activeBtn.classList.add('active');
+
+      if (!currentModel) return;
+
+      currentModel.traverse((child) => {
+        if (child.isMesh) {
+          if (mode === 'clay') {
+            child.material = clayMaterial;
+          } else if (mode === 'original') {
+            const orig = originalMaterials.get(child);
+            if (orig) child.material = orig;
+          } else if (mode === 'wireframe') {
+            child.material = wireframeMaterial;
+          } else if (mode === 'normals') {
+            child.material = normalMaterial;
+          }
+        }
+      });
+
+      if (skeletonHelper) {
+        skeletonHelper.visible = (mode === 'skeleton');
+      }
+    }
+
+    function fetchModelCatalog() {
+      fetch('/api/models')
+        .then(res => res.json())
+        .then(models => {
+          const select = document.getElementById('model-select');
+          select.innerHTML = '';
+
+          if (!models || models.length === 0) {
+            select.innerHTML = '<option value="">Nenhum modelo encontrado</option>';
+            return;
+          }
+
+          models.forEach((m, idx) => {
+            const opt = document.createElement('option');
+            opt.value = m.name;
+            const sizeMb = (m.size / (1024 * 1024)).toFixed(2);
+            opt.textContent = `${m.name} (${sizeMb} MB)`;
+            select.appendChild(opt);
+          });
+
+          // Seleciona preferencialmente o modelo com rig, ou o mais recente
+          let preferred = models.find(m => m.name.includes('rigged')) || models[0];
+          select.value = preferred.name;
+          document.getElementById('meta-size').textContent = (preferred.size / 1024).toFixed(1) + ' KB';
+          loadGLBFromUrl(`/models/${preferred.name}`, preferred.name);
+        })
+        .catch(err => {
+          console.error('Falha ao obter lista de modelos:', err);
+        });
+    }
+
+    function setupUIEventListeners() {
+      // Modos de Visualização
+      document.getElementById('mode-clay').onclick = () => applyRenderMode('clay');
+      document.getElementById('mode-original').onclick = () => applyRenderMode('original');
+      document.getElementById('mode-wireframe').onclick = () => applyRenderMode('wireframe');
+      document.getElementById('mode-normals').onclick = () => applyRenderMode('normals');
+      document.getElementById('mode-skeleton').onclick = () => applyRenderMode('skeleton');
+
+      // Toggles de Referência
+      document.getElementById('toggle-grid').onclick = (e) => {
+        gridHelper.visible = !gridHelper.visible;
+        e.currentTarget.classList.toggle('active', gridHelper.visible);
+      };
+      document.getElementById('toggle-axes').onclick = (e) => {
+        axesHelper.visible = !axesHelper.visible;
+        e.currentTarget.classList.toggle('active', axesHelper.visible);
+      };
+
+      // Seletor de Modelo
+      document.getElementById('model-select').onchange = (e) => {
+        const val = e.target.value;
+        if (val) loadGLBFromUrl(`/models/${val}`, val);
+      };
+
+      // Botão Recarregar
+      document.getElementById('btn-reload').onclick = () => {
+        const sel = document.getElementById('model-select').value;
+        if (sel) loadGLBFromUrl(`/models/${sel}`, sel, true);
+      };
+
+      // Upload Local de Arquivos
+      document.getElementById('btn-file-upload').onclick = () => {
+        document.getElementById('file-input').click();
+      };
+      document.getElementById('file-input').onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const blobUrl = URL.createObjectURL(file);
+          document.getElementById('meta-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+          loadGLBFromUrl(blobUrl, file.name);
+        }
+      };
+
+      // Câmeras CAD
+      document.getElementById('cam-iso').onclick = () => {
+        if (!currentModel) return;
+        fitCameraToObject(currentModel);
+      };
+      document.getElementById('cam-front').onclick = () => {
+        if (!currentModel) return;
+        const bbox = new THREE.Box3().setFromObject(currentModel);
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+        const dist = Math.max(size.x, size.z) * 2;
+        camera.position.set(center.x, center.y - dist, center.z);
+        controls.target.copy(center);
+        controls.update();
+      };
+      document.getElementById('cam-side').onclick = () => {
+        if (!currentModel) return;
+        const bbox = new THREE.Box3().setFromObject(currentModel);
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+        const dist = Math.max(size.y, size.z) * 2;
+        camera.position.set(center.x + dist, center.y, center.z);
+        controls.target.copy(center);
+        controls.update();
+      };
+      document.getElementById('cam-top').onclick = () => {
+        if (!currentModel) return;
+        const bbox = new THREE.Box3().setFromObject(currentModel);
+        const center = bbox.getCenter(new THREE.Vector3());
+        const size = bbox.getSize(new THREE.Vector3());
+        const dist = Math.max(size.x, size.y) * 2;
+        camera.position.set(center.x, center.y, center.z + dist);
+        controls.target.copy(center);
+        controls.update();
+      };
+
+      // Auto-Rotação
+      document.getElementById('btn-turntable').onclick = (e) => {
+        isAutoRotating = !isAutoRotating;
+        e.currentTarget.classList.toggle('active', isAutoRotating);
+      };
+
+      // Enquadrar
+      document.getElementById('btn-center').onclick = () => {
+        if (currentModel) fitCameraToObject(currentModel);
+      };
+
+      // Screenshot
+      document.getElementById('btn-screenshot').onclick = () => {
+        renderer.render(scene, camera);
+        const dataUrl = renderer.domElement.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `viewport_${document.getElementById('meta-name').textContent || 'model'}.png`;
+        link.href = dataUrl;
+        link.click();
+      };
+    }
+
+    function setupDragAndDrop() {
+      const dropZone = document.getElementById('drop-zone');
+
+      window.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.display = 'flex';
+      });
+
+      window.addEventListener('dragleave', (e) => {
+        if (e.relatedTarget === null) {
+          dropZone.style.display = 'none';
+        }
+      });
+
+      window.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.display = 'none';
+
+        const file = e.dataTransfer.files[0];
+        if (file && (file.name.endsWith('.glb') || file.name.endsWith('.gltf'))) {
+          const blobUrl = URL.createObjectURL(file);
+          document.getElementById('meta-size').textContent = (file.size / 1024).toFixed(1) + ' KB';
+          loadGLBFromUrl(blobUrl, file.name);
+        }
+      });
+    }
+
+    // SSE Live Reload Conforme Regra mcp_3d_modeling.md
+    function setupSSE() {
+      const sseStatus = document.getElementById('sse-status');
+      try {
+        const evtSource = new EventSource('/events');
+
+        evtSource.onopen = () => {
+          sseStatus.textContent = 'SSE Ativo (Port 8088)';
+          sseStatus.style.color = 'var(--success)';
+        };
+
+        evtSource.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.event === 'reload') {
+              console.log('[SSE] Atualização detectada em:', data.file);
+              fetchModelCatalog();
+              const currentSelected = document.getElementById('model-select').value;
+              if (data.file === currentSelected) {
+                loadGLBFromUrl(`/models/${data.file}`, data.file, true);
+              }
+            }
+          } catch (err) {
+            console.warn('[SSE] Parse error:', err);
+          }
+        };
+
+        evtSource.onerror = () => {
+          sseStatus.textContent = 'Reconectando SSE...';
+          sseStatus.style.color = 'var(--warning)';
+        };
+      } catch (err) {
+        console.warn('SSE indisponível:', err);
+      }
+    }
+
+    function showLoading(show, text = 'Carregando...') {
+      const el = document.getElementById('loading');
+      document.getElementById('loading-text').textContent = text;
+      el.style.display = show ? 'flex' : 'none';
+    }
+
+    // Inicialização ao carregar
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

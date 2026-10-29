@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.11</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.12</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -634,18 +634,18 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.7.11"></script>
-  <script src="js/simulation/core.js?v=2.7.11"></script>
-  <script src="js/simulation/environment.js?v=2.7.11"></script>
-  <script src="js/species/rat.js?v=2.7.11"></script>
-  <script src="js/species/cat.js?v=2.7.11"></script>
-  <script src="js/species/harpy.js?v=2.7.11"></script>
-  <script src="js/species/aquatic.js?v=2.7.11"></script>
-  <script src="js/species/reptiles.js?v=2.7.11"></script>
-  <script src="js/species/birds.js?v=2.7.11"></script>
-  <script src="js/species/insects.js?v=2.7.11"></script>
-  <script src="js/rendering/renderer.js?v=2.7.11"></script>
-  <script src="js/ui/ui-controller.js?v=2.7.11"></script>
+  <script src="js/species/reproduction.js?v=2.7.12"></script>
+  <script src="js/simulation/core.js?v=2.7.12"></script>
+  <script src="js/simulation/environment.js?v=2.7.12"></script>
+  <script src="js/species/rat.js?v=2.7.12"></script>
+  <script src="js/species/cat.js?v=2.7.12"></script>
+  <script src="js/species/harpy.js?v=2.7.12"></script>
+  <script src="js/species/aquatic.js?v=2.7.12"></script>
+  <script src="js/species/reptiles.js?v=2.7.12"></script>
+  <script src="js/species/birds.js?v=2.7.12"></script>
+  <script src="js/species/insects.js?v=2.7.12"></script>
+  <script src="js/rendering/renderer.js?v=2.7.12"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.12"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -1081,6 +1081,28 @@
               continue;
             }
           }
+        }
+
+        // Defesa Territorial Feroz das Colônias de Insetos Sociais (Formigueiros, Cupinzeiros, Colmeias)
+        if (typeof InsectSpecies !== 'undefined' && InsectSpecies.applyColonyDefense) {
+          const colDef = InsectSpecies.applyColonyDefense(a, nests, dt, { applyDeathDecomposition });
+          if (colDef && colDef.isUnderAttack) {
+            targetX = colDef.fleeTargetX;
+            targetY = colDef.fleeTargetY;
+            a.currentSprintBoost = 2.4;
+          } else if (InsectSpecies.applySwarmFieldDefense) {
+            const swarmDef = InsectSpecies.applySwarmFieldDefense(a, animals, dt);
+            if (swarmDef && swarmDef.isUnderAttack) {
+              targetX = swarmDef.fleeTargetX;
+              targetY = swarmDef.fleeTargetY;
+              a.currentSprintBoost = 1.9;
+            }
+          }
+        }
+
+        // Se o invasor sucumbiu ao ataque feroz das colônias ou enxames, descarta imediatamente
+        if (a.hp <= 0) {
+          continue;
         }
 
         // 1. Repulsão Suave das Bordas do Mapa (Evita aprisionamento e aglomeração nas margens de 2048x1024)

@@ -295,6 +295,8 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
             subspecies: colony.species === 'ant' ? 'sauva' : (colony.species === 'termite' ? 'cupim' : 'jatai'),
             isVirginQueen: true,
             isSocial: false,
+            nestId: colony.id,
+            originNestId: colony.id,
             name: (colony.species === 'ant' ? 'Tanajura (Rainha Virgem)' : (colony.species === 'bee' ? 'Princesa Jataí' : 'Aleluia (Rainha Virgem)')),
             icon: (colony.species === 'ant' ? '🐜' : (colony.species === 'bee' ? '🐝' : '🪵')),
             sex: 'female',
@@ -815,6 +817,131 @@ function updateInsectBehavior(a, dt, ctx) {
   return { targetX, targetY };
 }
 
+
+/**
+ * Mecânica de Defesa Territorial Feroz dos Insetos Sociais:
+ * Qualquer animal estranho (mamíferos, répteis ou insetos rivais) que invada
+ * o perímetro da colônia é atacado com extrema ferocidade por centenas de soldados e operárias.
+ */
+function applyColonyDefense(a, nests, dt, ctx) {
+  if (!a || a.hp <= 0 || a.enteredNest) return null;
+  if (!nests || !Array.isArray(nests)) return null;
+
+  // Peixes em água profunda não são atacados por formigueiros/cupinzeiros terrestres
+  if (a.species === 'tambaqui' || a.species === 'traira' || a.species === 'piranha') {
+    return null;
+  }
+
+  let attackedByColony = null;
+  let minColonyDist = 999.0;
+
+  for (let ni = 0; ni < nests.length; ni++) {
+    const col = nests[ni];
+    if (!col.isSocialColony) continue;
+
+    // Se o animal pertence ou é cria desta mesma colônia (ex: operária, soldado ou rainha virgem em voo), não é atacado
+    if (a.nestId === col.id || a.originNestId === col.id) continue;
+
+    // Raio de defesa territorial do ninho (em metros)
+    const defRadius = (col.species === 'ant' ? 7.5 : (col.species === 'termite' ? 6.5 : 8.0));
+    const dist = Math.hypot(a.x - col.x, a.y - col.y);
+
+    if (dist < defRadius && dist < minColonyDist) {
+      minColonyDist = dist;
+      attackedByColony = col;
+    }
+  }
+
+  if (!attackedByColony) {
+    if (a.isUnderSwarmAttack) a.isUnderSwarmAttack = false;
+    return null;
+  }
+
+  const col = attackedByColony;
+  const defRadius = (col.species === 'ant' ? 7.5 : (col.species === 'termite' ? 6.5 : 8.0));
+  
+  // Proximidade: quanto mais próximo da entrada/monte, mais furioso e concentrado é o contra-ataque
+  const proximityFactor = Math.max(0.4, 1.0 - (minColonyDist / defRadius));
+
+  // Contingente defensor mobilizado pela colônia (soldados e operárias que saem para defender)
+  // Cada carga interna representa 100 indivíduos.
+  const colonyPop = Math.max(100, (col.charges || 4) * 100);
+  const activeDefenders = Math.min(250, colonyPop * 0.40) * proximityFactor;
+
+  // Dano coletivo feroz: 0.1 de poder por indivíduo defensor
+  // Ex: 150 defensores * 0.1 = 15.0 de dano por segundo!
+  const dps = activeDefenders * 0.1;
+  const damage = dps * dt;
+  a.hp = Math.max(0, a.hp - damage);
+
+  // Reação do invasor: Pânico, picadas generalizadas e fuga em alta velocidade
+  a.isUnderSwarmAttack = true;
+  a.swarmAttackTimer = 1.2;
+  a.currentSprintBoost = 2.4; // Dispara em velocidade máxima de pânico
+
+  // Vetor de Repulsão Violenta (foge na direção oposta ao centro da colônia)
+  const dx = a.x - col.x;
+  const dy = a.y - col.y;
+  const len = Math.hypot(dx, dy) || 1.0;
+  const fleeDirX = dx / len;
+  const fleeDirY = dy / len;
+  const fleeTargetX = a.x + fleeDirX * 35.0;
+  const fleeTargetY = a.y + fleeDirY * 35.0;
+
+  // Ativa alerta de defesa e combate na colônia para a interface visual
+  col.defensiveAlertTimer = 1.6;
+  col.lastInvaderPos = { x: a.x, y: a.y, species: a.species, name: a.name || a.species };
+  col.totalInvadersRepelled = (col.totalInvadersRepelled || 0) + 1;
+
+  // Se o animal não resistiu ao ataque feroz e morreu no perímetro do ninho:
+  if (a.hp <= 0) {
+    if (ctx && typeof ctx.applyDeathDecomposition === 'function') {
+      ctx.applyDeathDecomposition(a.x, a.y);
+    }
+    // A colônia recolhe a biomassa e proteína do invasor abatido
+    col.resourcesKg = (col.resourcesKg || 0) + 3.5;
+    console.log(`⚔️ [DEFESA FEROZ] Colônia '${col.name}' abateu invasor (${a.name || a.species})! +3.5kg de proteína estocados.`);
+  }
+
+  return {
+    isUnderAttack: true,
+    colony: col,
+    fleeTargetX,
+    fleeTargetY,
+    damageApplied: damage
+  };
+}
+
+/**
+ * Defesa de campo: se um animal não-membro pisoteia ou invade o raio de um enxame forrageador (ex: < 2.2m)
+ */
+function applySwarmFieldDefense(a, animals, dt) {
+  if (!a || a.hp <= 0 || a.isSocial) return null;
+  if (!animals || !Array.isArray(animals)) return null;
+
+  for (let i = 0; i < animals.length; i++) {
+    const s = animals[i];
+    if (!s.isSocial || s.hp <= 0 || s.enteredNest) continue;
+    const d = Math.hypot(a.x - s.x, a.y - s.y);
+    if (d < 2.2) {
+      // O enxame defende com seu contingente (0.1 de ataque por ponto de HP = até 10 DPS)
+      const dmg = (s.hp * (s.attackPower || 0.1)) * 0.6 * dt;
+      a.hp = Math.max(0, a.hp - dmg);
+      a.isUnderSwarmAttack = true;
+      a.currentSprintBoost = 1.9;
+      const dx = a.x - s.x;
+      const dy = a.y - s.y;
+      const len = Math.hypot(dx, dy) || 1.0;
+      return {
+        isUnderAttack: true,
+        fleeTargetX: a.x + (dx / len) * 22.0,
+        fleeTargetY: a.y + (dy / len) * 22.0
+      };
+    }
+  }
+  return null;
+}
+
 // Vinculação de escopo para ambiente browser e Node.js
 if (typeof window !== 'undefined') {
   window.InsectSpecies = {
@@ -822,7 +949,9 @@ if (typeof window !== 'undefined') {
     updateSocialColonies,
     updateInsectBehavior,
     isWaterSpot,
-    findSafeDryLandCoords
+    findSafeDryLandCoords,
+    applyColonyDefense,
+    applySwarmFieldDefense
   };
   window.isWaterSpot = isWaterSpot;
   window.findSafeDryLandCoords = findSafeDryLandCoords;
@@ -833,6 +962,8 @@ if (typeof module !== 'undefined' && module.exports) {
     updateSocialColonies,
     updateInsectBehavior,
     isWaterSpot,
-    findSafeDryLandCoords
+    findSafeDryLandCoords,
+    applyColonyDefense,
+    applySwarmFieldDefense
   };
 }

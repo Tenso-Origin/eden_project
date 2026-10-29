@@ -453,6 +453,54 @@ function render() {
           ctx.font = '6px sans-serif';
           ctx.fillText('👑', n.x + 8.5, by + 1.0);
         }
+
+        // Efeito Visual de Ataque e Defesa Feroz da Colônia
+        if (n.defensiveAlertTimer && n.defensiveAlertTimer > 0) {
+          n.defensiveAlertTimer = Math.max(0, n.defensiveAlertTimer - 0.016);
+          const defRadius = (n.species === 'ant' ? 7.5 : (n.species === 'termite' ? 6.5 : 8.0));
+
+          ctx.save();
+          // Halo de alerta vermelho pulsante
+          const pulse = 0.5 + Math.sin(Date.now() * 0.012) * 0.4;
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, defRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = `rgba(239, 68, 68, ${0.4 + pulse * 0.4})`;
+          ctx.lineWidth = 1.4;
+          ctx.setLineDash([2, 2]);
+          ctx.stroke();
+          ctx.fillStyle = `rgba(239, 68, 68, ${0.12 * pulse})`;
+          ctx.fill();
+          ctx.setLineDash([]);
+
+          // Se há posição conhecida do invasor, desenha partículas de assalto atacando o invasor
+          if (n.lastInvaderPos) {
+            ctx.beginPath();
+            ctx.moveTo(n.x, n.y);
+            ctx.lineTo(n.lastInvaderPos.x, n.lastInvaderPos.y);
+            ctx.strokeStyle = 'rgba(239, 68, 68, 0.45)';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+
+            // Partículas de enxame de mordida
+            const pCount = 4;
+            for (let pi = 0; pi < pCount; pi++) {
+              const tFrac = ((Date.now() * 0.003 + pi * 0.25) % 1.0);
+              const partX = n.x + (n.lastInvaderPos.x - n.x) * tFrac + (Math.sin(pi * 2.1) * 0.8);
+              const partY = n.y + (n.lastInvaderPos.y - n.y) * tFrac + (Math.cos(pi * 2.1) * 0.8);
+              ctx.beginPath();
+              ctx.arc(partX, partY, 0.8, 0, Math.PI * 2);
+              ctx.fillStyle = (n.species === 'ant' ? '#ef4444' : (n.species === 'bee' ? '#f59e0b' : '#ea580c'));
+              ctx.fill();
+            }
+          }
+
+          // Rótulo de combate defensivo
+          ctx.font = 'bold 6px "JetBrains Mono", sans-serif';
+          ctx.fillStyle = '#ef4444';
+          ctx.textAlign = 'center';
+          ctx.fillText('⚔️ DEFESA FEROZ!', n.x, by - 3.5);
+          ctx.restore();
+        }
         ctx.restore();
       }
 
@@ -578,6 +626,28 @@ function render() {
         ctx.strokeStyle = 'rgba(239, 68, 68, 0.95)';
         ctx.lineWidth = 1.6;
         ctx.stroke();
+      }
+
+      // Animal sob Ataque Feroz de Insetos Sociais (Mordidas / Ferroadas)
+      if (a.isUnderSwarmAttack) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 3.0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.95)';
+        ctx.lineWidth = 1.6;
+        ctx.setLineDash([1.5, 1.5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Pequenas partículas de mordidas em volta do animal
+        for (let b = 0; b < 4; b++) {
+          const bAng = (Date.now() * 0.008 + b * (Math.PI / 2));
+          const bx = px + Math.cos(bAng) * (badgeR + 4.0);
+          const by = py + Math.sin(bAng) * (badgeR + 4.0);
+          ctx.beginPath();
+          ctx.arc(bx, by, 0.8, 0, Math.PI * 2);
+          ctx.fillStyle = '#ef4444';
+          ctx.fill();
+        }
       }
 
       // Jabuti Retraído na Carapaça

@@ -145,7 +145,7 @@ function inspectCell(x, y) {
           const qMax = (nestHere.queen.maxLifespanDays / 365).toFixed(1);
           queenStr = nestHere.queen.isAlive ? `👑 Rainha ${qAge}/${qMax}a (${nestHere.queen.eggsPerDay} ovos/d, ovos:${(nestHere.queen.eggBuffer||0).toFixed(0)}%)` : "💀 Rainha Morta";
         }
-        elNest.innerText = `${nestHere.name} | Pop: ${totPop} (${intPop} int. [${nestHere.charges}📦], ${extPop} ext.) | ${queenStr} | Res: ${(nestHere.resourcesKg||0).toFixed(1)}kg`;
+        elNest.innerText = `${nestHere.name} | Pop: ${totPop} (${intPop} int. [${nestHere.charges}📦], ${extPop} ext.) | ${queenStr} | Res: ${(nestHere.resourcesKg||0).toFixed(1)}kg${nestHere.totalInvadersRepelled ? ` | ⚔️ Invasores rechaçados: ${nestHere.totalInvadersRepelled}` : ''}`;
       } else {
         elNest.innerText = `${nestHere.name} (${nestHere.species})`;
       }

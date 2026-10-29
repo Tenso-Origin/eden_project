@@ -1,17 +1,19 @@
 // =========================================================================
-// MÓDULO DE INSETOS NEOTROPICAIS (10 ESPÉCIES - BACIA AMAZÔNICA 2048x1024)
-// INCLUINDO INSETOS SOCIAIS (FORMIGAS, CUPINS E ABELHAS), NINHOS E REVOADA
+// MÓDULO DE INSETOS NEOTROPICAIS (BACIA AMAZÔNICA 2048x1024)
+// INSETOS SOCIAIS: COLÔNIAS CENTRAIS, SISTEMA DE CARGAS, PROPORÇÃO REAL DE FORRAGEAMENTO,
+// DADOS BIOLÓGICOS DA RAINHA (LONGEVIDADE E OVOPOSIÇÃO) E REVOADA SAZONAL
 // =========================================================================
 
 /**
- * Criação da população inicial de insetos distribuída por nicho ecológico
- * Cria ninhos centrais para insetos sociais e vincula operárias ao raio do ninho.
+ * Criação da população inicial e colônias
+ * Colônias começam com 5 ícones (500 indivíduos no total).
+ * 4 cargas ficam trabalhando internamente na colônia e 1 enxame sai forrageando ao lado.
  */
 function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null) {
   const insectList = [];
 
-  // Configuração dos Ninhos de Insetos Sociais na Bacia Amazônica
-  const SOCIAL_NESTS = {
+  // Configuração das Colônias Iniciais de Insetos Sociais na Bacia Amazônica
+  const SOCIAL_COLONIES = {
     ant: [
       { name: 'Formigueiro Oeste (Saúva)', x: 420, y: 360, radius: 85.0, res: 40.0 },
       { name: 'Formigueiro Sul (Saúva)', x: 1050, y: 780, radius: 85.0, res: 35.0 },
@@ -29,13 +31,21 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
     ]
   };
 
-  const assignedNests = { ant: [], termite: [], bee: [] };
   let nestSeq = 5000;
+  let idCounter = 8000;
 
   if (nests && Array.isArray(nests)) {
-    for (const [sp, list] of Object.entries(SOCIAL_NESTS)) {
+    for (const [sp, list] of Object.entries(SOCIAL_COLONIES)) {
       for (const nConf of list) {
-        const nestObj = {
+        // Dados biológicos reais da rainha por espécie:
+        // - Saúva: Longevidade de 12 a 15 anos (~4.745 dias), postura de ~150 ovos/dia
+        // - Cupim: Longevidade de 15 a 20 anos (~6.200 dias), postura de ~100 ovos/dia
+        // - Abelha Jataí: Longevidade de 2 a 3 anos (~912 dias), postura de ~60 ovos/dia
+        const maxLifeDays = (sp === 'ant' ? 4745.0 : (sp === 'termite' ? 6200.0 : 912.0));
+        const dailyEggs = (sp === 'ant' ? 150.0 : (sp === 'termite' ? 100.0 : 60.0));
+        const extRatio = (sp === 'bee' ? 0.25 : 0.20); // 20% a 25% forrageando externamente, 75% a 80% interna
+
+        const colonyObj = {
           id: nestSeq++,
           species: sp,
           name: nConf.name,
@@ -44,42 +54,78 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
           quality: 90,
           resourcesKg: nConf.res,
           forageRadius: nConf.radius,
+          isSocialColony: true,
+
+          // População total inicial: 500 indivíduos (5 ícones/cargas)
+          totalInitialCharges: 5,
+          charges: 4,                  // 4 cargas internas trabalhando dentro da colônia
+          activeSwarmsCount: 1,        // 1 enxame em campo trabalhando fora (5ª carga)
+          maxExternalRatio: extRatio,  // Proporção de forrageamento exterior observada na realidade
+          dispatchCooldown: 5.0 + Math.random() * 8.0,
+
+          // Rainha da Colônia
+          queen: {
+            isAlive: true,
+            ageDays: 180.0,
+            maxLifespanDays: maxLifeDays,
+            eggsPerDay: dailyEggs,
+            eggBuffer: 0.0
+          },
+
           lastNuptialFlightYear: -1
         };
-        nests.push(nestObj);
-        assignedNests[sp].push(nestObj);
+
+        nests.push(colonyObj);
+
+        // Cria exatamente 1 enxame ativo (100 indivíduos) ao lado da colônia
+        const spawnAngle = Math.random() * Math.PI * 2;
+        const sDist = 3.0 + Math.random() * 3.0;
+        insectList.push({
+          id: idCounter++,
+          species: sp,
+          diet: (sp === 'termite' ? 'decomposer' : 'herbivore'),
+          name: (sp === 'ant' ? 'Formiga-saúva' : (sp === 'termite' ? 'Cupim-da-terra' : 'Abelha-jataí')),
+          icon: (sp === 'ant' ? '🐜' : (sp === 'termite' ? '🪵' : '🐝')),
+          sex: 'female',
+          x: colonyObj.x + Math.cos(spawnAngle) * sDist,
+          y: colonyObj.y + Math.sin(spawnAngle) * sDist,
+          hp: 100,             // 100 indivíduos no enxame
+          maxHp: 100,
+          hunger: 5.0,
+          speed: (sp === 'ant' ? 1.1 : (sp === 'bee' ? 2.8 : 0.8)),
+          attackPower: 0.1,    // 0.1 de ataque unitário por indivíduo
+          defensePower: 0.0,   // 0.0 de defesa individual
+          isSocial: true,
+          nestId: colonyObj.id,
+          nestX: colonyObj.x,
+          nestY: colonyObj.y,
+          maxForageRadius: colonyObj.forageRadius,
+          foodCarried: 0.0,
+          isReturningToNest: false,
+          ageInDays: 15.0,
+          maxLifespan: 365.0,
+          wanderAngle: spawnAngle,
+          enteredNest: false
+        });
       }
     }
   }
 
-  const SPECIES_CONFIG = [
-    { species: 'ant', count: 40, name: 'Formiga-saúva', diet: 'herbivore', spd: 1.1, icon: '🐜', zone: 'nest', isSocial: true, femaleRatio: 0.95 },
-    { species: 'bee', count: 30, name: 'Abelha-jataí', diet: 'herbivore', spd: 2.8, icon: '🐝', zone: 'nest', isSocial: true, femaleRatio: 0.95 },
-    { species: 'termite', count: 35, name: 'Cupim-da-terra', diet: 'decomposer', spd: 0.8, icon: '🪵', zone: 'nest', isSocial: true, femaleRatio: 0.90 },
-    { species: 'butterfly', count: 30, name: 'Borboleta-morfo', diet: 'herbivore', spd: 2.2, icon: '🦋', zone: 'clearings', isSocial: false, femaleRatio: 0.50, gest: 7.0, litter: [5, 9], mat: 15.0, est: 10.0 },
-    { species: 'dragonfly', count: 25, name: 'Libélula-imperador', diet: 'carnivore', spd: 3.8, icon: '🪰', zone: 'water', isSocial: false, femaleRatio: 0.50, gest: 10.0, litter: [4, 7], mat: 25.0, est: 14.0 },
-    { species: 'beetle', count: 25, name: 'Besouro-hércules', diet: 'decomposer', spd: 0.9, icon: '🪲', zone: 'forest', isSocial: false, femaleRatio: 0.50, gest: 20.0, litter: [2, 5], mat: 40.0, est: 25.0 },
-    { species: 'mosquito', count: 40, name: 'Mosquito-prego', diet: 'carnivore', spd: 2.0, icon: '🦟', zone: 'water', isSocial: false, femaleRatio: 0.60, gest: 5.0, litter: [8, 18], mat: 10.0, est: 7.0 },
-    { species: 'grasshopper', count: 35, name: 'Gafanhoto-esperança', diet: 'herbivore', spd: 2.4, icon: '🦗', zone: 'varzea', isSocial: false, femaleRatio: 0.50, gest: 14.0, litter: [5, 10], mat: 30.0, est: 18.0 },
-    { species: 'mantis', count: 20, name: 'Louva-a-deus', diet: 'carnivore', spd: 1.2, icon: '🍃', zone: 'varzea', isSocial: false, femaleRatio: 0.50, gest: 18.0, litter: [3, 7], mat: 40.0, est: 20.0 },
-    { species: 'roach', count: 28, name: 'Barata-da-mata', diet: 'decomposer', spd: 1.8, icon: '🪳', zone: 'forest', isSocial: false, femaleRatio: 0.50, gest: 20.0, litter: [6, 12], mat: 35.0, est: 18.0 }
+  // Insetos Solitários e Predadores da Bacia Amazônica
+  const SOLITARY_CONFIG = [
+    { species: 'butterfly', count: 30, name: 'Borboleta-morfo', diet: 'herbivore', spd: 2.2, icon: '🦋', zone: 'clearings', femaleRatio: 0.50, gest: 7.0, litter: [5, 9], mat: 15.0, est: 10.0 },
+    { species: 'dragonfly', count: 25, name: 'Libélula-imperador', diet: 'carnivore', spd: 3.8, icon: '🪰', zone: 'water', femaleRatio: 0.50, gest: 10.0, litter: [4, 7], mat: 25.0, est: 14.0 },
+    { species: 'beetle', count: 25, name: 'Besouro-hércules', diet: 'decomposer', spd: 0.9, icon: '🪲', zone: 'forest', femaleRatio: 0.50, gest: 20.0, litter: [2, 5], mat: 40.0, est: 25.0 },
+    { species: 'mosquito', count: 40, name: 'Mosquito-prego', diet: 'carnivore', spd: 2.0, icon: '🦟', zone: 'water', femaleRatio: 0.60, gest: 5.0, litter: [8, 18], mat: 10.0, est: 7.0 },
+    { species: 'grasshopper', count: 35, name: 'Gafanhoto-esperança', diet: 'herbivore', spd: 2.4, icon: '🦗', zone: 'varzea', femaleRatio: 0.50, gest: 14.0, litter: [5, 10], mat: 30.0, est: 18.0 },
+    { species: 'mantis', count: 20, name: 'Louva-a-deus', diet: 'carnivore', spd: 1.2, icon: '🍃', zone: 'varzea', femaleRatio: 0.50, gest: 18.0, litter: [3, 7], mat: 40.0, est: 20.0 },
+    { species: 'roach', count: 28, name: 'Barata-da-mata', diet: 'decomposer', spd: 1.8, icon: '🪳', zone: 'forest', femaleRatio: 0.50, gest: 20.0, litter: [6, 12], mat: 35.0, est: 18.0 }
   ];
 
-  let idCounter = 8000;
-
-  for (const cfg of SPECIES_CONFIG) {
-    const isSoc = cfg.isSocial;
-
+  for (const cfg of SOLITARY_CONFIG) {
     for (let i = 0; i < cfg.count; i++) {
       let x, y;
-      let myNest = null;
-
-      if (isSoc && assignedNests[cfg.species] && assignedNests[cfg.species].length > 0) {
-        // Vincula a um ninho da espécie e posiciona no raio imediato do ninho
-        myNest = assignedNests[cfg.species][i % assignedNests[cfg.species].length];
-        x = myNest.x + (Math.random() - 0.5) * 12.0;
-        y = myNest.y + (Math.random() - 0.5) * 12.0;
-      } else if (cfg.zone === 'water') {
+      if (cfg.zone === 'water') {
         x = 100 + Math.random() * (gridWidth - 200);
         const yRiver = (typeof getRiverMainY === 'function') ? getRiverMainY(x) : 512.0;
         y = yRiver + (Math.random() - 0.5) * 35.0;
@@ -96,10 +142,8 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
       y = Math.max(15, Math.min(gridHeight - 15, y));
 
       const sex = (Math.random() < cfg.femaleRatio) ? 'female' : 'male';
-      const isPregnantInit = (!isSoc && sex === 'female' && Math.random() < 0.20);
+      const isPregnantInit = (sex === 'female' && Math.random() < 0.20);
       const gestationRem = isPregnantInit ? (1.0 + Math.random() * (cfg.gest - 1.0)) : 0.0;
-
-      const fRadius = isSoc ? (myNest ? myNest.forageRadius : (cfg.species === 'termite' ? 45.0 : (cfg.species === 'ant' ? 85.0 : 130.0))) : 0.0;
 
       insectList.push({
         id: idCounter++,
@@ -110,29 +154,17 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
         sex: sex,
         x: x,
         y: y,
-        hp: 100,             // Cada ponto de HP = 1 indivíduo (100 formigas/abelhas/cupins por token)
+        hp: 100,
         maxHp: 100,
         hunger: 5.0 + Math.random() * 15.0,
         speed: cfg.spd,
-
-        // Atributos de combate: Insetos sociais possuem defesa 0, ataque 0.1 e atacam em quantidade igual ao seu HP
-        attackPower: isSoc ? 0.1 : (cfg.diet === 'carnivore' ? 18.0 : 2.0),
-        defensePower: isSoc ? 0.0 : 2.0,
-
-        isSocial: isSoc,
-        nestId: myNest ? myNest.id : null,
-        nestX: myNest ? myNest.x : x,
-        nestY: myNest ? myNest.y : y,
-        maxForageRadius: fRadius,
-        foodCarried: 0.0,
-        isReturningToNest: false,
-
+        attackPower: (cfg.diet === 'carnivore' ? 18.0 : 2.0),
+        defensePower: 2.0,
+        isSocial: false,
         ageInDays: 20.0 + Math.random() * 100.0,
         maxLifespan: 365.0,
         pollinateTimer: 0.0,
         wanderAngle: Math.random() * Math.PI * 2,
-
-        // Ciclo Reprodutivo para espécies não-sociais
         isPregnant: isPregnantInit,
         daysPregnant: isPregnantInit ? (cfg.gest - gestationRem) : 0.0,
         gestationRemaining: gestationRem,
@@ -145,6 +177,168 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
   }
 
   return insectList;
+}
+
+/**
+ * Atualização das Colônias de Insetos Sociais:
+ * - Ciclo de vida da rainha e postura de ovos
+ * - Manutenção da proporção interna/externa (forrageadoras em campo vs trabalho interno)
+ * - Despacho de enxames consumindo cargas
+ * - Revoada nupcial anual sincronizada com o calendário de chuvas amazônico
+ */
+function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
+  if (!nests || !Array.isArray(nests)) return;
+
+  const { GRID_WIDTH, GRID_HEIGHT, totalSimHours, weather, animals } = ctx;
+  const gridW = GRID_WIDTH || 2048;
+  const gridH = GRID_HEIGHT || 1024;
+  const simDeltaDays = (0.08 * dt) / 24.0;
+  const animalSource = animals || targetAnimalList || [];
+
+  for (let ni = 0; ni < nests.length; ni++) {
+    const colony = nests[ni];
+    if (!colony.isSocialColony) continue;
+
+    // 1. CICLO BIOLÓGICO DA RAINHA E OVOPOSIÇÃO
+    if (colony.queen) {
+      colony.queen.ageDays += simDeltaDays;
+
+      if (colony.queen.ageDays >= colony.queen.maxLifespanDays) {
+        colony.queen.isAlive = false;
+        // Abelhas Jataí promovem princesa com alimento estocado
+        if (colony.species === 'bee' && (colony.resourcesKg || 0) >= 5.0) {
+          colony.queen.isAlive = true;
+          colony.queen.ageDays = 0.0;
+          colony.resourcesKg -= 2.5;
+          console.log(`👑 [SUCESSÃO JATAÍ] Nova rainha princesa assumiu a colmeia '${colony.name}'!`);
+        }
+      }
+
+      if (colony.queen.isAlive) {
+        const eggsSpawned = colony.queen.eggsPerDay * simDeltaDays;
+        colony.queen.eggBuffer = (colony.queen.eggBuffer || 0) + eggsSpawned;
+
+        // Ao atingir 100 ovos incubados e havendo biomassa/celulose estocada (1.5 kg por carga):
+        if (colony.queen.eggBuffer >= 100.0 && (colony.resourcesKg || 0) >= 1.5) {
+          colony.resourcesKg -= 1.5;
+          colony.queen.eggBuffer -= 100.0;
+          if ((colony.charges || 0) < 40) {
+            colony.charges = (colony.charges || 0) + 1;
+          }
+        }
+      }
+    }
+
+    // 2. REVOADA SAZONAL (VOO NUPCIAL) DAS RAINHAS VIRGENS
+    if (totalSimHours != null && typeof getSimDate === 'function') {
+      const simDate = getSimDate(totalSimHours);
+      let isNuptialSeason = false;
+
+      if (colony.species === 'ant') {
+        // Saúvas: Outubro a Dezembro (meses 9, 10, 11)
+        isNuptialSeason = (simDate.monthIdx >= 9 && simDate.monthIdx <= 11);
+      } else if (colony.species === 'termite') {
+        // Cupins: Novembro a Janeiro (meses 10, 11, 0)
+        isNuptialSeason = (simDate.monthIdx >= 10 || simDate.monthIdx === 0);
+      } else if (colony.species === 'bee') {
+        // Abelhas Jataí: Dezembro a Fevereiro (meses 11, 0, 1)
+        isNuptialSeason = (simDate.monthIdx >= 11 || simDate.monthIdx <= 1);
+      }
+
+      if (isNuptialSeason && colony.lastNuptialFlightYear !== simDate.year && (colony.resourcesKg || 0) >= 16.0) {
+        colony.lastNuptialFlightYear = simDate.year;
+        colony.resourcesKg = Math.max(0, colony.resourcesKg - 10.0);
+
+        const numQueens = 8 + Math.floor(Math.random() * 6);
+        for (let q = 0; q < numQueens; q++) {
+          targetAnimalList.push({
+            id: 95000 + Math.floor(Math.random() * 900000),
+            species: colony.species,
+            subspecies: colony.species === 'ant' ? 'sauva' : (colony.species === 'termite' ? 'cupim' : 'jatai'),
+            isVirginQueen: true,
+            isSocial: false,
+            name: (colony.species === 'ant' ? 'Tanajura (Rainha Virgem)' : (colony.species === 'bee' ? 'Princesa Jataí' : 'Aleluia (Rainha Virgem)')),
+            icon: (colony.species === 'ant' ? '🐜' : (colony.species === 'bee' ? '🐝' : '🪵')),
+            sex: 'female',
+            x: colony.x + (Math.random() - 0.5) * 4.0,
+            y: colony.y + (Math.random() - 0.5) * 4.0,
+            hp: 1, // 1 indivíduo singular
+            maxHp: 1,
+            speed: 2.5,
+            attackPower: 0.1,
+            defensePower: 0.0,
+            flightTimer: 25.0 + Math.random() * 25.0,
+            flightAngle: Math.random() * Math.PI * 2,
+            maxForageRadius: colony.forageRadius,
+            hunger: 5.0,
+            ageInDays: 1.0,
+            maxLifespan: 100.0,
+            wanderAngle: Math.random() * Math.PI * 2
+          });
+        }
+        console.log(`✨ [REVOADA AMAZÔNICA] Colônia '${colony.name}' liberou ${numQueens} rainhas virgens em voo nupcial!`);
+      }
+    }
+
+    // 3. DESPACHO DE ENXAME PARA FORRAGEAMENTO (REMOÇÃO DE CARGA)
+    // Censo de enxames ativos pertencentes a esta colônia no mapa
+    let activeSwarms = 0;
+    for (let ai = 0; ai < animalSource.length; ai++) {
+      const a = animalSource[ai];
+      if (a.nestId === colony.id && a.isSocial && a.hp > 0 && !a.enteredNest) {
+        activeSwarms++;
+      }
+    }
+    colony.activeSwarmsCount = activeSwarms;
+
+    const totalPopUnits = (colony.charges || 0) + activeSwarms;
+    const maxExtRatio = colony.maxExternalRatio || 0.20;
+    const maxSwarmsAllowed = Math.max(1, Math.floor(totalPopUnits * maxExtRatio));
+
+    colony.dispatchCooldown = (colony.dispatchCooldown || 0) - dt;
+
+    if (activeSwarms < maxSwarmsAllowed && (colony.charges || 0) > 1 && colony.dispatchCooldown <= 0) {
+      // Remove uma carga do ícone da colônia
+      colony.charges--;
+      colony.activeSwarmsCount++;
+
+      // Cria um ícone de enxame ao lado da colônia
+      const spawnAngle = Math.random() * Math.PI * 2;
+      const sDist = 3.0 + Math.random() * 3.0;
+      const sx = Math.max(12, Math.min(gridW - 12, colony.x + Math.cos(spawnAngle) * sDist));
+      const sy = Math.max(12, Math.min(gridH - 12, colony.y + Math.sin(spawnAngle) * sDist));
+
+      targetAnimalList.push({
+        id: 86000 + Math.floor(Math.random() * 900000),
+        species: colony.species,
+        diet: (colony.species === 'termite' ? 'decomposer' : 'herbivore'),
+        name: (colony.species === 'ant' ? 'Formiga-saúva' : (colony.species === 'termite' ? 'Cupim-da-terra' : 'Abelha-jataí')),
+        icon: (colony.species === 'ant' ? '🐜' : (colony.species === 'termite' ? '🪵' : '🐝')),
+        sex: 'female',
+        x: sx,
+        y: sy,
+        hp: 100,             // 100 indivíduos
+        maxHp: 100,
+        hunger: 5.0,
+        speed: (colony.species === 'ant' ? 1.1 : (colony.species === 'bee' ? 2.8 : 0.8)),
+        attackPower: 0.1,    // 0.1 por indivíduo
+        defensePower: 0.0,   // 0.0 de defesa
+        isSocial: true,
+        nestId: colony.id,
+        nestX: colony.x,
+        nestY: colony.y,
+        maxForageRadius: colony.forageRadius,
+        foodCarried: 0.0,
+        isReturningToNest: false,
+        ageInDays: 15.0,
+        maxLifespan: 365.0,
+        wanderAngle: spawnAngle,
+        enteredNest: false
+      });
+
+      colony.dispatchCooldown = 8.0 + Math.random() * 8.0;
+    }
+  }
 }
 
 /**
@@ -161,61 +355,119 @@ function updateInsectBehavior(a, dt, ctx) {
   // CASO 1: RAINHA VIRGEM EM VOO NUPCIAL (REVOADA / DISPERSÃO REPRODUTIVA)
   // =========================================================================
   if (a.isVirginQueen) {
-    a.flightTimer = (a.flightTimer || 30.0) - dt;
-    const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
+    a.flightTimer = (a.flightTimer || 25.0) - dt;
+    a.flightAngle += (Math.random() - 0.5) * 0.45 * dt;
 
-    // Morte por afogamento se cair em água navegável
-    const inWater = (matId && matId[curIdx] === MAT_WATER) || (ctx.surfaceWater && ctx.surfaceWater[curIdx] > 0.20);
-    if (inWater) {
-      a.hp = 0;
-      return { targetX: a.x, targetY: a.y };
+    targetX = a.x + Math.cos(a.flightAngle) * (a.speed * 1.5);
+    targetY = a.y + Math.sin(a.flightAngle) * (a.speed * 1.5);
+
+    // Predação de fêmeas aladas por aves, sapos e peixes
+    for (let j = 0; j < animals.length; j++) {
+      const pred = animals[j];
+      if (pred.id === a.id || pred.hp <= 0) continue;
+      if (['carcara', 'toucan', 'traira'].includes(pred.species)) {
+        if (Math.hypot(pred.x - a.x, pred.y - a.y) < 3.2) {
+          a.hp = 0;
+          pred.hunger = Math.max(0, pred.hunger - 10.0);
+          return { targetX: a.x, targetY: a.y };
+        }
+      }
     }
 
-    // Voo de dispersão radial rápido
-    targetX = a.x + Math.cos(a.flightAngle) * (a.speed * 2.2);
-    targetY = a.y + Math.sin(a.flightAngle) * (a.speed * 2.2);
+    // Afogamento em corpos d'água
+    const cellIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
+    if (matId && matId[cellIdx] === MAT_WATER) {
+      if (Math.random() < 0.25 * dt) {
+        a.hp = 0;
+        return { targetX: a.x, targetY: a.y };
+      }
+    }
 
-    // Pouso ao final do fôlego de voo
+    // Pouso e tentativa de fundação ao término do voo
     if (a.flightTimer <= 0) {
-      let isTooCloseToOtherNest = false;
-      if (nests && nests.length > 0) {
-        for (let ni = 0; ni < nests.length; ni++) {
-          const nest = nests[ni];
-          if (nest.species === a.species && Math.hypot(a.x - nest.x, a.y - nest.y) < 65.0) {
-            isTooCloseToOtherNest = true;
-            break;
+      const isWater = (matId && matId[cellIdx] === MAT_WATER);
+      if (!isWater) {
+        // Territorialidade: Rainhas que pousam perto de colônias rivais (<65m) são eliminadas
+        let hasRivalColonyNearby = false;
+        if (nests && Array.isArray(nests)) {
+          for (let ni = 0; ni < nests.length; ni++) {
+            const nest = nests[ni];
+            if (nest.species === a.species && Math.hypot(nest.x - a.x, nest.y - a.y) < 65.0) {
+              hasRivalColonyNearby = true;
+              break;
+            }
           }
         }
-      }
 
-      // Se pousar em terra firme segura longe de colônias rivais:
-      if (!isTooCloseToOtherNest && !inWater) {
-        // TAXA DE SUCESSO REALISTA DA NATUREZA: apenas ~4% das tanajuras/aleluias fundam novo ninho
-        const success = (Math.random() < 0.04);
-        if (success && nests) {
-          const newNestId = 9100 + Math.floor(Math.random() * 80000);
-          const nestTitle = (a.species === 'ant' ? 'Novo Formigueiro' : (a.species === 'bee' ? 'Nova Colmeia' : 'Novo Cupinzeiro'));
-          const currentSimYear = (typeof getSimDate === 'function' && totalSimHours != null) ? getSimDate(totalSimHours).year : 1;
+        // Taxa de sucesso biológico real na natureza (~4%)
+        if (!hasRivalColonyNearby && Math.random() < 0.04) {
+          const newNestId = 6000 + Math.floor(Math.random() * 4000);
+          const nestTitle = (a.species === 'ant') ? `Novo Formigueiro (#${newNestId})` : ((a.species === 'termite') ? `Novo Cupinzeiro (#${newNestId})` : `Nova Colmeia Jataí (#${newNestId})`);
+          const maxR = (a.species === 'termite' ? 45.0 : (a.species === 'ant' ? 85.0 : 130.0));
+          const maxLifeDays = (a.species === 'ant' ? 4745.0 : (a.species === 'termite' ? 6200.0 : 912.0));
+          const dailyEggs = (a.species === 'ant' ? 150.0 : (a.species === 'termite' ? 100.0 : 60.0));
+          const extRatio = (a.species === 'bee' ? 0.25 : 0.20);
 
-          nests.push({
+          const newColony = {
             id: newNestId,
-            motherId: a.id,
             species: a.species,
-            name: `${nestTitle} (#${newNestId % 100})`,
+            name: nestTitle,
             x: a.x,
             y: a.y,
-            quality: 75,
-            resourcesKg: 6.0,
-            forageRadius: a.maxForageRadius || (a.species === 'termite' ? 45.0 : (a.species === 'ant' ? 85.0 : 130.0)),
-            lastNuptialFlightYear: currentSimYear
+            quality: 85,
+            resourcesKg: 20.0,
+            forageRadius: maxR,
+            isSocialColony: true,
+            totalInitialCharges: 5,
+            charges: 4,                  // 4 cargas internas
+            activeSwarmsCount: 1,        // 1 enxame externo inicial
+            maxExternalRatio: extRatio,
+            dispatchCooldown: 12.0,
+            queen: {
+              isAlive: true,
+              ageDays: 0.0,
+              maxLifespanDays: maxLifeDays,
+              eggsPerDay: dailyEggs,
+              eggBuffer: 0.0
+            },
+            lastNuptialFlightYear: (typeof getSimDate === 'function' && totalSimHours != null) ? getSimDate(totalSimHours).year : 0
+          };
+
+          if (nests && Array.isArray(nests)) nests.push(newColony);
+
+          // Spawna o primeiro enxame para a nova colônia
+          if (animals && Array.isArray(animals)) animals.push({
+            id: 88000 + Math.floor(Math.random() * 900000),
+            species: a.species,
+            diet: (a.species === 'termite' ? 'decomposer' : 'herbivore'),
+            name: (a.species === 'ant' ? 'Formiga-saúva' : (a.species === 'termite' ? 'Cupim-da-terra' : 'Abelha-jataí')),
+            icon: (a.species === 'ant' ? '🐜' : (a.species === 'termite' ? '🪵' : '🐝')),
+            sex: 'female',
+            x: a.x + 2.0,
+            y: a.y + 2.0,
+            hp: 100,
+            maxHp: 100,
+            hunger: 5.0,
+            speed: (a.species === 'ant' ? 1.1 : (a.species === 'bee' ? 2.8 : 0.8)),
+            attackPower: 0.1,
+            defensePower: 0.0,
+            isSocial: true,
+            nestId: newNestId,
+            nestX: a.x,
+            nestY: a.y,
+            maxForageRadius: maxR,
+            foodCarried: 0.0,
+            isReturningToNest: false,
+            ageInDays: 5.0,
+            maxLifespan: 365.0,
+            wanderAngle: Math.random() * Math.PI * 2,
+            enteredNest: false
           });
 
-          // Notifica console da fundação bem-sucedida
-          console.log(`👑 [REVOADA BEM-SUCEDIDA] ${nestTitle} fundado em (${a.x.toFixed(0)}, ${a.y.toFixed(0)})!`);
+          console.log(`👑 [NOVA COLÔNIA FUNDADA] ${nestTitle} fundado em (${a.x.toFixed(0)}, ${a.y.toFixed(0)}) por rainha virgem!`);
         }
       }
 
-      // A rainha penetra no solo para fundar a câmara ou perece por dessecação/fungos
       a.hp = 0;
       return { targetX: a.x, targetY: a.y };
     }
@@ -224,9 +476,10 @@ function updateInsectBehavior(a, dt, ctx) {
   }
 
   // =========================================================================
-  // CASO 2: INSETOS SOCIAIS (FORMIGAS, CUPINS E ABELHAS EM ENXAME)
-  // Cada token representa 1 indivíduo por ponto de HP (ex: 100 HP = 100 formigas)
-  // Atua em torno do ninho com raio de forrageamento radial biológico
+  // CASO 2: INSETOS SOCIAIS EM ENXAME (FORMIGAS, CUPINS E ABELHAS)
+  // Cada token representa 1 indivíduo por ponto de HP (ex: 100 HP = 100 operárias)
+  // Atua em torno do ninho com raio radial de forrageamento
+  // Ao retornar ao ninho, descarrega alimentos, desaparece e devolve 1 carga à colônia
   // =========================================================================
   if (a.isSocial) {
     let myNest = null;
@@ -238,93 +491,31 @@ function updateInsectBehavior(a, dt, ctx) {
     const dNest = Math.hypot(a.x - nestX, a.y - nestY);
     const maxR = a.maxForageRadius || (a.species === 'termite' ? 45.0 : (a.species === 'ant' ? 85.0 : 130.0));
 
-    // 1. REVOADA ANUAL / VOO NUPCIAL DISPARADO PELO NINHO
-    // Ocorre na época do ano real para a espécie amazônica (Início da estação de chuvas)
-    if (myNest && totalSimHours != null && typeof getSimDate === 'function') {
-      const simDate = getSimDate(totalSimHours);
-      let isNuptialSeason = false;
-
-      if (a.species === 'ant') {
-        // Saúvas: Outubro a Dezembro (meses 9, 10, 11), após chuvas quentes
-        isNuptialSeason = (simDate.monthIdx >= 9 && simDate.monthIdx <= 11);
-      } else if (a.species === 'termite') {
-        // Cupins: Novembro a Janeiro (meses 10, 11, 0)
-        isNuptialSeason = (simDate.monthIdx >= 10 || simDate.monthIdx === 0);
-      } else if (a.species === 'bee') {
-        // Abelhas Jataí: Dezembro a Fevereiro (meses 11, 0, 1)
-        isNuptialSeason = (simDate.monthIdx >= 11 || simDate.monthIdx <= 1);
-      }
-
-      // Se a colônia acumulou recursos suficientes e ainda não revoou neste ano da simulação:
-      if (isNuptialSeason && myNest.lastNuptialFlightYear !== simDate.year && (myNest.resourcesKg || 0) >= 16.0) {
-        myNest.lastNuptialFlightYear = simDate.year;
-        myNest.resourcesKg = Math.max(0, myNest.resourcesKg - 10.0);
-
-        // Dispara a saída de múltiplas futuras rainhas virgens (tanajuras / içás / aleluias)
-        if (animals && Array.isArray(animals)) {
-          const numQueens = 8 + Math.floor(Math.random() * 6);
-          for (let q = 0; q < numQueens; q++) {
-            animals.push({
-              id: 90000 + Math.floor(Math.random() * 100000),
-              species: a.species,
-              isVirginQueen: true,
-              isSocial: false,
-              name: (a.species === 'ant' ? 'Tanajura (Rainha Virgem)' : (a.species === 'bee' ? 'Princesa Jataí' : 'Aleluia (Rainha Virgem)')),
-              icon: (a.species === 'ant' ? '🐜' : (a.species === 'bee' ? '🐝' : '🪵')),
-              sex: 'female',
-              x: nestX + (Math.random() - 0.5) * 4.0,
-              y: nestY + (Math.random() - 0.5) * 4.0,
-              hp: 1, // 1 indivíduo singular
-              maxHp: 1,
-              speed: 2.5,
-              attackPower: 0.1,
-              defensePower: 0.0,
-              flightTimer: 25.0 + Math.random() * 25.0,
-              flightAngle: Math.random() * Math.PI * 2,
-              maxForageRadius: maxR,
-              hunger: 5.0,
-              ageInDays: 1.0,
-              maxLifespan: 100.0,
-              wanderAngle: Math.random() * Math.PI * 2
-            });
-          }
-          console.log(`✨ [REVOADA AMAZÔNICA] Colônia '${myNest.name}' liberou ${numQueens} rainhas virgens em voo nupcial!`);
-        }
-      }
-    }
-
-    // 2. MULTI-ATAQUE COLETIVO DO ENXAME (1 ATAQUE POR PONTO DE HP)
-    // Se atacado ou defendendo o ninho, realiza ataques igual ao HP atual
-    const numIndividuals = Math.floor(Math.max(1, a.hp));
-    const swarmDamageTotal = numIndividuals * a.attackPower; // ex: 100 HP * 0.1 = 10.0 dano
-
-    // 3. RETORNO AO NINHO COM ALIMENTO OU PARA REGENERAÇÃO
+    // 1. RETORNO AO NINHO E ABSORÇÃO DE CARGA
     if (a.isReturningToNest) {
       targetX = nestX;
       targetY = nestY;
 
-      if (dNest < 3.0) {
-        // Descarrega recursos no ninho
+      if (dNest < 3.2) {
+        // Descarrega recursos no estoque da colônia
         if (myNest) {
           myNest.resourcesKg = (myNest.resourcesKg || 0) + (a.foodCarried || 0);
-        }
-        a.foodCarried = 0.0;
-        a.hunger = 0.0;
 
-        // Regeneração biológica de operárias pela colônia (1 HP = 1 indivíduo)
-        if (a.hp < 100) {
-          a.hp = Math.min(100, a.hp + 20.0 * dt);
+          // Acrescenta uma carga de volta ao ícone da colônia
+          myNest.charges = (myNest.charges || 0) + 1;
+          myNest.activeSwarmsCount = Math.max(0, (myNest.activeSwarmsCount || 1) - 1);
         }
 
-        if (a.hp >= 95) {
-          a.isReturningToNest = false;
-          a.wanderAngle = Math.random() * Math.PI * 2;
-        }
+        // O ícone do enxame desaparece do mapa e entra na colônia
+        a.hp = 0;
+        a.enteredNest = true;
+        return { targetX: nestX, targetY: nestY };
       }
+
       return { targetX, targetY };
     }
 
-    // 4. FORRAGEAMENTO RADIAL EM TORNO DO NINHO
+    // 2. FORRAGEAMENTO RADIAL EM TORNO DO NINHO
     // Se ultrapassou o raio máximo de atuação da espécie ou coletou carga suficiente:
     if (dNest > maxR || (a.foodCarried || 0) >= 3.5) {
       a.isReturningToNest = true;
@@ -366,7 +557,6 @@ function updateInsectBehavior(a, dt, ctx) {
     // Movimentação em torno do ninho com curvatura radial de contenção
     a.wanderAngle += (Math.random() - 0.5) * 0.8 * dt;
     if (dNest > maxR * 0.80) {
-      // Força de atração suave para não desgarrar do raio da colônia
       const angleToNest = Math.atan2(nestY - a.y, nestX - a.x);
       a.wanderAngle = angleToNest + (Math.random() - 0.5) * 0.6;
     }
@@ -405,95 +595,99 @@ function updateInsectBehavior(a, dt, ctx) {
     }
 
     if (closestMate) {
-      targetX = closestMate.x;
-      targetY = closestMate.y;
-      if (mateDist < 2.0) {
+      if (mateDist < 2.2) {
         const female = (a.sex === 'female') ? a : closestMate;
         const male = (a.sex === 'male') ? a : closestMate;
-        if (typeof SpeciesReproduction !== 'undefined') {
-          SpeciesReproduction.tryMatePair(female, male);
-        }
+
+        female.isPregnant = true;
+        female.gestationRemaining = (female.species === 'mosquito') ? 5.0 : ((female.species === 'butterfly') ? 7.0 : 14.0);
+        female.daysPregnant = 0.0;
+        female.litterSize = 10 + Math.floor(Math.random() * 20);
+        female.matingCooldown = female.gestationRemaining + 10.0;
+        female.estrusDurationRemaining = 0.0;
+
+        male.matingCooldown = 15.0;
+      } else {
+        targetX = closestMate.x;
+        targetY = closestMate.y;
+        return { targetX, targetY };
       }
-      return { targetX, targetY };
     }
   }
 
-  // 2. Comportamentos tróficos específicos
-  if (a.species === 'dragonfly' || a.species === 'mantis') {
+  // 2. Comportamento Trófico (Predação e Forrageamento Solitário)
+  if (a.diet === 'carnivore' && a.hunger > 35.0) {
     let targetBug = null;
-    let minDist = 22.0;
+    let minD = 40.0;
     for (let j = 0; j < animals.length; j++) {
       const prey = animals[j];
-      if (prey === a || prey.hp <= 0) continue;
-      if (prey.species === 'mosquito' || prey.species === 'butterfly' || (a.species === 'mantis' && prey.species === 'grasshopper')) {
+      if (prey.id === a.id || prey.hp <= 0) continue;
+      if (['butterfly', 'mosquito', 'grasshopper', 'roach'].includes(prey.species)) {
         const d = Math.hypot(prey.x - a.x, prey.y - a.y);
-        if (d < minDist) {
-          minDist = d;
+        if (d < minD) {
+          minD = d;
           targetBug = prey;
         }
       }
     }
 
-    if (targetBug && a.hunger > 3.0) {
-      const dirX = targetBug.x - a.x;
-      const dirY = targetBug.y - a.y;
-      const dist = Math.hypot(dirX, dirY) || 1.0;
-      targetX = targetBug.x;
-      targetY = targetBug.y;
-      if (dist <= 1.8) {
-        targetBug.hp -= 25.0;
-        a.hunger = Math.max(0, a.hunger - 25.0);
-        if (targetBug.hp <= 0 && applyDeathDecomposition) {
-          applyDeathDecomposition(targetBug.x, targetBug.y);
+    if (targetBug) {
+      if (minD < 1.8) {
+        // Multi-ataque ou ataque do predador
+        const dmg = a.attackPower || 18.0;
+        targetBug.hp -= dmg;
+        a.hunger = Math.max(0, a.hunger - 35.0);
+        if (targetBug.hp <= 0 && ctx.onPredationSuccess) {
+          ctx.onPredationSuccess(targetBug, a);
         }
-      }
-      return { targetX, targetY };
-    }
-  } else if (a.species === 'butterfly') {
-    if (a.pollinateTimer > 0) {
-      a.pollinateTimer -= dt;
-      a.hunger = Math.max(0, a.hunger - 5.0 * dt);
-      return { targetX: a.x, targetY: a.y };
-    }
-    const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
-    if (biomass && biomass[curIdx] > 12.0 && Math.random() < 0.05) {
-      a.pollinateTimer = 3.0 + Math.random() * 4.0;
-      return { targetX: a.x, targetY: a.y };
-    }
-  } else if (a.species === 'mosquito') {
-    // Hematofagia em mamíferos (Rato ou Gato)
-    if (a.hunger > 20.0 && animals) {
-      for (let j = 0; j < animals.length; j++) {
-        const host = animals[j];
-        if (host.hp > 0 && (host.species === 'rat' || host.species === 'cat')) {
-          const hd = Math.hypot(host.x - a.x, host.y - a.y);
-          if (hd < 18.0) {
-            targetX = host.x;
-            targetY = host.y;
-            if (hd < 1.8) {
-              host.hp = Math.max(1, host.hp - 0.08 * dt);
-              a.hunger = Math.max(0, a.hunger - 15.0 * dt);
-            }
-            return { targetX, targetY };
-          }
-        }
-      }
-    }
-  } else if (a.species === 'beetle' || a.species === 'roach' || a.species === 'grasshopper') {
-    if (a.hunger > 15.0) {
-      const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
-      if (biomass && biomass[curIdx] > 2.0) {
-        const bite = Math.min(biomass[curIdx], 2.0 * dt);
-        biomass[curIdx] -= bite;
-        a.hunger = Math.max(0, a.hunger - bite * 3.0);
+      } else {
+        targetX = targetBug.x;
+        targetY = targetBug.y;
+        return { targetX, targetY };
       }
     }
   }
 
-  // 3. Deslocamento característico de inseto solitário
-  a.wanderAngle += (Math.random() - 0.5) * 0.8 * dt;
-  targetX = Math.max(10, Math.min(gridW - 10, a.x + Math.cos(a.wanderAngle) * (a.speed * 1.5)));
-  targetY = Math.max(10, Math.min(gridH - 10, a.y + Math.sin(a.wanderAngle) * (a.speed * 1.5)));
+  // 3. Hematofagia do Mosquito-prego
+  if (a.species === 'mosquito' && a.hunger > 40.0) {
+    let host = null;
+    let minD = 35.0;
+    for (let j = 0; j < animals.length; j++) {
+      const target = animals[j];
+      if (target.id === a.id || target.hp <= 0) continue;
+      if (['rat', 'cat', 'caiman', 'tortoise'].includes(target.species)) {
+        const d = Math.hypot(target.x - a.x, target.y - a.y);
+        if (d < minD) {
+          minD = d;
+          host = target;
+        }
+      }
+    }
+    if (host) {
+      if (minD < 1.6) {
+        a.hunger = Math.max(0, a.hunger - 40.0);
+        host.hp -= 0.5;
+        return { targetX: a.x, targetY: a.y };
+      } else {
+        targetX = host.x;
+        targetY = host.y;
+        return { targetX, targetY };
+      }
+    }
+  }
+
+  // 4. Herbivoria e Decomposição Geral
+  const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
+  if (a.diet === 'herbivore' && biomass && biomass[curIdx] > 2.0 && a.hunger > 30.0) {
+    const bite = Math.min(biomass[curIdx], 2.0 * dt);
+    biomass[curIdx] -= bite;
+    a.hunger = Math.max(0, a.hunger - bite * 2.0);
+  }
+
+  // Voo e Movimentação Geral
+  a.wanderAngle += (Math.random() - 0.5) * 0.9 * dt;
+  targetX = a.x + Math.cos(a.wanderAngle) * (a.speed * 1.2);
+  targetY = a.y + Math.sin(a.wanderAngle) * (a.speed * 1.2);
 
   return { targetX, targetY };
 }
@@ -502,6 +696,7 @@ function updateInsectBehavior(a, dt, ctx) {
 if (typeof window !== 'undefined') {
   window.InsectSpecies = {
     createInitialInsects,
+    updateSocialColonies,
     updateInsectBehavior
   };
 }

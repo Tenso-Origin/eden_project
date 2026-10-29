@@ -368,6 +368,51 @@ function render() {
         ctx.stroke();
       }
 
+      // Representação das Cargas Internas da Colônia (Ícones de Carga / População no Ninho)
+      if (n.isSocialColony || ['ant', 'termite', 'bee'].includes(n.species)) {
+        const charges = (n.charges !== undefined) ? n.charges : 4;
+        const color = (n.species === 'ant' ? '#f59e0b' : (n.species === 'bee' ? '#facc15' : '#d97706'));
+
+        ctx.save();
+        ctx.fillStyle = 'rgba(9, 13, 19, 0.88)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 0.8;
+        const badgeW = 20.0;
+        const badgeH = 9.0;
+        const bx = n.x - badgeW / 2;
+        const by = n.y - 12.0;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(bx, by, badgeW, badgeH, 2.5);
+        else ctx.rect(bx, by, badgeW, badgeH);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#f0f6fc';
+        ctx.font = 'bold 7px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${charges}📦`, n.x, by + badgeH / 2);
+
+        // Pontos de carga orbitando a colônia
+        const visibleDots = Math.min(charges, 8);
+        for (let d = 0; d < visibleDots; d++) {
+          const ang = (d / visibleDots) * Math.PI * 2;
+          const dotDist = 6.2;
+          ctx.beginPath();
+          ctx.arc(n.x + Math.cos(ang) * dotDist, n.y + Math.sin(ang) * dotDist, 0.9, 0, Math.PI * 2);
+          ctx.fillStyle = color;
+          ctx.fill();
+        }
+
+        // Coroa da Rainha se viva
+        if (n.queen && n.queen.isAlive) {
+          ctx.fillStyle = '#facc15';
+          ctx.font = '6px sans-serif';
+          ctx.fillText('👑', n.x + 8.5, by + 1.0);
+        }
+        ctx.restore();
+      }
+
       // Raio de forrageamento / atuação da colônia
       if (currentLayer === 'nests' && n.forageRadius) {
         ctx.beginPath();

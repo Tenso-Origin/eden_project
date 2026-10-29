@@ -133,8 +133,25 @@ function inspectCell(x, y) {
   if (elGrains) elGrains.innerText = (grains[idx] || 0.0).toFixed(1) + " kg/m²";
   const elNest = document.getElementById('inspNest');
   if (elNest) {
-    const nestHere = nests.find(n => Math.hypot(n.x - x, n.y - y) < 4.0);
-    elNest.innerText = nestHere ? `${nestHere.name} (${nestHere.species})` : "Nenhum";
+    const nestHere = nests.find(n => Math.hypot(n.x - x, n.y - y) < 4.5);
+    if (nestHere) {
+      if (nestHere.isSocialColony || ['ant', 'termite', 'bee'].includes(nestHere.species)) {
+        const intPop = (nestHere.charges || 0) * 100;
+        const extPop = (nestHere.activeSwarmsCount || 0) * 100;
+        const totPop = intPop + extPop;
+        let queenStr = "Sem rainha";
+        if (nestHere.queen) {
+          const qAge = (nestHere.queen.ageDays / 365).toFixed(1);
+          const qMax = (nestHere.queen.maxLifespanDays / 365).toFixed(1);
+          queenStr = nestHere.queen.isAlive ? `👑 Rainha ${qAge}/${qMax}a (${nestHere.queen.eggsPerDay} ovos/d, ovos:${(nestHere.queen.eggBuffer||0).toFixed(0)}%)` : "💀 Rainha Morta";
+        }
+        elNest.innerText = `${nestHere.name} | Pop: ${totPop} (${intPop} int. [${nestHere.charges}📦], ${extPop} ext.) | ${queenStr} | Res: ${(nestHere.resourcesKg||0).toFixed(1)}kg`;
+      } else {
+        elNest.innerText = `${nestHere.name} (${nestHere.species})`;
+      }
+    } else {
+      elNest.innerText = "Nenhum";
+    }
   }
   const elEroded = document.getElementById('inspEroded');
   if (elEroded) elEroded.innerText = cumulativeErosion[idx].toFixed(2) + " m";

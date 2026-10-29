@@ -402,7 +402,7 @@ function updateNestLifecycles() {
 
   for (let ni = 0; ni < nests.length; ni++) {
     const nest = nests[ni];
-    if (nest.species === 'harpy') {
+    if (nest.species === 'harpy' || nest.isSocialColony || ['ant', 'termite', 'bee'].includes(nest.species)) {
       survivingNests.push(nest);
       continue;
     }

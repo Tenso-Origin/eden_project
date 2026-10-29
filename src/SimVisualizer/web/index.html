@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.4</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.5</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -1201,7 +1201,7 @@
           }
         } else if (['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'].includes(a.species)) {
           if (typeof InsectSpecies !== 'undefined') {
-            const insCtx = { animals, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay, applyDeathDecomposition, onPredationSuccess: (prey, bug) => {
+            const insCtx = { animals, nests, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay, totalSimHours, weather, applyDeathDecomposition, onPredationSuccess: (prey, bug) => {
               totalPredationDeaths++;
               hungryKillsCount++;
             } };

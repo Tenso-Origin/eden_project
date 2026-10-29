@@ -586,7 +586,7 @@ if (typeof HarpySpecies !== 'undefined') {
 
   // 5. Insetos Neotropicais: 10 espécies distribuídas por seus biótopos preferenciais
   if (typeof InsectSpecies !== 'undefined') {
-    const insects = InsectSpecies.createInitialInsects(GRID_WIDTH, GRID_HEIGHT);
+    const insects = InsectSpecies.createInitialInsects(GRID_WIDTH, GRID_HEIGHT, nests);
     animals.push(...insects);
   }
 

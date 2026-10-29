@@ -326,6 +326,39 @@ function render() {
         ctx.lineWidth = 1.0;
         ctx.stroke();
         ctx.shadowBlur = 0;
+      } else if (n.species === 'ant') {
+        // Formigueiro de Saúva
+        ctx.arc(n.x, n.y, 4.2, 0, Math.PI * 2);
+        ctx.fillStyle = '#b45309';
+        ctx.shadowColor = 'rgba(180, 83, 9, 0.8)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else if (n.species === 'termite') {
+        // Cupinzeiro de Montículo
+        ctx.arc(n.x, n.y, 3.8, 0, Math.PI * 2);
+        ctx.fillStyle = '#78350f';
+        ctx.shadowColor = 'rgba(120, 53, 15, 0.8)';
+        ctx.shadowBlur = 5;
+        ctx.fill();
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 1.1;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+      } else if (n.species === 'bee') {
+        // Colmeia Jataí
+        ctx.arc(n.x, n.y, 3.6, 0, Math.PI * 2);
+        ctx.fillStyle = '#facc15';
+        ctx.shadowColor = 'rgba(250, 204, 21, 0.85)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
       } else {
         ctx.arc(n.x, n.y, 2.4, 0, Math.PI * 2);
         ctx.fillStyle = '#8b5a2b';
@@ -333,6 +366,17 @@ function render() {
         ctx.lineWidth = 0.9;
         ctx.fill();
         ctx.stroke();
+      }
+
+      // Raio de forrageamento / atuação da colônia
+      if (currentLayer === 'nests' && n.forageRadius) {
+        ctx.beginPath();
+        ctx.setLineDash([3, 3]);
+        ctx.arc(n.x, n.y, n.forageRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = (n.species === 'ant' ? 'rgba(245, 158, 11, 0.35)' : (n.species === 'bee' ? 'rgba(250, 204, 21, 0.35)' : 'rgba(217, 119, 6, 0.35)'));
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
     }
   }
@@ -424,6 +468,15 @@ function render() {
         ctx.arc(px, py, badgeR + 2.4, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(255, 64, 129, 0.95)';
         ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Rainha Virgem em Voo Nupcial (Revoada)
+      if (a.isVirginQueen) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 3.2, 0, Math.PI * 2);
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 1.8;
         ctx.stroke();
       }
 

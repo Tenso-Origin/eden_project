@@ -271,6 +271,14 @@ function render() {
     ctx.restore();
   }
 
+  // Frustum Culling: calcula a janela visível no espaço do mundo para todas as entidades
+  const halfViewW = (canvas.width / 2) / zoomLevel;
+  const halfViewH = (canvas.height / 2) / zoomLevel;
+  const minVisX = panX - halfViewW - 30;
+  const maxVisX = panX + halfViewW + 30;
+  const minVisY = panY - halfViewH - 30;
+  const maxVisY = panY + halfViewH + 30;
+
   // Refúgios Naturais
   if (naturalRefuges && naturalRefuges.length > 0) {
     for (let ri = 0; ri < naturalRefuges.length; ri++) {
@@ -459,14 +467,6 @@ function render() {
       }
     }
   }
-
-  // Frustum Culling: calcula a janela visível no espaço do mundo
-  const halfViewW = (canvas.width / 2) / zoomLevel;
-  const halfViewH = (canvas.height / 2) / zoomLevel;
-  const minVisX = panX - halfViewW - 30;
-  const maxVisX = panX + halfViewW + 30;
-  const minVisY = panY - halfViewH - 30;
-  const maxVisY = panY + halfViewH + 30;
 
   // Fauna Completa com Frustum Culling e Batching Inteligente
   if (animals && animals.length > 0) {

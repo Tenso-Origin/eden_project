@@ -321,7 +321,7 @@ function initWorld() {
           finalMat = MAT_WATER;
           finalWater = -finalElev;
           finalMoist = 1.0;
-          finalBio = 1.0;
+          finalBio = 10.0 + Math.random() * 8.0; // Biomassa bentônica escassa (perifíton e biofilme)
         } else if (dTrib <= wTrib) {
           // Calha do Afluente
           const depthNorm = 1.0 - Math.pow(dTrib / wTrib, 2.0);
@@ -329,14 +329,14 @@ function initWorld() {
           finalMat = MAT_WATER;
           finalWater = -finalElev;
           finalMoist = 1.0;
-          finalBio = 1.0;
+          finalBio = 8.0 + Math.random() * 8.0;
         } else if (inOxbow) {
           // Lago de Ferradura (Oxbow Lake)
           finalElev = -1.5 - oxbowDepth;
           finalMat = MAT_WATER;
           finalWater = -finalElev;
           finalMoist = 1.0;
-          finalBio = 2.0;
+          finalBio = 12.0 + Math.random() * 6.0;
         } else {
           // Proximidade hídrica mínima
           const distToWater = Math.min(dMain - wMain, dTrib - wTrib);

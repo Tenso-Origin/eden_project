@@ -12,6 +12,23 @@ function isNavigableWater(x, y, matId, surfaceWater, getIdx, gridW, gridH, MAT_W
 }
 
 /**
+ * Avalia o fator de proximidade da margem terrestre (0.0 = canal aberto / águas profundas, 1.0 = colado na terra)
+ */
+function getWaterDepthOrMarginFactor(x, y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, checkRadius = 4) {
+  let landNeighbors = 0;
+  const samples = 8;
+  for (let i = 0; i < samples; i++) {
+    const ang = (i / samples) * Math.PI * 2;
+    const sx = Math.floor(x + Math.cos(ang) * checkRadius);
+    const sy = Math.floor(y + Math.sin(ang) * checkRadius);
+    if (!isNavigableWater(sx, sy, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      landNeighbors++;
+    }
+  }
+  return landNeighbors / samples;
+}
+
+/**
  * Retorna as coordenadas da massa d'água mais próxima para retornar peixes/jacarés
  */
 function getNearestWaterCoords(x, y) {
@@ -219,10 +236,10 @@ function updateTambaquiBehavior(a, dt, ctx) {
     }
   }
 
-  // 3. Forrageamento em Várzeas Inundadas
+  // 3. Forrageamento fluvial (Biomassa bentônica de leito e macrófitas/grãos aluviais)
   let bestFoodX = a.x, bestFoodY = a.y;
   let bestScore = -999;
-  const searchR = 25;
+  const searchR = 28;
   const curX = Math.floor(a.x), curY = Math.floor(a.y);
 
   for (let dy = -searchR; dy <= searchR; dy += 4) {
@@ -230,7 +247,23 @@ function updateTambaquiBehavior(a, dt, ctx) {
       const nx = curX + dx, ny = curY + dy;
       if (!isNavigableWater(nx, ny, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) continue;
       const nIdx = getIdx(nx, ny);
-      const score = (grains[nIdx] || 0) * 10.0 + (biomass[nIdx] || 0) * 0.15;
+      const aquaBio = biomass[nIdx] || 0;
+      const aquaGrains = grains[nIdx] || 0;
+      if (aquaBio < 1.0 && aquaGrains < 0.2) continue;
+
+      // Penalização de proximidade da margem terrestre: evita que peixes fiquem grudados nas bordas
+      const marginFactor = getWaterDepthOrMarginFactor(nx, ny, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, 3);
+      let score = (aquaGrains * 8.0) + (aquaBio * 2.2);
+
+      if (marginFactor > 0.2) {
+        score -= marginFactor * 45.0; // Penaliza bordas e margens rasas
+      } else {
+        score += 15.0; // Bônus para águas abertas / canal central
+      }
+
+      const dist = Math.hypot(dx, dy);
+      score -= dist * 0.4;
+
       if (score > bestScore) {
         bestScore = score;
         bestFoodX = nx;
@@ -239,22 +272,41 @@ function updateTambaquiBehavior(a, dt, ctx) {
     }
   }
 
-  if (bestScore > 1.5 && a.hunger > 10.0) {
-    const curIdx = getIdx(curX, curY);
-    if ((grains[curIdx] || 0) > 0.5) {
-      const eatG = Math.min(grains[curIdx], 2.0 * dt);
-      grains[curIdx] -= eatG;
-      a.hunger = Math.max(0, a.hunger - eatG * 25.0);
-    }
+  // Consumo no local se houver biomassa bentônica ou grãos
+  const curIdx = getIdx(curX, curY);
+  if ((biomass[curIdx] || 0) > 2.0 && a.hunger > 5.0) {
+    const eatB = Math.min(biomass[curIdx] - 1.0, 3.0 * dt);
+    biomass[curIdx] -= eatB;
+    a.hunger = Math.max(0, a.hunger - eatB * 16.0);
+  }
+  if ((grains[curIdx] || 0) > 0.3 && a.hunger > 5.0) {
+    const eatG = Math.min(grains[curIdx], 2.5 * dt);
+    grains[curIdx] -= eatG;
+    a.hunger = Math.max(0, a.hunger - eatG * 25.0);
+  }
+
+  if (bestScore > 0.0 && a.hunger > 15.0) {
     return { targetX: bestFoodX, targetY: bestFoodY };
   }
 
-  // 4. Natação fluvial suave mantendo-se dentro da calha aquática
+  // 4. Natação fluvial suave mantendo-se dentro da calha aquática e longe das margens
+  const curMargin = getWaterDepthOrMarginFactor(a.x, a.y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, 4);
+  if (curMargin > 0.2) {
+    // Muito próximo da margem/terra: força reorientação em direção ao centro do rio/lago
+    const wCent = getNearestWaterCoords(a.x, a.y);
+    const steerAngle = Math.atan2(wCent.y - a.y, wCent.x - a.x);
+    a.wanderAngle = steerAngle + (Math.random() - 0.5) * 0.3;
+  }
+
   for (let attempt = 0; attempt < 8; attempt++) {
     const testAngle = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.45 : -attempt * 0.45));
     const nextX = a.x + Math.cos(testAngle) * 2.2;
     const nextY = a.y + Math.sin(testAngle) * 2.2;
     if (isNavigableWater(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      const nextMargin = getWaterDepthOrMarginFactor(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, 3);
+      if (curMargin > 0.2 && nextMargin > curMargin && attempt < 6) {
+        continue; // Prefere ângulos que afastam da margem
+      }
       a.wanderAngle = testAngle + (Math.random() - 0.5) * 0.3 * dt;
       return { targetX: nextX, targetY: nextY };
     }
@@ -407,12 +459,23 @@ function updateTrairaBehavior(a, dt, ctx) {
 
   // 4. Estado Noturno: Patrulha Territorial Ativa no Meandro/Remanso
   a.isLurking = false;
+  const curMargin = getWaterDepthOrMarginFactor(a.x, a.y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, 4);
+  if (curMargin > 0.25) {
+    const wCent = getNearestWaterCoords(a.x, a.y);
+    const steerAngle = Math.atan2(wCent.y - a.y, wCent.x - a.x);
+    a.wanderAngle = steerAngle + (Math.random() - 0.5) * 0.4;
+  }
+
   for (let attempt = 0; attempt < 8; attempt++) {
     const testAngle = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.45 : -attempt * 0.45));
     const nextX = a.x + Math.cos(testAngle) * 2.0;
     const nextY = a.y + Math.sin(testAngle) * 2.0;
 
     if (isNavigableWater(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+      const nextMargin = getWaterDepthOrMarginFactor(nextX, nextY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER, 3);
+      if (curMargin > 0.25 && nextMargin > curMargin && attempt < 6) {
+        continue;
+      }
       a.wanderAngle = testAngle + (Math.random() - 0.5) * 0.3 * dt;
       return { targetX: nextX, targetY: nextY };
     }
@@ -432,10 +495,12 @@ if (typeof window !== 'undefined') {
     updateTrairaBehavior,
     updatePiranhaBehavior: updateTrairaBehavior,
     isNavigableWater,
-    getNearestWaterCoords
+    getNearestWaterCoords,
+    getWaterDepthOrMarginFactor
   };
   window.isNavigableWater = isNavigableWater;
   window.getNearestWaterCoords = getNearestWaterCoords;
+  window.getWaterDepthOrMarginFactor = getWaterDepthOrMarginFactor;
 }
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -444,6 +509,7 @@ if (typeof module !== 'undefined' && module.exports) {
     updateTrairaBehavior,
     updatePiranhaBehavior: updateTrairaBehavior,
     isNavigableWater,
-    getNearestWaterCoords
+    getNearestWaterCoords,
+    getWaterDepthOrMarginFactor
   };
 }

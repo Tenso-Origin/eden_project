@@ -272,7 +272,12 @@ function stepVegetationAndBiomass(dt) {
     const ry = Math.floor(Math.random() * GRID_HEIGHT);
     const idx = getIdx(rx, ry);
 
-    if (matId[idx] === MAT_WATER) continue;
+    if (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.35) {
+      // Regeneração de biomassa bentônica no leito de rios e lagos (perifíton e biofilme escasso)
+      const benthicGrowth = 6.0 * simDeltaDays;
+      biomass[idx] = Math.min(22.0, biomass[idx] + benthicGrowth);
+      continue;
+    }
 
     const m = moisture[idx];
     const t = temp[idx];

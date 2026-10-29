@@ -36,6 +36,9 @@ const cumulativeErosion = new Float32Array(CELL_COUNT);
 const ratScent = new Float32Array(CELL_COUNT);
 const grains = new Float32Array(CELL_COUNT);
 
+const soilDefoliationTimer = new Float32Array(CELL_COUNT); // Supressão de regeneração por desfolha de saúvas
+var flowerPatches = [];       // Touceiras de flores silvestres (néctar para abelhas)
+
 // Entidades Vivas e Estruturas
 var nests = [];           // Ninhos e tocas maternais
 var harpies = [];         // Casal de Harpias Amazônicas (Macho e Fêmea)
@@ -225,6 +228,46 @@ function isPointInWaterBody(x, y) {
   return false;
 }
 
+const FLOWER_TYPES = [
+  { name: 'Orquídea Amazônica', color: '#f43f5e', icon: '🌸' },
+  { name: 'Bromélia de Dossel', color: '#ea580c', icon: '🌺' },
+  { name: 'Ipê Amarelo', color: '#eab308', icon: '🌼' },
+  { name: 'Vitória-Régia', color: '#ec4899', icon: '🪷' },
+  { name: 'Flor Roxa da Mata', color: '#a855f7', icon: '🪻' }
+];
+
+function spawnFlowerPatch(id, x, y) {
+  const type = FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)];
+  return {
+    id: id,
+    name: type.name,
+    x: x,
+    y: y,
+    radius: 4.2 + Math.random() * 3.5,
+    nectar: 35.0 + Math.random() * 30.0,
+    maxNectar: 65.0,
+    color: type.color,
+    icon: type.icon,
+    bloomTimer: 140.0 + Math.random() * 200.0
+  };
+}
+
+function spawnInitialFlowerPatches(count = 60) {
+  flowerPatches = [];
+  let attempts = 0;
+  let nextId = 9000;
+  while (flowerPatches.length < count && attempts < count * 25) {
+    attempts++;
+    const rx = 35 + Math.random() * (GRID_WIDTH - 70);
+    const ry = 35 + Math.random() * (GRID_HEIGHT - 70);
+    const idx = getIdx(Math.floor(rx), Math.floor(ry));
+    const inWater = isPointInWaterBody(rx, ry) || (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.05);
+    if (!inWater && biomass[idx] > 15.0 && moisture[idx] > 0.2) {
+      flowerPatches.push(spawnFlowerPatch(nextId++, rx, ry));
+    }
+  }
+}
+
 /**
  * Inicialização Geográfica e Ecológica do Mundo Amazônico 2048x1024
  */
@@ -233,6 +276,8 @@ function initWorld() {
   nests = [];
   harpies = [];
   grains.fill(0);
+  soilDefoliationTimer.fill(0);
+  flowerPatches = [];
   globalErosionTotal = 0;
   funKillsCount = 0;
   hungryKillsCount = 0;
@@ -584,9 +629,12 @@ if (typeof HarpySpecies !== 'undefined') {
     animals.push(...birds);
   }
 
-  // 5. Insetos Neotropicais: 10 espécies distribuídas por seus biótopos preferenciais
+  // 5. Touceiras de Flores Silvestres espalhadas pelo mapa
+  spawnInitialFlowerPatches(60);
+
+  // 6. Insetos Neotropicais: colônias terrestres em terra firme e forrageamento disperso
   if (typeof InsectSpecies !== 'undefined') {
-    const insects = InsectSpecies.createInitialInsects(GRID_WIDTH, GRID_HEIGHT, nests);
+    const insects = InsectSpecies.createInitialInsects(GRID_WIDTH, GRID_HEIGHT, nests, { matId, surfaceWater, getIdx, MAT_WATER });
     animals.push(...insects);
   }
 
@@ -619,6 +667,10 @@ if (typeof window !== 'undefined') {
     cumulativeErosion,
     ratScent,
     grains,
+    soilDefoliationTimer,
+    flowerPatches,
+    spawnFlowerPatch,
+    spawnInitialFlowerPatches,
     nests,
     harpies,
     animals,
@@ -631,5 +683,16 @@ if (typeof window !== 'undefined') {
     initWorld,
     getIdx,
     clearBiomassRadius
+  };
+  window.soilDefoliationTimer = soilDefoliationTimer;
+  window.flowerPatches = flowerPatches;
+  window.spawnFlowerPatch = spawnFlowerPatch;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    soilDefoliationTimer,
+    flowerPatches,
+    spawnFlowerPatch,
+    spawnInitialFlowerPatches
   };
 }

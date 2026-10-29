@@ -301,6 +301,40 @@ function render() {
     }
   }
 
+  // Touceiras de Flores Silvestres Amazônicas (Orquídeas, Bromélias, Ipês - Néctar para Abelhas)
+  if (typeof flowerPatches !== 'undefined' && flowerPatches && flowerPatches.length > 0) {
+    for (let fpi = 0; fpi < flowerPatches.length; fpi++) {
+      const fp = flowerPatches[fpi];
+      if (fp.x < minVisX - 15 || fp.x > maxVisX + 15 || fp.y < minVisY - 15 || fp.y > maxVisY + 15) continue;
+
+      const r = fp.radius || 4.2;
+      const color = fp.color || '#f43f5e';
+
+      // Halo floral e pétalas
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 4;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Miolo da flor
+      ctx.beginPath();
+      ctx.arc(fp.x, fp.y, r * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = '#facc15';
+      ctx.fill();
+
+      // Indicador com ícone em zoom aproximado
+      if (zoomLevel >= 1.0) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '7px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(fp.icon || '🌸', fp.x, fp.y - r - 2.0);
+      }
+    }
+  }
+
   // Ninhos e Tocas Maternais
   if (nests && nests.length > 0) {
     for (let ni = 0; ni < nests.length; ni++) {

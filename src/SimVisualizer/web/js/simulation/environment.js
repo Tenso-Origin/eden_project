@@ -283,13 +283,65 @@ function stepVegetationAndBiomass(dt) {
     const t = temp[idx];
 
     if (t > 15.0 && t < 38.0 && m > 0.25) {
-      // Crescimento vigoroso da flora amazônica
-      const growth = (m * 0.8) * Math.sin(((t - 15) / 23) * Math.PI) * 12.0 * simDeltaDays;
+      // Supressão severa de crescimento vegetal por corte de saúvas: solo desfolhado demora 12x mais para rebrotar
+      let growthMultiplier = 1.0;
+      if (typeof soilDefoliationTimer !== 'undefined' && soilDefoliationTimer[idx] > 0) {
+        soilDefoliationTimer[idx] = Math.max(0, soilDefoliationTimer[idx] - simDeltaDays);
+        growthMultiplier = 0.08; // Apenas 8% de crescimento residual enquanto sob estresse de desfolha
+      }
+
+      // Crescimento da flora amazônica calibrado pelo multiplicador de regeneração
+      const growth = (m * 0.8) * Math.sin(((t - 15) / 23) * Math.PI) * 12.0 * simDeltaDays * growthMultiplier;
       biomass[idx] = Math.min(100.0, biomass[idx] + growth);
 
       // Produção de sementes e grãos na várzea exposta durante a seca
       if (isDrySeason && elevation[idx] < 16.0 && surfaceWater[idx] < 0.1) {
         grains[idx] = Math.min(100.0, grains[idx] + 25.0 * simDeltaDays);
+      }
+    }
+  }
+
+  // Dinâmica das touceiras de flores (germinação, floração e produção de néctar)
+  stepFlowerPatches(dt);
+}
+
+/**
+ * Dinâmica biológica das Touceiras de Flores Silvestres:
+ * - Ciclo de floração temporal (bloomTimer)
+ * - Regeneração contínua de néctar
+ * - Murchamento e brotação de novas touceiras aleatórias em terra firme
+ */
+function stepFlowerPatches(dt) {
+  if (typeof flowerPatches === 'undefined' || !flowerPatches) return;
+  const simDeltaDays = (0.08 * dt) / 24.0;
+
+  // 1. Manutenção das flores ativas
+  for (let i = flowerPatches.length - 1; i >= 0; i--) {
+    const fp = flowerPatches[i];
+    fp.bloomTimer -= simDeltaDays;
+    if (fp.nectar < fp.maxNectar && fp.bloomTimer > 0) {
+      fp.nectar = Math.min(fp.maxNectar, fp.nectar + 6.0 * simDeltaDays);
+    }
+    if (fp.bloomTimer <= 0 || fp.nectar <= 0.2) {
+      flowerPatches.splice(i, 1);
+    }
+  }
+
+  // 2. Brotam novas touceiras de flores em clareiras e matas de terra firme
+  const TARGET_PATCHES = 55;
+  if (flowerPatches.length < TARGET_PATCHES) {
+    const needed = TARGET_PATCHES - flowerPatches.length;
+    const toSpawn = Math.min(needed, 2);
+    for (let s = 0; s < toSpawn; s++) {
+      const rx = 35 + Math.random() * (GRID_WIDTH - 70);
+      const ry = 35 + Math.random() * (GRID_HEIGHT - 70);
+      const idx = getIdx(Math.floor(rx), Math.floor(ry));
+      const inWater = (typeof isPointInWaterBody === 'function' && isPointInWaterBody(rx, ry)) ||
+                      (matId[idx] === MAT_WATER || surfaceWater[idx] > 0.05);
+      if (!inWater && biomass[idx] > 15.0 && moisture[idx] > 0.20) {
+        if (typeof spawnFlowerPatch === 'function') {
+          flowerPatches.push(spawnFlowerPatch(Date.now() + Math.floor(Math.random() * 100000), rx, ry));
+        }
       }
     }
   }

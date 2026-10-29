@@ -9,25 +9,57 @@
  * Colônias começam com 5 ícones (500 indivíduos no total).
  * 4 cargas ficam trabalhando internamente na colônia e 1 enxame sai forrageando ao lado.
  */
-function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null) {
-  const insectList = [];
+/**
+ * Validação rigorosa de terra firme para colônias de formigas e cupins (Proibido gerar na água)
+ */
+function isWaterSpot(x, y, matId, surfaceWater, getIdx, gridW = 2048, gridH = 1024, MAT_WATER = 0) {
+  if (typeof isPointInWaterBody === 'function' && isPointInWaterBody(x, y)) return true;
+  if (matId && getIdx) {
+    const cx = Math.max(0, Math.min(gridW - 1, Math.floor(x)));
+    const cy = Math.max(0, Math.min(gridH - 1, Math.floor(y)));
+    const idx = getIdx(cx, cy);
+    if (matId[idx] === MAT_WATER || (surfaceWater && surfaceWater[idx] > 0.05)) return true;
+  }
+  return false;
+}
 
-  // Configuração das Colônias Iniciais de Insetos Sociais na Bacia Amazônica
+function findSafeDryLandCoords(targetX, targetY, matId, surfaceWater, getIdx, gridW = 2048, gridH = 1024, MAT_WATER = 0) {
+  if (!isWaterSpot(targetX, targetY, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+    return { x: targetX, y: targetY };
+  }
+  // Espirala até encontrar terra firme segura e distante de inundações
+  for (let r = 10; r <= 300; r += 10) {
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 8) {
+      const tx = Math.max(25, Math.min(gridW - 25, targetX + Math.cos(a) * r));
+      const ty = Math.max(25, Math.min(gridH - 25, targetY + Math.sin(a) * r));
+      if (!isWaterSpot(tx, ty, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+        return { x: tx, y: ty };
+      }
+    }
+  }
+  return { x: targetX, y: targetY };
+}
+
+function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null, ctx = {}) {
+  const insectList = [];
+  const { matId, surfaceWater, getIdx, MAT_WATER } = ctx;
+
+  // Coordenadas calibradas estritamente em TERRA FIRME (nenhuma colônia em corpos d'água ou meandros)
   const SOCIAL_COLONIES = {
     ant: [
-      { name: 'Formigueiro Oeste (Saúva)', x: 420, y: 360, radius: 85.0, res: 40.0 },
-      { name: 'Formigueiro Sul (Saúva)', x: 1050, y: 780, radius: 85.0, res: 35.0 },
-      { name: 'Formigueiro Leste (Saúva)', x: 1680, y: 390, radius: 85.0, res: 35.0 }
+      { name: 'Formigueiro Oeste (Saúva)', x: 320, y: 140, radius: 95.0, res: 40.0 },
+      { name: 'Formigueiro Sul (Saúva)', x: 1050, y: 780, radius: 95.0, res: 35.0 },
+      { name: 'Formigueiro Leste (Saúva)', x: 1680, y: 390, radius: 95.0, res: 35.0 }
     ],
     termite: [
-      { name: 'Cupinzeiro da Mata Oeste', x: 380, y: 720, radius: 45.0, res: 30.0 },
-      { name: 'Cupinzeiro da Floresta Central', x: 1180, y: 320, radius: 45.0, res: 30.0 },
-      { name: 'Cupinzeiro da Mata Leste', x: 1740, y: 690, radius: 45.0, res: 30.0 }
+      { name: 'Cupinzeiro da Mata Oeste', x: 380, y: 720, radius: 55.0, res: 30.0 },
+      { name: 'Cupinzeiro da Floresta Central', x: 1140, y: 190, radius: 55.0, res: 30.0 },
+      { name: 'Cupinzeiro da Mata Leste', x: 1820, y: 820, radius: 55.0, res: 30.0 }
     ],
     bee: [
-      { name: 'Colmeia Jataí (Oco Oeste)', x: 520, y: 460, radius: 130.0, res: 25.0 },
-      { name: 'Colmeia Jataí (Oco Central)', x: 960, y: 410, radius: 130.0, res: 25.0 },
-      { name: 'Colmeia Jataí (Oco Leste)', x: 1560, y: 560, radius: 130.0, res: 25.0 }
+      { name: 'Colmeia Jataí (Oco Oeste)', x: 520, y: 460, radius: 140.0, res: 25.0 },
+      { name: 'Colmeia Jataí (Oco Central)', x: 960, y: 410, radius: 140.0, res: 25.0 },
+      { name: 'Colmeia Jataí (Oco Leste)', x: 1560, y: 560, radius: 140.0, res: 25.0 }
     ]
   };
 
@@ -45,12 +77,14 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null)
         const dailyEggs = (sp === 'ant' ? 150.0 : (sp === 'termite' ? 100.0 : 60.0));
         const extRatio = (sp === 'bee' ? 0.25 : 0.20); // 20% a 25% forrageando externamente, 75% a 80% interna
 
+        // Garante que a colônia seja posicionada 100% fora de corpos d'água
+        const safeCoords = findSafeDryLandCoords(nConf.x, nConf.y, matId, surfaceWater, getIdx, gridWidth, gridHeight, MAT_WATER);
         const colonyObj = {
           id: nestSeq++,
           species: sp,
           name: nConf.name,
-          x: nConf.x,
-          y: nConf.y,
+          x: safeCoords.x,
+          y: safeCoords.y,
           quality: 90,
           resourcesKg: nConf.res,
           forageRadius: nConf.radius,
@@ -280,7 +314,7 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
       }
     }
 
-    // 3. DESPACHO DE ENXAME PARA FORRAGEAMENTO (REMOÇÃO DE CARGA)
+    // 3. DESPACHO DE ENXAMES PARA FORRAGEAMENTO DISPERSO (REMOÇÃO DE CARGA)
     // Censo de enxames ativos pertencentes a esta colônia no mapa
     let activeSwarms = 0;
     for (let ai = 0; ai < animalSource.length; ai++) {
@@ -292,8 +326,8 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
     colony.activeSwarmsCount = activeSwarms;
 
     const totalPopUnits = (colony.charges || 0) + activeSwarms;
-    const maxExtRatio = colony.maxExternalRatio || 0.20;
-    const maxSwarmsAllowed = Math.max(1, Math.floor(totalPopUnits * maxExtRatio));
+    // Permite que colônias ativas mantenham múltiplos grupos de forrageamento simultâneos em campo (até 6 swarms)
+    const maxSwarmsAllowed = Math.min(6, Math.max(2, Math.floor(totalPopUnits * 0.40)));
 
     colony.dispatchCooldown = (colony.dispatchCooldown || 0) - dt;
 
@@ -302,9 +336,12 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
       colony.charges--;
       colony.activeSwarmsCount++;
 
-      // Cria um ícone de enxame ao lado da colônia
-      const spawnAngle = Math.random() * Math.PI * 2;
-      const sDist = 3.0 + Math.random() * 3.0;
+      // Dispersão em 8 quadrantes/setores radiais distintos para que as formigas não tomem a mesma direção
+      colony.dispatchSequence = (colony.dispatchSequence || 0) + 1;
+      const sector = (colony.dispatchSequence % 8);
+      const baseAngle = (sector / 8.0) * Math.PI * 2;
+      const spawnAngle = baseAngle + (Math.random() - 0.5) * 0.35;
+      const sDist = 3.5 + Math.random() * 3.0;
       const sx = Math.max(12, Math.min(gridW - 12, colony.x + Math.cos(spawnAngle) * sDist));
       const sy = Math.max(12, Math.min(gridH - 12, colony.y + Math.sin(spawnAngle) * sDist));
 
@@ -320,7 +357,7 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
         hp: 100,             // 100 indivíduos
         maxHp: 100,
         hunger: 5.0,
-        speed: (colony.species === 'ant' ? 1.1 : (colony.species === 'bee' ? 2.8 : 0.8)),
+        speed: (colony.species === 'ant' ? 1.2 : (colony.species === 'bee' ? 2.9 : 0.85)),
         attackPower: 0.1,    // 0.1 por indivíduo
         defensePower: 0.0,   // 0.0 de defesa
         isSocial: true,
@@ -329,14 +366,18 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
         nestY: colony.y,
         maxForageRadius: colony.forageRadius,
         foodCarried: 0.0,
+        targetLoad: (colony.species === 'ant' ? (4.5 + Math.random() * 2.5) : (3.0 + Math.random() * 2.0)),
         isReturningToNest: false,
         ageInDays: 15.0,
         maxLifespan: 365.0,
+        trailAngle: spawnAngle,
         wanderAngle: spawnAngle,
+        targetForageDist: 25.0 + Math.random() * (colony.forageRadius - 30.0),
         enteredNest: false
       });
 
-      colony.dispatchCooldown = 8.0 + Math.random() * 8.0;
+      // Se ainda houver vagas para atingir a cota de forrageiras, despacha rapidamente o próximo grupo
+      colony.dispatchCooldown = (activeSwarms + 1 < maxSwarmsAllowed && colony.charges > 1) ? (1.5 + Math.random() * 2.0) : (8.0 + Math.random() * 7.0);
     }
   }
 }
@@ -383,9 +424,9 @@ function updateInsectBehavior(a, dt, ctx) {
       }
     }
 
-    // Pouso e tentativa de fundação ao término do voo
+    // Pouso e tentativa de fundação ao término do voo (Proibido fundar em água)
     if (a.flightTimer <= 0) {
-      const isWater = (matId && matId[cellIdx] === MAT_WATER);
+      const isWater = isWaterSpot(a.x, a.y, matId, ctx.surfaceWater, getIdx, gridW, gridH, MAT_WATER);
       if (!isWater) {
         // Territorialidade: Rainhas que pousam perto de colônias rivais (<65m) são eliminadas
         let hasRivalColonyNearby = false;
@@ -517,54 +558,129 @@ function updateInsectBehavior(a, dt, ctx) {
 
     // 2. FORRAGEAMENTO RADIAL EM TORNO DO NINHO
     // Se ultrapassou o raio máximo de atuação da espécie ou coletou carga suficiente:
-    if (dNest > maxR || (a.foodCarried || 0) >= 3.5) {
+    const loadLimit = a.targetLoad || (a.species === 'ant' ? 5.0 : 3.5);
+    if (dNest > maxR || (a.foodCarried || 0) >= loadLimit) {
       a.isReturningToNest = true;
       return { targetX: nestX, targetY: nestY };
     }
 
     const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));
+    const defolTimer = (ctx.soilDefoliationTimer || (typeof soilDefoliationTimer !== 'undefined' ? soilDefoliationTimer : null));
+    const flowerList = (ctx.flowerPatches || (typeof flowerPatches !== 'undefined' ? flowerPatches : []));
 
-    // Formigas cortadeiras: colheita de biomassa foliar
+    // A. FORMIGAS CORTADEIRAS (SAÚVAS): Colheita foliar com Halo de Desfolha e Supressão de Solo
     if (a.species === 'ant') {
-      if (biomass && biomass[curIdx] > 4.0) {
-        const cut = Math.min(biomass[curIdx], 1.6 * dt);
+      // Ignora células com biomassa rala (< 18.0) para forçar as formigas a buscarem folhas frescas longe do ninho
+      if (biomass && biomass[curIdx] > 18.0) {
+        const cut = Math.min(biomass[curIdx] - 3.0, 2.5 * dt);
         biomass[curIdx] -= cut;
         a.foodCarried = (a.foodCarried || 0) + cut;
         a.hunger = Math.max(0, a.hunger - cut * 2.5);
-        if (a.foodCarried >= 3.5) a.isReturningToNest = true;
+
+        // Aplica o timer de desfolha: essa célula demorará ~120 dias para rebrotar, forçando saúvas a irem mais longe
+        if (defolTimer) {
+          defolTimer[curIdx] = 120.0;
+        }
+
+        if (a.foodCarried >= loadLimit) {
+          a.isReturningToNest = true;
+          return { targetX: nestX, targetY: nestY };
+        }
       }
+
+      // Marcha ao longo da trilha radial atribuída (afastando-se do halo desfolhado em direção a vegetação fresca)
+      if (dNest < (a.targetForageDist || 35.0)) {
+        // Direção da trilha radial atribuída no despacho
+        const trailX = Math.cos(a.trailAngle || a.wanderAngle);
+        const trailY = Math.sin(a.trailAngle || a.wanderAngle);
+        a.wanderAngle = (a.trailAngle || a.wanderAngle) + (Math.random() - 0.5) * 0.25;
+        targetX = a.x + trailX * (a.speed * 1.4);
+        targetY = a.y + trailY * (a.speed * 1.4);
+      } else {
+        // Ao atingir a distância alvo, explora em meandros na mata densa
+        a.wanderAngle += (Math.random() - 0.5) * 0.7 * dt;
+        if (dNest > maxR * 0.90) {
+          a.isReturningToNest = true;
+        }
+        targetX = a.x + Math.cos(a.wanderAngle) * (a.speed * 1.2);
+        targetY = a.y + Math.sin(a.wanderAngle) * (a.speed * 1.2);
+      }
+
+      // Evita entrar em corpos d'água
+      if (isWaterSpot(targetX, targetY, matId, ctx.surfaceWater, getIdx, gridW, gridH, MAT_WATER)) {
+        const angleToNest = Math.atan2(nestY - a.y, nestX - a.x);
+        a.wanderAngle = angleToNest;
+        targetX = a.x + Math.cos(angleToNest) * 1.5;
+        targetY = a.y + Math.sin(angleToNest) * 1.5;
+      }
+      return { targetX, targetY };
     }
-    // Cupins: decomposição e forrageamento de celulose/madeira
+
+    // B. CUPINS DA TERRA: Decomposição em terra firme
     else if (a.species === 'termite') {
-      if (biomass && biomass[curIdx] > 2.0) {
-        const cut = Math.min(biomass[curIdx], 1.2 * dt);
+      if (biomass && biomass[curIdx] > 4.0) {
+        const cut = Math.min(biomass[curIdx], 1.4 * dt);
         biomass[curIdx] -= cut;
         a.foodCarried = (a.foodCarried || 0) + cut;
         a.hunger = Math.max(0, a.hunger - cut * 2.5);
-        if (a.foodCarried >= 2.8) a.isReturningToNest = true;
+        if (a.foodCarried >= (a.targetLoad || 3.0)) {
+          a.isReturningToNest = true;
+          return { targetX: nestX, targetY: nestY };
+        }
       }
+      a.wanderAngle += (Math.random() - 0.5) * 0.7 * dt;
+      if (dNest > maxR * 0.85) {
+        a.wanderAngle = Math.atan2(nestY - a.y, nestX - a.x) + (Math.random() - 0.5) * 0.4;
+      }
+      targetX = a.x + Math.cos(a.wanderAngle) * (a.speed * 1.2);
+      targetY = a.y + Math.sin(a.wanderAngle) * (a.speed * 1.2);
+      return { targetX, targetY };
     }
-    // Abelhas: polinização e coleta de néctar
+
+    // C. ABELHAS JATAÍ: Busca ativa de TOUCEIRAS DE FLORES (Orquídeas, Bromélias, Ipês) a longas distâncias
     else if (a.species === 'bee') {
-      if (biomass && biomass[curIdx] > 10.0) {
-        const nectar = 1.0 * dt;
-        a.foodCarried = (a.foodCarried || 0) + nectar;
-        a.hunger = Math.max(0, a.hunger - nectar * 3.0);
-        if (a.foodCarried >= 2.8) a.isReturningToNest = true;
+      let targetFlower = null;
+      let bestFlowerDist = 9999.0;
+      // Usa a lista de flores recebida do contexto ou global
+
+
+      for (let fpi = 0; fpi < flowerList.length; fpi++) {
+        const fp = flowerList[fpi];
+        if (fp.nectar <= 1.0) continue;
+        const d = Math.hypot(fp.x - a.x, fp.y - a.y);
+        // Abelhas detectam touceiras de flores a até 150m de distância
+        if (d < 150.0 && d < bestFlowerDist) {
+          bestFlowerDist = d;
+          targetFlower = fp;
+        }
       }
+
+      if (targetFlower) {
+        targetX = targetFlower.x;
+        targetY = targetFlower.y;
+
+        // Ao sobrevoar a touceira de flores, colhe néctar
+        if (bestFlowerDist < 3.8) {
+          const harvest = Math.min(targetFlower.nectar, 2.5 * dt);
+          targetFlower.nectar -= harvest;
+          a.foodCarried = (a.foodCarried || 0) + harvest;
+          a.hunger = Math.max(0, a.hunger - harvest * 3.5);
+          if (a.foodCarried >= (a.targetLoad || 3.5)) {
+            a.isReturningToNest = true;
+          }
+        }
+        return { targetX, targetY };
+      }
+
+      // Se nenhuma touceira de flores estiver no campo visual imediato, voa em longas varreduras de dossel
+      a.wanderAngle += (Math.random() - 0.5) * 0.35 * dt;
+      if (dNest > maxR * 0.90) {
+        a.wanderAngle = Math.atan2(nestY - a.y, nestX - a.x) + (Math.random() - 0.5) * 0.5;
+      }
+      targetX = a.x + Math.cos(a.wanderAngle) * (a.speed * 1.5);
+      targetY = a.y + Math.sin(a.wanderAngle) * (a.speed * 1.5);
+      return { targetX, targetY };
     }
-
-    // Movimentação em torno do ninho com curvatura radial de contenção
-    a.wanderAngle += (Math.random() - 0.5) * 0.8 * dt;
-    if (dNest > maxR * 0.80) {
-      const angleToNest = Math.atan2(nestY - a.y, nestX - a.x);
-      a.wanderAngle = angleToNest + (Math.random() - 0.5) * 0.6;
-    }
-
-    targetX = a.x + Math.cos(a.wanderAngle) * (a.speed * 1.3);
-    targetY = a.y + Math.sin(a.wanderAngle) * (a.speed * 1.3);
-
-    return { targetX, targetY };
   }
 
   // =========================================================================
@@ -692,11 +808,24 @@ function updateInsectBehavior(a, dt, ctx) {
   return { targetX, targetY };
 }
 
-// Vinculação de escopo para ambiente browser
+// Vinculação de escopo para ambiente browser e Node.js
 if (typeof window !== 'undefined') {
   window.InsectSpecies = {
     createInitialInsects,
     updateSocialColonies,
-    updateInsectBehavior
+    updateInsectBehavior,
+    isWaterSpot,
+    findSafeDryLandCoords
+  };
+  window.isWaterSpot = isWaterSpot;
+  window.findSafeDryLandCoords = findSafeDryLandCoords;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    createInitialInsects,
+    updateSocialColonies,
+    updateInsectBehavior,
+    isWaterSpot,
+    findSafeDryLandCoords
   };
 }

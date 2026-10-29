@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.8</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.9</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -1067,7 +1067,7 @@
           }
         } else if (['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'].includes(a.species)) {
           if (typeof InsectSpecies !== 'undefined') {
-            const insCtx = { animals, nests, biomass, grains, getIdx, matId, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay, totalSimHours, weather, applyDeathDecomposition, onPredationSuccess: (prey, bug) => {
+            const insCtx = { animals, nests, biomass, grains, getIdx, matId, surfaceWater, MAT_WATER, GRID_WIDTH, GRID_HEIGHT, timeOfDay, totalSimHours, weather, flowerPatches, soilDefoliationTimer, applyDeathDecomposition, onPredationSuccess: (prey, bug) => {
               totalPredationDeaths++;
               hungryKillsCount++;
             } };
@@ -1158,7 +1158,7 @@
       // Atualização das colônias de insetos sociais (ciclo da rainha, ovoposição e despacho de enxames por cargas)
       if (typeof InsectSpecies !== 'undefined' && InsectSpecies.updateSocialColonies) {
         const insColonyCtx = {
-          GRID_WIDTH, GRID_HEIGHT, totalSimHours, weather, biomass, getIdx, animals: aliveAnimals
+          GRID_WIDTH, GRID_HEIGHT, totalSimHours, weather, biomass, getIdx, animals: aliveAnimals, matId, surfaceWater, MAT_WATER
         };
         InsectSpecies.updateSocialColonies(nests, newOffspring, dt, insColonyCtx);
       }

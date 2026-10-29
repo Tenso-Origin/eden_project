@@ -8,6 +8,8 @@ let imgData = null;
 let pixelBuffer = null;
 let offscreenCanvas = null;
 let offscreenCtx = null;
+let renderFrameCounter = 0;
+let lastRenderedLayer = null;
 
 // Tabela Mestra de Ícones e Identidade Visual das Espécies
 const SPECIES_VISUALS = {
@@ -76,8 +78,13 @@ function render() {
   const gw = (typeof GRID_WIDTH !== 'undefined') ? GRID_WIDTH : 2048;
   const gh = (typeof GRID_HEIGHT !== 'undefined') ? GRID_HEIGHT : 1024;
 
-  // Loop contíguo sobre 2.097.152 pixels (2048x1024) diretamente no buffer nativo
-  for (let y = 0; y < gh; y++) {
+  renderFrameCounter++;
+  const needsTerrainUpdate = (renderFrameCounter % 2 === 1) || (lastRenderedLayer !== currentLayer);
+
+  // 1. Atualização do Terreno (Throttle inteligente a cada 2 frames ou na troca de camada)
+  if (needsTerrainUpdate) {
+    lastRenderedLayer = currentLayer;
+    for (let y = 0; y < gh; y++) {
     const rowOffset = y * gw;
 
     for (let x = 0; x < gw; x++) {
@@ -191,9 +198,9 @@ function render() {
       pixelBuffer[idx] = (255 << 24) | (b << 16) | (g << 8) | r;
     }
   }
-
   // Blit no offscreenCanvas
   offscreenCtx.putImageData(imgData, 0, 0);
+  }
 
   // Limpa e aplica zoom/pan na tela principal
   ctx.fillStyle = '#05080e';
@@ -330,12 +337,26 @@ function render() {
     }
   }
 
-  // Fauna Completa (Mamíferos, Peixes, Répteis, Aves e Insetos com Ícones Distintos)
+  // Frustum Culling: calcula a janela visível no espaço do mundo
+  const halfViewW = (canvas.width / 2) / zoomLevel;
+  const halfViewH = (canvas.height / 2) / zoomLevel;
+  const minVisX = panX - halfViewW - 30;
+  const maxVisX = panX + halfViewW + 30;
+  const minVisY = panY - halfViewH - 30;
+  const maxVisY = panY + halfViewH + 30;
+
+  // Fauna Completa com Frustum Culling e Batching Inteligente
   if (animals && animals.length > 0) {
+    const isZoomOut = (zoomLevel < 0.65);
+    let currentSetFont = "";
+
     for (const a of animals) {
       if (a.hp <= 0) continue;
       const px = a.x;
       const py = a.y;
+
+      // Descarta animais fora do campo de visão da câmera (Zero custo GPU)
+      if (px < minVisX || px > maxVisX || py < minVisY || py > maxVisY) continue;
 
       const spec = SPECIES_VISUALS[a.species] || { icon: '●', label: a.species, color: '#ffffff', bg: 'rgba(0,0,0,0.8)', border: '#ffffff', size: 9 };
       // Ajuste de escala dinâmico proporcional ao zoom para manter nitidez

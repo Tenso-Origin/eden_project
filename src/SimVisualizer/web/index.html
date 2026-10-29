@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.2</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.3</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -770,46 +770,64 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.7.1"></script>
-  <script src="js/simulation/core.js?v=2.7.1"></script>
-  <script src="js/simulation/environment.js?v=2.7.1"></script>
-  <script src="js/species/rat.js?v=2.7.1"></script>
-  <script src="js/species/cat.js?v=2.7.1"></script>
-  <script src="js/species/harpy.js?v=2.7.1"></script>
-  <script src="js/species/aquatic.js?v=2.7.1"></script>
-  <script src="js/species/reptiles.js?v=2.7.1"></script>
-  <script src="js/species/birds.js?v=2.7.1"></script>
-  <script src="js/species/insects.js?v=2.7.1"></script>
-  <script src="js/rendering/renderer.js?v=2.7.1"></script>
-  <script src="js/ui/ui-controller.js?v=2.7.1"></script>
+  <script src="js/species/reproduction.js?v=2.7.3"></script>
+  <script src="js/simulation/core.js?v=2.7.3"></script>
+  <script src="js/simulation/environment.js?v=2.7.3"></script>
+  <script src="js/species/rat.js?v=2.7.3"></script>
+  <script src="js/species/cat.js?v=2.7.3"></script>
+  <script src="js/species/harpy.js?v=2.7.3"></script>
+  <script src="js/species/aquatic.js?v=2.7.3"></script>
+  <script src="js/species/reptiles.js?v=2.7.3"></script>
+  <script src="js/species/birds.js?v=2.7.3"></script>
+  <script src="js/species/insects.js?v=2.7.3"></script>
+  <script src="js/rendering/renderer.js?v=2.7.3"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.3"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
     // === FAUNA ECS: ORQUESTRAÇÃO DE ESPÉCIES (RATOS, GATOS E HARPIAS) ===
+    // Buffers reaproveitáveis de alta performance (Zero Garbage Collection)
+    const sharedRatsInCell = new Uint8Array(CELL_COUNT);
+    const activeRatCells = [];
+    const activeScentCells = [];
+
     function stepFauna(dt) {
       const aliveAnimals = [];
       const newOffspring = [];
       const simDeltaHours = 0.08 * dt;
       const simDeltaDays = simDeltaHours / 24.0;
 
+      // Limpeza cirúrgica O(N_ratos) das células previamente ocupadas sem zerar 2.1M elementos
+      for (let i = 0; i < activeRatCells.length; i++) {
+        sharedRatsInCell[activeRatCells[i]] = 0;
+      }
+      activeRatCells.length = 0;
+
       // Censo instantâneo de densidade de ratos por célula para partilha equitativa de biomassa
-      const ratsInCell = new Uint8Array(CELL_COUNT);
       for (let i = 0; i < animals.length; i++) {
         const an = animals[i];
         if (an.species === 'rat' && an.hp > 0) {
           const cIdx = getIdx(Math.floor(an.x), Math.floor(an.y));
-          if (ratsInCell[cIdx] < 255) ratsInCell[cIdx]++;
+          if (sharedRatsInCell[cIdx] === 0) activeRatCells.push(cIdx);
+          if (sharedRatsInCell[cIdx] < 255) sharedRatsInCell[cIdx]++;
         }
       }
+      const ratsInCell = sharedRatsInCell;
 
-      // 1. Decaimento da Trilha de Cheiro do Rato (dura 1 dia de simulação = 24h)
+      // 1. Decaimento da Trilha de Cheiro do Rato apenas nas células ativas (Zero loop de 2M)
       const scentDecayRate = 0.0035 * dt;
-      for (let i = 0; i < CELL_COUNT; i += 4) {
-        if (ratScent[i] > 0) ratScent[i] = Math.max(0, ratScent[i] - scentDecayRate);
-        if (ratScent[i+1] > 0) ratScent[i+1] = Math.max(0, ratScent[i+1] - scentDecayRate);
-        if (ratScent[i+2] > 0) ratScent[i+2] = Math.max(0, ratScent[i+2] - scentDecayRate);
-        if (ratScent[i+3] > 0) ratScent[i+3] = Math.max(0, ratScent[i+3] - scentDecayRate);
+      let wScent = 0;
+      for (let i = 0; i < activeScentCells.length; i++) {
+        const sIdx = activeScentCells[i];
+        const val = ratScent[sIdx] - scentDecayRate;
+        if (val > 0.02) {
+          ratScent[sIdx] = val;
+          activeScentCells[wScent++] = sIdx;
+        } else {
+          ratScent[sIdx] = 0;
+        }
       }
+      activeScentCells.length = wScent;
 
       for (let i = 0; i < animals.length; i++) {
         const a = animals[i];
@@ -1004,6 +1022,7 @@
         }
 
         if (a.species === 'rat') {
+          if (ratScent[curIdx] <= 0.001) activeScentCells.push(curIdx);
           ratScent[curIdx] = 1.0;
         }
 
@@ -1317,13 +1336,22 @@
       }
     }
 
-    // Loop de Animação com Suporte a Aceleração Temporal
+    // Loop de Animação com Suporte a Aceleração Temporal e Time Budgeting Protetivo
     function loop() {
       if (isPlaying) {
         const speed = parseInt(document.getElementById('simSpeed').value) || 1;
+        const startT = performance.now();
         for (let i = 0; i < speed; i++) {
           const isLast = (i === speed - 1);
           tick(!isLast);
+          // Frame budget: se os cálculos ultrapassarem 18ms, encerra o lote e renderiza para garantir 60 FPS fluidos
+          if (performance.now() - startT > 18) {
+            if (!isLast) {
+              updateStats();
+              render();
+            }
+            break;
+          }
         }
       }
       requestAnimationFrame(loop);

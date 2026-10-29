@@ -293,7 +293,13 @@ function handleCanvasInteraction(e) {
   render();
 }
 
-function updateStats() {
+let lastStatsTick = -1;
+let cachedGrainsText = "0 kg";
+
+function updateStats(force = false) {
+  if (!force && tickCount === lastStatsTick) return;
+  if (!force && (tickCount % 6 !== 0)) return;
+  lastStatsTick = tickCount;
   const elTicks = document.getElementById('statTicks');
   if (elTicks) elTicks.innerText = tickCount;
 
@@ -364,65 +370,102 @@ function updateStats() {
     }
   }
 
-  // Grãos de Arroz
+  // Grãos de Arroz (Amostragem rápida a cada 30 ticks)
   const elGrains = document.getElementById('statGrains');
   if (elGrains) {
-    let totalG = 0;
-    for (let i = 0; i < CELL_COUNT; i += 8) totalG += grains[i];
-    elGrains.innerText = `${Math.round(totalG * 8)} kg`;
+    if (tickCount % 30 === 0 || cachedGrainsText === "0 kg") {
+      let totalG = 0;
+      for (let i = 0; i < CELL_COUNT; i += 32) totalG += grains[i];
+      cachedGrainsText = `${Math.round(totalG * 32)} kg`;
+    }
+    elGrains.innerText = cachedGrainsText;
   }
 
   // Ninhos
   const elNests = document.getElementById('statNests');
   if (elNests) {
-    const ratN = nests.filter(n => n.species === 'rat').length;
-    const catN = nests.filter(n => n.species === 'cat').length;
-    const harpyN = harpies.filter(h => !h.migrated).length;
+    let ratN = 0, catN = 0;
+    for (let i = 0; i < nests.length; i++) {
+      if (nests[i].species === 'rat') ratN++;
+      else if (nests[i].species === 'cat') catN++;
+    }
+    const harpyN = (harpies && harpies.length >= 2 && !harpies[0].migrated && !harpies[1].migrated) ? 2 : (harpies && harpies.length >= 1 && !harpies[0].migrated ? 1 : 0);
     elNests.innerText = `${nests.length} (${ratN} tocas, ${catN} covis, ${harpyN} harpia ativa)`;
   }
 
-  // Censo de Fauna
-  const rats = animals.filter(a => a.species === 'rat');
-  const ratsF = rats.filter(a => a.sex === 'female').length;
-  const ratsM = rats.filter(a => a.sex === 'male').length;
-  const pregRats = rats.filter(a => a.isPregnant).length;
-  const estrusRats = rats.filter(a => a.sex === 'female' && a.estrusDurationRemaining > 0).length;
+  // Censo de Fauna em passagem única O(N) ultraveloz
+  let ratsCount = 0, ratsF = 0, ratsM = 0, pregRats = 0;
+  let catsCount = 0, catsF = 0, catsM = 0, pregCats = 0;
+  let tambaquis = 0, pregTambaqui = 0;
+  let trairas = 0, pregTraira = 0;
+  let tortoises = 0, pregTortoise = 0;
+  let caimans = 0, pregCaiman = 0;
+  let toucans = 0, pregToucan = 0;
+  let carcaras = 0, pregCarcara = 0;
+  let totalInsects = 0, pregInsects = 0;
+  let totalPregnantAll = 0;
 
-  const cats = animals.filter(a => a.species === 'cat');
-  const catsF = cats.filter(a => a.sex === 'female').length;
-  const catsM = cats.filter(a => a.sex === 'male').length;
-  const pregCats = cats.filter(a => a.isPregnant).length;
-  const estrusCats = cats.filter(a => a.sex === 'female' && a.estrusDurationRemaining > 0).length;
+  // Genomas
+  let sumAlert = 0, sumRefuge = 0, sumSprint = 0, sumGen = 0;
+  let sumVig = 0, sumFer = 0, sumStam = 0, sumCatGen = 0;
+
+  for (let i = 0; i < animals.length; i++) {
+    const a = animals[i];
+    if (a.hp <= 0) continue;
+
+    const isF = (a.sex === 'female');
+    const isP = !!a.isPregnant;
+    if (isF && isP) totalPregnantAll++;
+
+    const sp = a.species;
+    if (sp === 'rat') {
+      ratsCount++;
+      if (isF) { ratsF++; if (isP) pregRats++; }
+      else ratsM++;
+      if (a.genome) {
+        sumAlert += a.genome.alertRadius + (a.genome.epigeneticBonus || 0);
+        sumRefuge += a.genome.refugeAffinity;
+        sumSprint += a.genome.sprintBurst;
+        sumGen += a.genome.generation;
+      }
+    } else if (sp === 'cat') {
+      catsCount++;
+      if (isF) { catsF++; if (isP) pregCats++; }
+      else catsM++;
+      if (a.catGenome) {
+        sumVig += a.catGenome.harpyVigilance;
+        sumFer += a.catGenome.combatFerocity;
+        sumStam += a.catGenome.staminaEfficiency;
+        sumCatGen += (a.catGenome.generation || 0);
+      }
+    } else if (sp === 'tambaqui') {
+      tambaquis++;
+      if (isP) pregTambaqui++;
+    } else if (sp === 'traira' || sp === 'piranha') {
+      trairas++;
+      if (isP) pregTraira++;
+    } else if (sp === 'tortoise') {
+      tortoises++;
+      if (isP) pregTortoise++;
+    } else if (sp === 'caiman') {
+      caimans++;
+      if (isP) pregCaiman++;
+    } else if (sp === 'toucan') {
+      toucans++;
+      if (isP) pregToucan++;
+    } else if (sp === 'carcara') {
+      carcaras++;
+      if (isP) pregCarcara++;
+    } else {
+      totalInsects++;
+      if (isP) pregInsects++;
+    }
+  }
 
   const elRats = document.getElementById('statRats');
-  if (elRats) elRats.innerText = `${rats.length} (♀${ratsF} | ♂${ratsM})`;
+  if (elRats) elRats.innerText = `${ratsCount} (♀${ratsF} | ♂${ratsM})`;
   const elCats = document.getElementById('statCats');
-  if (elCats) elCats.innerText = `${cats.length} (♀${catsF} | ♂${catsM})`;
-
-  // Contadores e Censos Reprodutivos das Novas Espécies Expandidas
-  const tambaquis = animals.filter(a => a.species === 'tambaqui' && a.hp > 0).length;
-  const pregTambaqui = animals.filter(a => a.species === 'tambaqui' && a.isPregnant).length;
-  
-  const trairas = animals.filter(a => (a.species === 'traira' || a.species === 'piranha') && a.hp > 0).length;
-  const pregTraira = animals.filter(a => (a.species === 'traira' || a.species === 'piranha') && a.isPregnant).length;
-
-  const tortoises = animals.filter(a => a.species === 'tortoise' && a.hp > 0).length;
-  const pregTortoise = animals.filter(a => a.species === 'tortoise' && a.isPregnant).length;
-
-  const caimans = animals.filter(a => a.species === 'caiman' && a.hp > 0).length;
-  const pregCaiman = animals.filter(a => a.species === 'caiman' && a.isPregnant).length;
-
-  const toucans = animals.filter(a => a.species === 'toucan' && a.hp > 0).length;
-  const pregToucan = animals.filter(a => a.species === 'toucan' && a.isPregnant).length;
-
-  const carcaras = animals.filter(a => a.species === 'carcara' && a.hp > 0).length;
-  const pregCarcara = animals.filter(a => a.species === 'carcara' && a.isPregnant).length;
-
-  const insectSpeciesList = ['ant', 'bee', 'butterfly', 'dragonfly', 'beetle', 'mosquito', 'grasshopper', 'mantis', 'roach', 'termite'];
-  const totalInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.hp > 0).length;
-  const pregInsects = animals.filter(a => insectSpeciesList.includes(a.species) && a.isPregnant).length;
-
-  const totalPregnantAll = animals.filter(a => a.sex === 'female' && a.isPregnant && a.hp > 0).length;
+  if (elCats) elCats.innerText = `${catsCount} (♀${catsF} | ♂${catsM})`;
 
   const elPreg = document.getElementById('statPregnant');
   if (elPreg) {
@@ -455,8 +498,8 @@ function updateStats() {
   // 1. Homeostase Ecológica e Razão Predador-Presa (Lotka-Volterra)
   const elHomeoVal = document.getElementById('lblHomeostasisVal');
   const elRatio = document.getElementById('lblPredPreyRatio');
-  const aliveRatsCount = rats.length;
-  const aliveCatsCount = cats.length;
+  const aliveRatsCount = ratsCount;
+  const aliveCatsCount = catsCount;
   const curRatio = (aliveCatsCount > 0) ? (aliveRatsCount / aliveCatsCount) : 0;
 
   // Proporção ótima da pirâmide trófica: 20:1 a 40:1 (ideal 30:1)
@@ -496,17 +539,8 @@ function updateStats() {
   const elAvgGen = document.getElementById('lblAvgGen');
   const elAvgAlert = document.getElementById('lblAvgAlert');
   const elAvgRefuge = document.getElementById('lblAvgRefuge');
-  if (rats.length > 0) {
-    let sumAlert = 0, sumRefuge = 0, sumSprint = 0, sumGen = 0;
-    for (const r of rats) {
-      if (r.genome) {
-        sumAlert += r.genome.alertRadius + (r.genome.epigeneticBonus || 0);
-        sumRefuge += r.genome.refugeAffinity;
-        sumSprint += r.genome.sprintBurst;
-        sumGen += r.genome.generation;
-      }
-    }
-    const n = rats.length;
+  if (ratsCount > 0) {
+    const n = ratsCount;
     if (elAvgGen) elAvgGen.innerText = `G${(sumGen / n).toFixed(1)}`;
     if (elAvgAlert) elAvgAlert.innerText = `${(sumAlert / n).toFixed(1)}c`;
     if (elAvgRefuge) elAvgRefuge.innerText = `${((sumRefuge / n) * 100).toFixed(0)}%`;
@@ -521,17 +555,8 @@ function updateStats() {
   const elCatVig = document.getElementById('lblCatVigilance');
   const elCatFer = document.getElementById('lblCatFerocity');
   const elCatStam = document.getElementById('lblCatStamina');
-  if (cats.length > 0) {
-    let sumVig = 0, sumFer = 0, sumStam = 0, sumCatGen = 0;
-    for (const c of cats) {
-      if (c.catGenome) {
-        sumVig += c.catGenome.harpyVigilance;
-        sumFer += c.catGenome.combatFerocity;
-        sumStam += c.catGenome.staminaEfficiency;
-        sumCatGen += (c.catGenome.generation || 0);
-      }
-    }
-    const nc = cats.length;
+  if (catsCount > 0) {
+    const nc = catsCount;
     if (elCatGen) elCatGen.innerText = `G${(sumCatGen / nc).toFixed(1)}`;
     if (elCatVig) elCatVig.innerText = `${(sumVig / nc).toFixed(2)}x`;
     if (elCatFer) elCatFer.innerText = `${(sumFer / nc).toFixed(2)}x`;

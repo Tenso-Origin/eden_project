@@ -225,6 +225,19 @@ function stepHydrologyAndErosion(dt) {
         const flow = Math.min(water * 0.55, slope * 0.35) * dt;
         nextSurfaceWater[idx] -= flow;
         nextSurfaceWater[lowestIdx] += flow;
+
+        // Mecânica de Erosão Fluvial, Desagregação e Transporte de Sedimentos
+        if (flow > 0.005 && slope > 0.02) {
+          const plantCover = (typeof biomass !== 'undefined' && biomass && biomass[idx] !== undefined) ? Math.min(1.0, biomass[idx] / 60.0) : 0.5;
+          const erodibility = 0.012 * (1.0 - plantCover * 0.75);
+          const eroded = Math.min(0.006, slope * flow * erodibility) * dt;
+          if (eroded > 0.00001) {
+            elevation[idx] -= eroded;
+            elevation[lowestIdx] += eroded * 0.90;
+            if (typeof cumulativeErosion !== 'undefined' && cumulativeErosion) cumulativeErosion[idx] += eroded;
+            if (typeof globalErosionTotal !== 'undefined') globalErosionTotal += eroded;
+          }
+        }
       }
     }
   }

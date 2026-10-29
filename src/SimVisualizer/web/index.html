@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.6</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.7</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -426,16 +426,9 @@
     <div class="viewport-card">
       <div class="canvas-container">
         <canvas id="viewportCanvas" width="2048" height="1024"></canvas>
-        <!-- Overlay flutuante de navegação rápida sobre o mapa -->
-        <div class="map-nav-overlay">
-          <div id="liveHoverBadge" style="margin-bottom:6px; background:rgba(10,14,20,0.92); border:1px solid #58a6ff; border-radius:6px; padding:3px 8px; font-size:0.73rem; color:#58a6ff; font-family:'JetBrains Mono',monospace; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.5);">🎯 <span id="liveHoverCoord">X: 1024 | Y: 512</span></div>
-          <button class="nav-btn" id="btnOverlayUp" title="Navegar Cima (Seta ↑)">⬆️</button>
-          <div class="map-nav-row">
-            <button class="nav-btn" id="btnOverlayLeft" title="Navegar Esquerda (Seta ←)">⬅️</button>
-            <button class="nav-btn" id="btnOverlayCenter" title="Centralizar Mapa (1:1 / Espaço)">🎯</button>
-            <button class="nav-btn" id="btnOverlayRight" title="Navegar Direita (Seta →)">➡️</button>
-          </div>
-          <button class="nav-btn" id="btnOverlayDown" title="Navegar Baixo (Seta ↓)">⬇️</button>
+        <!-- Overlay flutuante de coordenadas do cursor sobre o mapa -->
+        <div class="map-nav-overlay" style="pointer-events:none;">
+          <div id="liveHoverBadge" style="background:rgba(10,14,20,0.92); border:1px solid #58a6ff; border-radius:6px; padding:3px 8px; font-size:0.73rem; color:#58a6ff; font-family:'JetBrains Mono',monospace; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.5);">🎯 <span id="liveHoverCoord">X: 1024 | Y: 512</span></div>
         </div>
       </div>
 
@@ -501,21 +494,7 @@
             </div>
           </div>
 
-          <div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
-              <span style="font-size:0.68rem; color:var(--text-dim); font-family:'JetBrains Mono', monospace; font-weight:600;">NAVEGAÇÃO (SETAS / WASD):</span>
-              <span style="font-size:0.65rem; color:#58a6ff;">Clique ou use o teclado</span>
-            </div>
-            <div style="display:flex; justify-content:center; align-items:center; gap:4px; background:#141922; padding:5px; border-radius:8px; border:1px solid var(--border);">
-              <button class="nav-btn" id="btnNavLeft" title="Mover para Esquerda (← ou A)">⬅️</button>
-              <div style="display:flex; flex-direction:column; gap:3px;">
-                <button class="nav-btn" id="btnNavUp" title="Mover para Cima (↑ ou W)">⬆️</button>
-                <button class="nav-btn" id="btnNavCenter" style="font-size:0.68rem;" title="Centralizar (1:1 / Espaço)">🎯</button>
-                <button class="nav-btn" id="btnNavDown" title="Mover para Baixo (↓ ou S)">⬇️</button>
-              </div>
-              <button class="nav-btn" id="btnNavRight" title="Mover para Direita (→ ou D)">➡️</button>
-            </div>
-          </div>
+
         </div>
       </div>
       <div class="side-card">
@@ -525,10 +504,7 @@
             <div class="stat-label">CALENDÁRIO PLANETÁRIO</div>
             <div id="statDate" class="stat-val" style="font-size:0.92rem; color:#58a6ff;">01 de janeiro do ano 0</div>
           </div>
-          <div class="stat-box" style="border-left: 3px solid #00f2fe; grid-column: span 2; background:rgba(0, 242, 254, 0.05);">
-            <div class="stat-label">🦅 CASAL DE HARPIAS AMAZÔNICAS (GAVIÃO-REAL)</div>
-            <div id="statHarpies" class="stat-val" style="color:#00f2fe; font-size:0.85rem;">2 aves (1♂ | 1♀) - Controle Homeostático Ativo</div>
-          </div>
+
           <div class="stat-box">
             <div class="stat-label">TICKS DISCRETOS</div>
             <div id="statTicks" class="stat-val">0</div>
@@ -581,14 +557,7 @@
             <div class="stat-label">FÊMEAS GESTANTES (REPRODUÇÃO REAL)</div>
             <div id="statPregnant" class="stat-val" style="font-size:0.84rem; color:#f778ba;">0 ratas (21d) | 0 gatas (64d)</div>
           </div>
-          <div class="stat-box">
-            <div class="stat-label">RELEVO OESTE (SERRA)</div>
-            <div id="statPeak" class="stat-val">550.0 m</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">MAR LESTE (DELTA)</div>
-            <div id="statAbyss" class="stat-val">-10.0 m</div>
-          </div>
+
           <div class="stat-box" style="border-left: 3px solid #bc8cff;">
             <div class="stat-label">CAÇAS P/ DIVERSÃO (15c)</div>
             <div id="statFunKills" class="stat-val" style="color:#bc8cff;">0</div>
@@ -610,23 +579,7 @@
               <span id="lblPredPreyRatio" style="font-size:0.75rem; color:var(--text-dim);">Razão 30.0:1</span>
             </div>
           </div>
-          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #f778ba; background:rgba(247,120,186,0.06);">
-            <div class="stat-label">🧬 GENÉTICA ADAPTATIVA & INTELIGÊNCIA DOS RATOS</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.78rem; font-family:'JetBrains Mono', monospace;">
-              <span>Geração: <strong id="lblAvgGen" style="color:#f778ba;">G0</strong></span>
-              <span>Alerta: <strong id="lblAvgAlert" style="color:#ffea79;">12.0c</strong></span>
-              <span>Refúgio: <strong id="lblAvgRefuge" style="color:#3fb950;">45%</strong></span>
-            </div>
-          </div>
-          <div class="stat-box" style="grid-column: span 2; border-left: 3px solid #ff6b6b; background:rgba(255,107,107,0.06);">
-            <div class="stat-label">🧬 GENÉTICA FELINA (DNA HERDÁVEL & COMBATE)</div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:4px; font-size:0.75rem; font-family:'JetBrains Mono', monospace;">
-              <span>Geração: <strong id="lblCatGen" style="color:#ff6b6b;">G0</strong></span>
-              <span>Vigilância: <strong id="lblCatVigilance" style="color:#00f2fe;">1.0x</strong></span>
-              <span>Ferocidade: <strong id="lblCatFerocity" style="color:#ff7b72;">1.0x</strong></span>
-              <span>Stamina: <strong id="lblCatStamina" style="color:#3fb950;">1.0x</strong></span>
-            </div>
-          </div>
+
           <div class="stat-box" style="border-left: 3px solid #58a6ff;">
             <div class="stat-label">🐣 NASCIMENTOS TOTAIS</div>
             <div id="statBirths" class="stat-val" style="color:#58a6ff;">0</div>
@@ -654,55 +607,7 @@
         </div>
       </div>
 
-      <div class="side-card" style="border-left: 3px solid #58a6ff;">
-        <h2>Opções Iniciais da Simulação</h2>
-        <div style="display: flex; flex-direction: column; gap: 9px;">
-          <div>
-            <label style="font-size:0.68rem; color:var(--text-dim); display:block; margin-bottom:3px; font-family:'JetBrains Mono', monospace; font-weight:600;">PRESET DE POPULAÇÃO:</label>
-            <select id="popPreset" style="width:100%; background:#141922; color:#f0f6fc; border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-family:inherit; font-size:0.77rem; cursor:pointer;">
-              <option value="default" selected>⚖️ Equilíbrio Natural (6 Gatos / 180 Ratos - 1:30)</option>
-              <option value="sparse">🌵 Baixa Densidade (3 Gatos / 90 Ratos - 1:30)</option>
-              <option value="dense">🌳 Alta Densidade (10 Gatos / 300 Ratos - 1:30)</option>
-              <option value="herbivores">🐁 Santuário Herbívoro (0 Gatos / 250 Ratos)</option>
-              <option value="predators">🐈 Domínio de Predadores (15 Gatos / 150 Ratos - 1:10)</option>
-              <option value="extinction_test">⚡ Teste Extinção Rápida (35 Gatos / 140 Ratos - 1:4)</option>
-              <option value="custom">⚙️ Personalizado (Sliders Livres)</option>
-            </select>
-          </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-            <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:0.68rem; color:#ffea79; font-weight:600; font-family:'JetBrains Mono', monospace;">🐁 RATOS</span>
-                <span id="lblRatsVal" style="font-size:0.72rem; color:#ffea79; font-family:'JetBrains Mono', monospace; font-weight:700;">180</span>
-              </div>
-              <input type="number" id="initRatsInput" min="0" max="600" value="180" style="width:100%; background:#0a0e14; color:#ffea79; border:1px solid rgba(255,234,121,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
-              <input type="range" id="initRatsSlider" min="0" max="600" value="180" step="1" style="width:100%; margin-top:5px; accent-color:#ffea79; cursor:pointer;">
-            </div>
-            <div style="background:#141922; border:1px solid var(--border); border-radius:8px; padding:6px 8px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:0.68rem; color:#ff6b6b; font-weight:600; font-family:'JetBrains Mono', monospace;">🐈 GATOS</span>
-                <span id="lblCatsVal" style="font-size:0.72rem; color:#ff6b6b; font-family:'JetBrains Mono', monospace; font-weight:700;">6</span>
-              </div>
-              <input type="number" id="initCatsInput" min="0" max="200" value="6" style="width:100%; background:#0a0e14; color:#ff6b6b; border:1px solid rgba(255,107,107,0.3); border-radius:4px; padding:4px 6px; font-family:'JetBrains Mono', monospace; font-size:0.85rem; font-weight:700;">
-              <input type="range" id="initCatsSlider" min="0" max="200" value="6" step="1" style="width:100%; margin-top:5px; accent-color:#ff6b6b; cursor:pointer;">
-            </div>
-          </div>
-          <div style="display:flex; align-items:center; justify-content:space-between; font-size:0.71rem; color:var(--text-dim); padding:0 2px;">
-            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
-              <input type="checkbox" id="chkLockRatio" checked style="accent-color:var(--accent); cursor:pointer;">
-              <span>Travar proporção 30:1 (Ratos = 30x Gatos)</span>
-            </label>
-          </div>
-          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:2px;">
-            <button id="btnApplyAndStart" class="primary" style="justify-content:center; padding:7px 4px; font-size:0.77rem; font-weight:600;">
-              🚀 Iniciar Simulação
-            </button>
-            <button id="btnApplyPopOnly" style="justify-content:center; padding:7px 4px; font-size:0.77rem; font-weight:600;">
-              ↺ Resetar População
-            </button>
-          </div>
-        </div>
-      </div>
+
 
       <div class="side-card">
         <h2>Inspetor de Célula (1024x1024)</h2>
@@ -722,50 +627,9 @@
         </div>
       </div>
 
-      <div class="side-card">
-        <h2>Pincel de Intervenção Planetária</h2>
-        <div class="brush-tools">
-          <button class="brush-btn active" data-brush="inspect">🔍 Inspecionar</button>
-          <button class="brush-btn" data-brush="water">💧 Inundar</button>
-          <button class="brush-btn" data-brush="rain">🌧 Chuva Local</button>
-          <button class="brush-btn" data-brush="rat">🐁 Rato (Herb.)</button>
-          <button class="brush-btn" data-brush="cat">🐈 Gato (Pred.)</button>
-          <button class="brush-btn" data-brush="plant">🌿 Biomassa</button>
-          <button class="brush-btn" data-brush="elevate">⛰ Elevar (+5m)</button>
-          <button class="brush-btn" data-brush="erode">⛏ Escavar (-5m)</button>
-          <button class="brush-btn" data-brush="heat">🔥 Onda de Calor</button>
-        </div>
-        <p style="font-size:0.73rem; color:var(--text-dim); margin-top:2px;">
-          Clique ou arraste no grid de 1024x1024 (1.048.576 células) para intervir no relevo, clima ou introduzir animais.
-        </p>
-      </div>
 
-      <div class="side-card">
-        <h2>Parâmetros Biológicos Ativos</h2>
-        <div style="font-size:0.74rem; color:var(--text-dim); line-height:1.45;">
-          <div style="margin-bottom:6px;">
-            <b style="color:#ffea79;">🐁 Ratos (Herbívoros):</b><br>
-            • Sexo Real: 50% <span style="color:#fff59d;">♀ Fêmea (Amarelo Claro)</span> | 50% <span style="color:#d48800;">♂ Macho (Escuro)</span>.<br>
-            • Gestação Real: <b>21 a 23 dias</b> | Ninhada: <b>8 a 13 filhotes</b> (média 10.5, +30% natalidade).<br>
-            • Vida: ~2.5 anos (912 dias). Adulto aos 60 dias. Hidratação preventiva precoce (sede > 25%).<br>
-            • Biomassa comum com saciedade equilibrada (1.35) e dano por inanição suavizado.<br>
-            • <b>Refúgios Naturais:</b> 8 na várzea/grama, 20 na borda da floresta e 12 no interior (raio estrito de 1.0m).<br>
-            • <b>Predação Solitária:</b> Rato isolado sem aliados por perto sofre emboscada letal do gato sem chance de escape.
-          </div>
-          <div style="margin-bottom:6px;">
-            <b style="color:#ff6b6b;">🐈 Gatos (Carnívoros):</b><br>
-            • Sexo Real: 49% <span style="color:#ff7b72;">♀ Fêmea (Vermelho Claro)</span> | 51% <span style="color:#991b1b;">♂ Macho (Escuro)</span>.<br>
-            • Gestação Real: <b>63 a 67 dias</b> | Ninhada: <b>3 a 5 filhotes</b> (média 4).<br>
-            • Vida: ~14 anos (5110 dias). Adulto aos 210 dias. Hidratação preventiva precoce.<br>
-            • <b>Bote Cirúrgico:</b> Bote de emboscada (2.8x) sobre presas isoladas; perda de interesse ao perseguir por >5s.
-          </div>
-          <div>
-            <b style="color:#00f2fe;">🦅 Harpias (Predador de Controle de Biomassa):</b><br>
-            • Inativas e dispersas por padrão para preservar o equilíbrio trófico inicial.<br>
-            • <b>Gatilho de Emergência de Biomassa:</b> Retornam ao ecossistema somente se a biomassa vegetal cair abaixo de <b>50%</b> da original (superpastoreio severo).
-          </div>
-        </div>
-      </div>
+
+
     </aside>
   </main>
 

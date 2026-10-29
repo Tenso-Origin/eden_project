@@ -175,6 +175,36 @@ function updateToucanBehavior(a, dt, ctx) {
     }
   }
 
+  // 2.5. Hidratação: descida às margens fluviais para saciar a sede
+  if (a.thirst > 35.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      if (d > 2.0) {
+        targetX = a.x + (dx / d) * (a.speed * 2.2);
+        targetY = a.y + (dy / d) * (a.speed * 2.2);
+        return { targetX, targetY };
+      }
+    }
+  }
+
+  // 2.5. Hidratação: descida às margens fluviais para saciar a sede
+  if (a.thirst > 35.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      if (d > 2.0) {
+        targetX = a.x + (dx / d) * (a.speed * 2.2);
+        targetY = a.y + (dy / d) * (a.speed * 2.2);
+        return { targetX, targetY };
+      }
+    }
+  }
+
   // 3. Voo livre entre árvores
   a.wanderAngle += (Math.random() - 0.5) * 0.4 * dt;
   targetX = Math.max(30, Math.min(gridW - 30, a.x + Math.cos(a.wanderAngle) * (a.speed * 2.0)));
@@ -241,8 +271,9 @@ function updateCarcaraBehavior(a, dt, ctx) {
     if (prey === a || prey.hp <= 0) continue;
     if (prey.species === 'rat' || prey.species === 'grasshopper' || prey.species === 'roach' || prey.species === 'beetle' || (prey.species === 'tortoise' && prey.ageInDays < 180.0)) {
       const d = Math.hypot(prey.x - a.x, prey.y - a.y);
-      if (d < bestDist) {
-        bestDist = d;
+      const effDist = prey.isDrinking ? (d * 0.5) : d;
+      if (effDist < bestDist) {
+        bestDist = effDist;
         bestPrey = prey;
       }
     }
@@ -256,19 +287,52 @@ function updateCarcaraBehavior(a, dt, ctx) {
     targetY = bestPrey.y;
 
     if (dist <= 2.2) {
-      const damage = a.attackPower * (0.8 + Math.random() * 0.4);
-      bestPrey.hp -= damage;
-      a.hunger = Math.max(0, a.hunger - 35.0);
-
-      if (bestPrey.hp <= 0) {
-        if (applyDeathDecomposition) applyDeathDecomposition(bestPrey.x, bestPrey.y);
-        if (onPredationSuccess) onPredationSuccess(bestPrey, a);
+      const baseDmg = a.attackPower * (0.8 + Math.random() * 0.4);
+      if (typeof HydrationSystem !== 'undefined' && bestPrey.isDrinking) {
+        HydrationSystem.executeAmbushAttack(a, bestPrey, baseDmg, { applyDeathDecomposition, onPredationSuccess });
+      } else {
+        bestPrey.hp -= baseDmg;
+        if (bestPrey.hp <= 0) {
+          if (applyDeathDecomposition) applyDeathDecomposition(bestPrey.x, bestPrey.y);
+          if (onPredationSuccess) onPredationSuccess(bestPrey, a);
+        }
       }
+      a.hunger = Math.max(0, a.hunger - 35.0);
     } else {
       targetX = a.x + (dirX / dist) * a.speed * 1.8;
       targetY = a.y + (dirY / dist) * a.speed * 1.8;
     }
     return { targetX, targetY };
+  }
+
+  // 2.5. Hidratação nas praias e margens fluviais
+  if (a.thirst > 35.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      if (d > 2.0) {
+        targetX = a.x + (dx / d) * (a.speed * 2.4);
+        targetY = a.y + (dy / d) * (a.speed * 2.4);
+        return { targetX, targetY };
+      }
+    }
+  }
+
+  // 2.5. Hidratação nas praias e margens fluviais
+  if (a.thirst > 35.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      if (d > 2.0) {
+        targetX = a.x + (dx / d) * (a.speed * 2.4);
+        targetY = a.y + (dy / d) * (a.speed * 2.4);
+        return { targetX, targetY };
+      }
+    }
   }
 
   // 3. Voo circular planado

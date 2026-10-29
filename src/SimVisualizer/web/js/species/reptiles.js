@@ -201,6 +201,34 @@ function updateTortoiseBehavior(a, dt, ctx) {
     }
   }
 
+  // 3.5. Busca de água e hidratação do jabuti
+  if (a.thirst > 40.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore && (a.thirst > 65.0 || Math.random() < 0.40)) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      a.wanderAngle = Math.atan2(dy, dx);
+      targetX = a.x + (dx / d) * (a.speed * 1.3);
+      targetY = a.y + (dy / d) * (a.speed * 1.3);
+      return { targetX, targetY };
+    }
+  }
+
+  // 3.5. Busca de água e hidratação do jabuti
+  if (a.thirst > 40.0 && typeof HydrationSystem !== 'undefined') {
+    const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+    if (shore && (a.thirst > 65.0 || Math.random() < 0.40)) {
+      const dx = shore.x - a.x;
+      const dy = shore.y - a.y;
+      const d = Math.hypot(dx, dy) || 1.0;
+      a.wanderAngle = Math.atan2(dy, dx);
+      targetX = a.x + (dx / d) * (a.speed * 1.3);
+      targetY = a.y + (dy / d) * (a.speed * 1.3);
+      return { targetX, targetY };
+    }
+  }
+
   // 4. Locomoção em terra firme (evita entrar na água funda)
   for (let attempt = 0; attempt < 8; attempt++) {
     const testAng = a.wanderAngle + (attempt === 0 ? 0 : (attempt % 2 === 1 ? attempt * 0.45 : -attempt * 0.45));
@@ -355,8 +383,9 @@ function updateCaimanBehavior(a, dt, ctx) {
       if (prey.species === 'tambaqui' || prey.species === 'traira') score += 30.0;
       if (prey.species === 'rat') score += 20.0;
       if (prey.species === 'cat') score += 25.0; // Predação oportunista de felinos na margem
+      if (prey.isDrinking) score += 65.0; // Presa bebendo na margem: oportunidade de emboscada irresistível!
 
-      if (d < minDist) {
+      if (d < minDist || (prey.isDrinking && d <= 15.0)) {
         minDist = d;
         targetPrey = prey;
       }
@@ -371,14 +400,17 @@ function updateCaimanBehavior(a, dt, ctx) {
 
     if (dist <= 3.8 && a.lungeCooldown <= 0) {
       a.lungeCooldown = 4.0;
-      const damage = a.attackPower * (1.2 + Math.random() * 0.5); // Mordida esmagadora
-      targetPrey.hp -= damage;
-      a.hunger = Math.max(0, a.hunger - 55.0);
-
-      if (targetPrey.hp <= 0) {
-        if (applyDeathDecomposition) applyDeathDecomposition(targetPrey.x, targetPrey.y);
-        if (onPredationSuccess) onPredationSuccess(targetPrey, a);
+      const baseDamage = a.attackPower * (1.2 + Math.random() * 0.5); // Mordida esmagadora
+      if (typeof HydrationSystem !== 'undefined' && targetPrey.isDrinking) {
+        HydrationSystem.executeAmbushAttack(a, targetPrey, baseDamage, { applyDeathDecomposition, onPredationSuccess });
+      } else {
+        targetPrey.hp -= baseDamage;
+        if (targetPrey.hp <= 0) {
+          if (applyDeathDecomposition) applyDeathDecomposition(targetPrey.x, targetPrey.y);
+          if (onPredationSuccess) onPredationSuccess(targetPrey, a);
+        }
       }
+      a.hunger = Math.max(0, a.hunger - 55.0);
       return { targetX: targetPrey.x, targetY: targetPrey.y };
     } else {
       // Natação veloz de aproximação

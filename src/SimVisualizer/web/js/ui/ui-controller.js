@@ -189,7 +189,7 @@ function inspectCell(x, y) {
         const hpStr = ` HP:${Math.max(0, a.hp).toFixed(0)}`;
         const stamStr = a.stamina !== undefined ? ` St:${a.stamina.toFixed(0)}` : '';
         const atkDefStr = ` Atk:${a.attackPower !== undefined ? a.attackPower.toFixed(1) : 10}/Def:${a.defensePower !== undefined ? a.defensePower.toFixed(1) : 3}`;
-        const tagStr = `${a.isCornered ? ' ⚠️ACUADO' : ''}${a.isExhausted ? ' 💨EXAUSTO' : ''}${a.isDiving ? ' 🤿MERGULHADO' : ''}${a.isSleeping ? ' 💤DORMINDO' : ''}`;
+        const tagStr = `${a.isCornered ? ' ⚠️ACUADO' : ''}${a.isExhausted ? ' 💨EXAUSTO' : ''}${a.isDiving ? ' 🤿MERGULHADO' : ''}${a.isSleeping ? ' 💤DORMINDO' : ''}${a.isDrinking ? ' 💧BEBENDO (VULNERÁVEL)' : ''}`;
         const thirstStr = ` Th:${(a.thirst || 0).toFixed(0)}%`;
         const fatigueStr = ` Slp:${(a.fatigue || 0).toFixed(0)}%`;
         return `${sp} ${sx}${estrusStr}${genStr}${hpStr}${stamStr}${thirstStr}${fatigueStr}${atkDefStr}${tagStr} (Idade: ${(a.ageInDays||0).toFixed(0)}d, Fome: ${(a.hunger||0).toFixed(0)}%)`;

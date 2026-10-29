@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.12</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.13</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -634,18 +634,19 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.7.12"></script>
-  <script src="js/simulation/core.js?v=2.7.12"></script>
-  <script src="js/simulation/environment.js?v=2.7.12"></script>
-  <script src="js/species/rat.js?v=2.7.12"></script>
-  <script src="js/species/cat.js?v=2.7.12"></script>
-  <script src="js/species/harpy.js?v=2.7.12"></script>
-  <script src="js/species/aquatic.js?v=2.7.12"></script>
-  <script src="js/species/reptiles.js?v=2.7.12"></script>
-  <script src="js/species/birds.js?v=2.7.12"></script>
-  <script src="js/species/insects.js?v=2.7.12"></script>
-  <script src="js/rendering/renderer.js?v=2.7.12"></script>
-  <script src="js/ui/ui-controller.js?v=2.7.12"></script>
+  <script src="js/species/reproduction.js?v=2.7.13"></script>
+  <script src="js/species/hydration.js?v=2.7.13"></script>
+  <script src="js/simulation/core.js?v=2.7.13"></script>
+  <script src="js/simulation/environment.js?v=2.7.13"></script>
+  <script src="js/species/rat.js?v=2.7.13"></script>
+  <script src="js/species/cat.js?v=2.7.13"></script>
+  <script src="js/species/harpy.js?v=2.7.13"></script>
+  <script src="js/species/aquatic.js?v=2.7.13"></script>
+  <script src="js/species/reptiles.js?v=2.7.13"></script>
+  <script src="js/species/birds.js?v=2.7.13"></script>
+  <script src="js/species/insects.js?v=2.7.13"></script>
+  <script src="js/rendering/renderer.js?v=2.7.13"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.13"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -846,18 +847,24 @@
         const curY = Math.floor(a.y);
         const curIdx = getIdx(curX, curY);
 
-        // Sede e Hidratação Biológica Preventiva
-        const baseThirstRate = (a.species === 'rat') ? 0.045 : 0.025;
-        // Orvalho e umidade foliar atenuam a desidratação (até 20%), mas não anulam a necessidade de beber água
-        const moistureMitigation = (moisture[curIdx] > 0.50) ? 0.80 : 1.0;
-        a.thirst = Math.min(100, a.thirst + baseThirstRate * moistureMitigation * dt);
-
-        const inWaterOrBank = (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04 || (typeof isPointInWaterBody === 'function' && isPointInWaterBody(a.x, a.y)));
-        if (inWaterOrBank) {
-          a.thirst = Math.max(0, a.thirst - 50.0 * dt);
-        }
-        if (a.thirst >= 90) {
-          a.hp -= 0.20 * dt; // Dano de desidratação calibrado
+        // Sede e Hidratação Biológica Universal (Margens Fluviais e Vulnerabilidade)
+        const hydSys = (typeof HydrationSystem !== 'undefined') ? HydrationSystem : (typeof window !== 'undefined' ? window.HydrationSystem : null);
+        if (hydSys) {
+          const hydCtx = {
+            matId, surfaceWater, moisture, getIdx, MAT_WATER, GRID_WIDTH, GRID_HEIGHT,
+            weather: (typeof weatherController !== 'undefined') ? weatherController.getCurrentWeather() : null,
+            isPointInWaterBody, getRiverMainY, OXBOW_LAKES
+          };
+          const hydState = hydSys.updateThirstAndDrinking(a, dt, hydCtx);
+          a.hydrationState = hydState;
+        } else {
+          const baseThirstRate = (a.species === 'rat') ? 0.045 : 0.025;
+          const moistureMitigation = (moisture[curIdx] > 0.50) ? 0.80 : 1.0;
+          a.thirst = Math.min(100, (a.thirst || 5.0) + baseThirstRate * moistureMitigation * dt);
+          if (matId[curIdx] === MAT_WATER || surfaceWater[curIdx] > 0.04) {
+            a.thirst = Math.max(0, a.thirst - 50.0 * dt);
+          }
+          if (a.thirst >= 90) a.hp -= 0.20 * dt;
         }
 
         // Insetos absorvidos pelo ninho ou indivíduos mortos são descartados imediatamente
@@ -1105,6 +1112,15 @@
           continue;
         }
 
+        // Aplicação do estado de saciedade hídrica e direcionamento à margem
+        if (a.isDrinking) {
+          targetX = a.x;
+          targetY = a.y;
+        } else if (a.hydrationState && a.hydrationState.isSeekingWater && a.hydrationState.urgent) {
+          targetX = a.hydrationState.targetX;
+          targetY = a.hydrationState.targetY;
+        }
+
         // 1. Repulsão Suave das Bordas do Mapa (Evita aprisionamento e aglomeração nas margens de 2048x1024)
         const bMargin = 55.0;
         if (a.x < bMargin) {
@@ -1148,7 +1164,7 @@
           }
 
           const baseSpeed = inWater ? a.speed * waterFactor : (isFish ? a.speed * 0.05 : a.speed * waterFactor);
-          const effectiveSpeed = a.isSleeping ? 0.0 : (baseSpeed * sprint);
+          const effectiveSpeed = (a.isSleeping || a.isDrinking) ? 0.0 : (baseSpeed * sprint);
           const step = Math.min(dist, effectiveSpeed * dt);
 
           let candX = a.x + (dirX / dist) * step;
@@ -1192,6 +1208,8 @@
       }
 
       animals = aliveAnimals.concat(newOffspring);
+      if (typeof window !== 'undefined') window.animals = animals;
+      if (typeof SimulationCore !== 'undefined' && SimulationCore.animals) SimulationCore.animals = animals;
 
       /* Harpia desativada temporariamente
 // DELEGAÇÃO DA HARPIA AMAZÔNICA

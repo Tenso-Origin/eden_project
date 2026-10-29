@@ -276,9 +276,17 @@ function updateCatBehavior(a, dt, ctx) {
 
           if (Math.random() >= escapeChance) {
             const ferocity = (a.catGenome && a.catGenome.combatFerocity) || 1.0;
-            const ambushMultiplier = isPreyAlone ? 2.8 : 1.0;
-            const catDmg = Math.max(16.0, (a.attackPower * ferocity * ambushMultiplier - (closestPrey.defensePower || 3.0) * 0.5) * dt * 5.5);
-            closestPrey.hp -= catDmg;
+            const ambushMultiplier = (closestPrey.isDrinking ? 3.5 : (isPreyAlone ? 2.8 : 1.0));
+            const catDmg = Math.max(16.0, (a.attackPower * ferocity * ambushMultiplier - (closestPrey.defensePower || 0.0) * 0.5) * dt * 5.5);
+            if (typeof HydrationSystem !== 'undefined' && closestPrey.isDrinking) {
+              HydrationSystem.executeAmbushAttack(a, closestPrey, catDmg, {
+                onPredationSuccess: (p, c) => {
+                  if (ctx.onPredationSuccess) ctx.onPredationSuccess(p, c, isFunHunt);
+                }
+              });
+            } else {
+              closestPrey.hp -= catDmg;
+            }
 
             if (closestPrey.hp <= 0) {
               closestPrey.hp = 0;
@@ -311,23 +319,14 @@ function updateCatBehavior(a, dt, ctx) {
         targetY = a.y + ((a.nestY - a.y) / dNest) * 3.8;
       }
     } else if (a.thirst > 25.0) {
-      const curCellIdx = ctx.getIdx(Math.floor(a.x), Math.floor(a.y));
-      if (surfaceWater[curCellIdx] > 0.04) {
-        // Bebe água em poça de chuva ou orla imediata
-        a.thirst = Math.max(0, a.thirst - 60.0 * dt);
-      } else {
-        const dLakeCenter = Math.hypot(a.x - 256.0, a.y - 256.0);
-        if (dLakeCenter > 52.0) {
-          // Caminha em direção à margem segura do lago (raio 51-52m)
-          targetX = a.x + ((256.0 - a.x) / dLakeCenter) * 3.8;
-          targetY = a.y + ((256.0 - a.y) / dLakeCenter) * 3.8;
-        } else if (dLakeCenter < 48.0) {
-          // Água profunda: recua imediatamente para a orla segura
-          targetX = a.x + ((a.x - 256.0) / (dLakeCenter + 0.1)) * 4.0;
-          targetY = a.y + ((a.y - 256.0) / (dLakeCenter + 0.1)) * 4.0;
-        } else {
-          // Na orla perfeita: bebe água calmamente
-          a.thirst = Math.max(0, a.thirst - 60.0 * dt);
+      if (typeof HydrationSystem !== 'undefined') {
+        const shore = HydrationSystem.findNearestWaterShoreline(a.x, a.y, ctx);
+        const dx = shore.x - a.x;
+        const dy = shore.y - a.y;
+        const d = Math.hypot(dx, dy) || 1.0;
+        if (d > 2.0) {
+          targetX = a.x + (dx / d) * 3.8;
+          targetY = a.y + (dy / d) * 3.8;
         }
       }
     } else if (rivalCount > 0) {

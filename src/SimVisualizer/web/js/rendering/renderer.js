@@ -659,6 +659,37 @@ function render() {
         ctx.stroke();
       }
 
+      // Animal Bebendo Água na Margem (Estado de Vulnerabilidade Extrema)
+      if (a.isDrinking) {
+        // Ondulações circulares de água nos pés do animal
+        const waveProgress = ((Date.now() * 0.003) % 1.0);
+        const waveR = badgeR + 1.5 + waveProgress * 4.5;
+        ctx.beginPath();
+        ctx.arc(px, py + 1.5, waveR, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(56, 189, 248, ${0.85 * (1.0 - waveProgress)})`;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Gota de água indicadora
+        ctx.font = '7px sans-serif';
+        ctx.fillText('💧', px + badgeR + 2.0, py - 2.0);
+      }
+
+      // Animal Emboscado enquanto Bebia Água
+      if (a.isAmbushedWhileDrinking && a.ambushTimer > 0) {
+        ctx.beginPath();
+        ctx.arc(px, py, badgeR + 3.5, 0, Math.PI * 2);
+        ctx.strokeStyle = '#ef4444';
+        ctx.lineWidth = 2.0;
+        ctx.stroke();
+
+        // Splash de combate na margem
+        ctx.font = 'bold 6px "JetBrains Mono", sans-serif';
+        ctx.fillStyle = '#ef4444';
+        ctx.textAlign = 'center';
+        ctx.fillText('💥 EMBOSCADA!', px, py - badgeR - 4.5);
+      }
+
       // Jacaré em Banho de Sol (Basking)
       if (a.isBasking) {
         ctx.beginPath();

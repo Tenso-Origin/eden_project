@@ -397,14 +397,16 @@ function updateTrairaBehavior(a, dt, ctx) {
     const prey = animals[j];
     if (prey === a || prey.hp <= 0 || prey.species === 'traira' || prey.species === 'caiman') continue;
 
-    // A PRESA DEVE OBRIGATORIAMENTE ESTAR DENTRO DA ÁGUA NAVEGÁVEL!
-    if (!isNavigableWater(prey.x, prey.y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER)) continue;
-
+    // A presa deve estar dentro d'água navegável OU bebendo na margem imediata
     const d = Math.hypot(prey.x - a.x, prey.y - a.y);
+    const inWater = isNavigableWater(prey.x, prey.y, matId, surfaceWater, getIdx, gridW, gridH, MAT_WATER);
+    if (!inWater && !(prey.isDrinking && d <= 3.5)) continue;
+
     if (d <= detectionRadius) {
       let score = (100.0 - d);
       if (prey.species === 'tambaqui') score += 25.0; // Presa primária natural
       if (prey.species === 'rat') score += 18.0;      // Roedor nadando na água
+      if (prey.isDrinking) score += 55.0;             // Presa bebendo na beirada: bote de margem!
       if (prey.hp < 50) score += 20.0;
       if (score > bestScore) {
         bestScore = score;
@@ -432,15 +434,18 @@ function updateTrairaBehavior(a, dt, ctx) {
     }
 
     if (dist <= 2.2 && a.lungeCooldown <= 0) {
-      const damage = a.attackPower * (0.95 + Math.random() * 0.4);
-      bestPrey.hp -= damage;
+      const baseDamage = a.attackPower * (0.95 + Math.random() * 0.4);
+      if (typeof HydrationSystem !== 'undefined' && bestPrey.isDrinking) {
+        HydrationSystem.executeAmbushAttack(a, bestPrey, baseDamage, { applyDeathDecomposition, onPredationSuccess });
+      } else {
+        bestPrey.hp -= baseDamage;
+        if (bestPrey.hp <= 0) {
+          if (applyDeathDecomposition) applyDeathDecomposition(bestPrey.x, bestPrey.y);
+          if (onPredationSuccess) onPredationSuccess(bestPrey, a);
+        }
+      }
       a.lungeCooldown = 3.5;
       a.hunger = Math.max(0, a.hunger - 50.0);
-
-      if (bestPrey.hp <= 0) {
-        if (applyDeathDecomposition) applyDeathDecomposition(bestPrey.x, bestPrey.y);
-        if (onPredationSuccess) onPredationSuccess(bestPrey, a);
-      }
     }
     return { targetX, targetY };
   }

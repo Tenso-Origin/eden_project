@@ -105,6 +105,21 @@ function updateToucanBehavior(a, dt, ctx) {
   let targetX = a.x;
   let targetY = a.y;
 
+  // 1. Captura oportunista de insetos voadores nas copas
+  if (a.hunger > 18.0 && animals) {
+    for (let j = 0; j < animals.length; j++) {
+      const bug = animals[j];
+      if (bug.hp > 0 && (bug.species === 'butterfly' || bug.species === 'grasshopper')) {
+        const bd = Math.hypot(bug.x - a.x, bug.y - a.y);
+        if (bd < 3.2) {
+          bug.hp = 0;
+          a.hunger = Math.max(0, a.hunger - 25.0);
+          break;
+        }
+      }
+    }
+  }
+
   // 1. Poleiro nas copas
   if (a.perchTimer > 0) {
     a.perchTimer -= dt;
@@ -224,7 +239,7 @@ function updateCarcaraBehavior(a, dt, ctx) {
   for (let j = 0; j < animals.length; j++) {
     const prey = animals[j];
     if (prey === a || prey.hp <= 0) continue;
-    if (prey.species === 'rat' || prey.species === 'grasshopper' || prey.species === 'roach' || prey.species === 'beetle') {
+    if (prey.species === 'rat' || prey.species === 'grasshopper' || prey.species === 'roach' || prey.species === 'beetle' || (prey.species === 'tortoise' && prey.ageInDays < 180.0)) {
       const d = Math.hypot(prey.x - a.x, prey.y - a.y);
       if (d < bestDist) {
         bestDist = d;

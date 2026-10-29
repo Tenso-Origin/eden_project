@@ -352,6 +352,7 @@ function updateTrairaBehavior(a, dt, ctx) {
     if (d <= detectionRadius) {
       let score = (100.0 - d);
       if (prey.species === 'tambaqui') score += 25.0; // Presa primária natural
+      if (prey.species === 'rat') score += 18.0;      // Roedor nadando na água
       if (prey.hp < 50) score += 20.0;
       if (score > bestScore) {
         bestScore = score;

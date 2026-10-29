@@ -354,6 +354,7 @@ function updateCaimanBehavior(a, dt, ctx) {
       let score = (100.0 - d);
       if (prey.species === 'tambaqui' || prey.species === 'traira') score += 30.0;
       if (prey.species === 'rat') score += 20.0;
+      if (prey.species === 'cat') score += 25.0; // Predação oportunista de felinos na margem
 
       if (d < minDist) {
         minDist = d;

@@ -162,18 +162,21 @@ function updateCatBehavior(a, dt, ctx) {
     if (a.chaseAbandonCooldown <= 0) {
       for (let j = 0; j < animals.length; j++) {
         const prey = animals[j];
-        if (prey.species === 'rat' && prey.hp > 0) {
-          // Rato em toca, refúgio natural ou MERGULHADO: imune
-          if (isProtectedInBurrowOrRefuge(prey) || prey.isDiving) continue;
+        if (prey.hp <= 0) continue;
+        const isRat = (prey.species === 'rat');
+        const isInsect = (prey.species === 'grasshopper' || prey.species === 'roach');
+        if (isRat || isInsect) {
+          if (isRat && (isProtectedInBurrowOrRefuge(prey) || prey.isDiving)) continue;
 
           const d = Math.hypot(prey.x - a.x, prey.y - a.y);
-          if (d <= CAT_HUNTING_ZONE) {
-            if (!isInHuntingZone || d < closestDist) {
+          const maxRange = isRat ? CAT_HUNTING_ZONE : 6.0; // Insetos caçados apenas em proximidade imediata
+          if (d <= maxRange) {
+            if (!isInHuntingZone || (isRat && closestPrey && closestPrey.species !== 'rat') || d < closestDist) {
               closestDist = d;
               closestPrey = prey;
               isInHuntingZone = true;
             }
-          } else if (!isInHuntingZone && d <= CAT_OLFACTORY_RANGE) {
+          } else if (isRat && !isInHuntingZone && d <= CAT_OLFACTORY_RANGE) {
             if (d < closestDist) {
               closestDist = d;
               closestPrey = prey;

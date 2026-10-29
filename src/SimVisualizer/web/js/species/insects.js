@@ -173,6 +173,25 @@ function updateInsectBehavior(a, dt, ctx) {
       a.pollinateTimer = 3.0 + Math.random() * 4.0;
       return { targetX: a.x, targetY: a.y };
     }
+  } else if (a.species === 'mosquito') {
+    // Hematofagia em mamíferos (Rato ou Gato)
+    if (a.hunger > 20.0 && animals) {
+      for (let j = 0; j < animals.length; j++) {
+        const host = animals[j];
+        if (host.hp > 0 && (host.species === 'rat' || host.species === 'cat')) {
+          const hd = Math.hypot(host.x - a.x, host.y - a.y);
+          if (hd < 18.0) {
+            targetX = host.x;
+            targetY = host.y;
+            if (hd < 1.8) {
+              host.hp = Math.max(1, host.hp - 0.08 * dt);
+              a.hunger = Math.max(0, a.hunger - 15.0 * dt);
+            }
+            return { targetX, targetY };
+          }
+        }
+      }
+    }
   } else if (a.species === 'ant' || a.species === 'termite' || a.species === 'beetle' || a.species === 'roach') {
     if (a.hunger > 15.0) {
       const curIdx = getIdx(Math.floor(a.x), Math.floor(a.y));

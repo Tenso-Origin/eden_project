@@ -114,6 +114,21 @@ function updateRatBehavior(a, dt, ctx) {
     a.hasFoodMemory = true;
   }
 
+  // Proteína oportunista de pequenos insetos de solo (Gafanhotos e Baratas)
+  if (a.hunger > 15.0 && animals) {
+    for (let j = 0; j < animals.length; j++) {
+      const bug = animals[j];
+      if (bug.hp > 0 && (bug.species === 'grasshopper' || bug.species === 'roach')) {
+        const d = Math.hypot(bug.x - a.x, bug.y - a.y);
+        if (d < 2.0) {
+          bug.hp = 0;
+          a.hunger = Math.max(0, a.hunger - 25.0);
+          break;
+        }
+      }
+    }
+  }
+
   // 3. Detecção de ameaça de predadores terrestres (gatos) e aéreos (harpias)
   const effectiveAlert = (a.genome ? a.genome.alertRadius + (a.genome.epigeneticBonus || 0) : 12.0);
   let fleeVectorX = 0, fleeVectorY = 0, dangerCount = 0;

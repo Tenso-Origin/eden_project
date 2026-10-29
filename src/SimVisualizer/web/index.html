@@ -405,7 +405,7 @@
     <div class="brand">
       <div class="brand-icon">E</div>
       <div>
-        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.10</span></h1>
+        <h1>Projeto Biosfera <span>Bacia Amazônica 2048x1024 DOD (2.097.152 Células)</span> <span style="background:rgba(88,166,255,0.15); color:#58a6ff; border-color:rgba(88,166,255,0.3); font-weight:700;">v2.7.11</span></h1>
       </div>
     </div>
     <div class="btn-group">
@@ -634,18 +634,18 @@
   </main>
 
     <!-- Módulos da Simulação Planetária DOD Biosfera -->
-  <script src="js/species/reproduction.js?v=2.7.10"></script>
-  <script src="js/simulation/core.js?v=2.7.10"></script>
-  <script src="js/simulation/environment.js?v=2.7.10"></script>
-  <script src="js/species/rat.js?v=2.7.10"></script>
-  <script src="js/species/cat.js?v=2.7.10"></script>
-  <script src="js/species/harpy.js?v=2.7.10"></script>
-  <script src="js/species/aquatic.js?v=2.7.10"></script>
-  <script src="js/species/reptiles.js?v=2.7.10"></script>
-  <script src="js/species/birds.js?v=2.7.10"></script>
-  <script src="js/species/insects.js?v=2.7.10"></script>
-  <script src="js/rendering/renderer.js?v=2.7.10"></script>
-  <script src="js/ui/ui-controller.js?v=2.7.10"></script>
+  <script src="js/species/reproduction.js?v=2.7.11"></script>
+  <script src="js/simulation/core.js?v=2.7.11"></script>
+  <script src="js/simulation/environment.js?v=2.7.11"></script>
+  <script src="js/species/rat.js?v=2.7.11"></script>
+  <script src="js/species/cat.js?v=2.7.11"></script>
+  <script src="js/species/harpy.js?v=2.7.11"></script>
+  <script src="js/species/aquatic.js?v=2.7.11"></script>
+  <script src="js/species/reptiles.js?v=2.7.11"></script>
+  <script src="js/species/birds.js?v=2.7.11"></script>
+  <script src="js/species/insects.js?v=2.7.11"></script>
+  <script src="js/rendering/renderer.js?v=2.7.11"></script>
+  <script src="js/ui/ui-controller.js?v=2.7.11"></script>
 
   <!-- Orquestrador Central da Simulação Planetária -->
   <script>
@@ -860,8 +860,18 @@
           a.hp -= 0.20 * dt; // Dano de desidratação calibrado
         }
 
-        // Regeneração lenta de vitalidade (cicatrização de pequenos ferimentos ao descansar)
-        if (a.hp < 100 && a.hunger < 60 && a.thirst < 60) {
+        // Insetos absorvidos pelo ninho ou indivíduos mortos são descartados imediatamente
+        if (a.enteredNest || a.hp <= 0) {
+          if (!a.enteredNest && a.hp <= 0) {
+            if (a.thirst >= 90) totalThirstDeaths++;
+            if (a.hunger >= 85) totalStarvationDeaths++;
+            applyDeathDecomposition(a.x, a.y);
+          }
+          continue;
+        }
+
+        // Regeneração lenta de vitalidade (apenas para animais vivos com ferimentos leves ao descansar)
+        if (a.hp > 0 && a.hp < 100 && a.hunger < 60 && a.thirst < 60) {
           a.hp = Math.min(100, a.hp + 0.12 * dt);
         }
 
@@ -876,15 +886,6 @@
               a.hp -= 3.5 * dt;
             }
           }
-        }
-
-        if (a.hp <= 0) {
-          if (!a.enteredNest) {
-            if (a.thirst >= 90) totalThirstDeaths++;
-            if (a.hunger >= 85) totalStarvationDeaths++;
-            applyDeathDecomposition(a.x, a.y);
-          }
-          continue;
         }
 
         if (a.species === 'rat') {
@@ -1074,6 +1075,11 @@
             const moveTarget = InsectSpecies.updateInsectBehavior(a, dt, insCtx);
             targetX = moveTarget.targetX;
             targetY = moveTarget.targetY;
+
+            // Se o enxame entrou no ninho ou morreu, não o recoloca no mapa
+            if (a.enteredNest || a.hp <= 0) {
+              continue;
+            }
           }
         }
 

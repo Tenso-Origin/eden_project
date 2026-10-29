@@ -419,8 +419,9 @@ function render() {
         ctx.fillStyle = 'rgba(9, 13, 19, 0.88)';
         ctx.strokeStyle = color;
         ctx.lineWidth = 0.8;
-        const badgeW = 20.0;
-        const badgeH = 9.0;
+        const label = `${charges}📦`;
+        const badgeW = (charges > 99) ? 34.0 : ((charges > 9) ? 26.0 : 21.0);
+        const badgeH = 9.5;
         const bx = n.x - badgeW / 2;
         const by = n.y - 12.0;
         ctx.beginPath();
@@ -433,7 +434,7 @@ function render() {
         ctx.font = 'bold 7px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(`${charges}📦`, n.x, by + badgeH / 2);
+        ctx.fillText(label, n.x, by + badgeH / 2);
 
         // Pontos de carga orbitando a colônia
         const visibleDots = Math.min(charges, 8);

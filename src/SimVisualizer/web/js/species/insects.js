@@ -92,6 +92,7 @@ function createInitialInsects(gridWidth = 2048, gridHeight = 1024, nests = null,
 
           // População total inicial: 500 indivíduos (5 ícones/cargas)
           totalInitialCharges: 5,
+          maxPopulationCharges: 5,
           charges: 4,                  // 4 cargas internas trabalhando dentro da colônia
           activeSwarmsCount: 1,        // 1 enxame em campo trabalhando fora (5ª carga)
           maxExternalRatio: extRatio,  // Proporção de forrageamento exterior observada na realidade
@@ -253,11 +254,14 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
         colony.queen.eggBuffer = (colony.queen.eggBuffer || 0) + eggsSpawned;
 
         // Ao atingir 100 ovos incubados e havendo biomassa/celulose estocada (1.5 kg por carga):
+        colony.maxPopulationCharges = colony.maxPopulationCharges || 5;
         if (colony.queen.eggBuffer >= 100.0 && (colony.resourcesKg || 0) >= 1.5) {
           colony.resourcesKg -= 1.5;
           colony.queen.eggBuffer -= 100.0;
-          if ((colony.charges || 0) < 40) {
-            colony.charges = (colony.charges || 0) + 1;
+          if ((colony.maxPopulationCharges || 5) < 50) {
+            colony.maxPopulationCharges = (colony.maxPopulationCharges || 5) + 1;
+            colony.charges = Math.max(0, Math.min(colony.maxPopulationCharges - (colony.activeSwarmsCount || 0), (colony.charges || 0) + 1));
+            console.log(`🐣 [ECLOSÃO] Colônia '${colony.name}' chocou 100 ovos (+1 carga)! Total: ${colony.maxPopulationCharges} cargas.`);
           }
         }
       }
@@ -325,16 +329,17 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
     }
     colony.activeSwarmsCount = activeSwarms;
 
-    const totalPopUnits = (colony.charges || 0) + activeSwarms;
-    // Permite que colônias ativas mantenham múltiplos grupos de forrageamento simultâneos em campo (até 6 swarms)
-    const maxSwarmsAllowed = Math.min(6, Math.max(2, Math.floor(totalPopUnits * 0.40)));
+    colony.maxPopulationCharges = colony.maxPopulationCharges || 5;
+    const ratio = colony.maxExternalRatio || (colony.species === 'bee' ? 0.25 : 0.20);
+    // Permite que a colônia mantenha uma proporção biológica real em campo (~20% exterior, 80% interior)
+    const maxSwarmsAllowed = Math.max(1, Math.min(6, Math.floor(colony.maxPopulationCharges * ratio)));
 
     colony.dispatchCooldown = (colony.dispatchCooldown || 0) - dt;
 
-    if (activeSwarms < maxSwarmsAllowed && (colony.charges || 0) > 1 && colony.dispatchCooldown <= 0) {
+    if (activeSwarms < maxSwarmsAllowed && (colony.charges || 0) >= 1 && colony.dispatchCooldown <= 0) {
       // Remove uma carga do ícone da colônia
-      colony.charges--;
-      colony.activeSwarmsCount++;
+      colony.charges = Math.max(0, colony.charges - 1);
+      colony.activeSwarmsCount = activeSwarms + 1;
 
       // Dispersão em 8 quadrantes/setores radiais distintos para que as formigas não tomem a mesma direção
       colony.dispatchSequence = (colony.dispatchSequence || 0) + 1;
@@ -377,7 +382,7 @@ function updateSocialColonies(nests, targetAnimalList, dt, ctx) {
       });
 
       // Se ainda houver vagas para atingir a cota de forrageiras, despacha rapidamente o próximo grupo
-      colony.dispatchCooldown = (activeSwarms + 1 < maxSwarmsAllowed && colony.charges > 1) ? (1.5 + Math.random() * 2.0) : (8.0 + Math.random() * 7.0);
+      colony.dispatchCooldown = 15.0 + Math.random() * 10.0;
     }
   }
 }
@@ -538,13 +543,14 @@ function updateInsectBehavior(a, dt, ctx) {
       targetY = nestY;
 
       if (dNest < 3.2) {
-        // Descarrega recursos no estoque da colônia
-        if (myNest) {
+        if (myNest && !a.enteredNest) {
+          // Descarrega recursos no estoque da colônia
           myNest.resourcesKg = (myNest.resourcesKg || 0) + (a.foodCarried || 0);
 
-          // Acrescenta uma carga de volta ao ícone da colônia
-          myNest.charges = (myNest.charges || 0) + 1;
+          // Restaura rigorosamente a carga que saiu (conservação estrita da capacidade biológica)
+          const maxCap = myNest.maxPopulationCharges || 5;
           myNest.activeSwarmsCount = Math.max(0, (myNest.activeSwarmsCount || 1) - 1);
+          myNest.charges = Math.max(0, Math.min(maxCap - myNest.activeSwarmsCount, (myNest.charges || 0) + 1));
         }
 
         // O ícone do enxame desaparece do mapa e entra na colônia
@@ -557,9 +563,10 @@ function updateInsectBehavior(a, dt, ctx) {
     }
 
     // 2. FORRAGEAMENTO RADIAL EM TORNO DO NINHO
-    // Se ultrapassou o raio máximo de atuação da espécie ou coletou carga suficiente:
+    a.forageDuration = (a.forageDuration || 0) + dt;
     const loadLimit = a.targetLoad || (a.species === 'ant' ? 5.0 : 3.5);
-    if (dNest > maxR || (a.foodCarried || 0) >= loadLimit) {
+    // Só retorna ao ninho se ultrapassou o raio máximo OU se atingiu a carga e forrageou a uma distância mínima
+    if (dNest > maxR || ((a.foodCarried || 0) >= loadLimit && (dNest >= 12.0 || a.forageDuration >= 18.0))) {
       a.isReturningToNest = true;
       return { targetX: nestX, targetY: nestY };
     }

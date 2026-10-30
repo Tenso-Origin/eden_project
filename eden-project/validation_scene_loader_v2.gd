@@ -34,7 +34,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.12, 0.10, 0.24, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
-				mat.set_shader_parameter("dither_spread", 0.0)
+				mat.set_shader_parameter("dither_spread", 0.12)
 				mat.set_shader_parameter("wind_strength", 0.35)
 				mat.set_shader_parameter("wind_speed", 2.2)
 				child.material_override = mat
@@ -44,14 +44,14 @@ func setup_materials(root: Node) -> void:
 				mat.shader = SHADER_WATER
 				mat.set_shader_parameter("shallow_color", Color(0.18, 0.68, 0.82, 0.88))
 				mat.set_shader_parameter("deep_color", Color(0.10, 0.42, 0.62, 0.95))
+				mat.set_shader_parameter("foam_color", Color(1.0, 1.0, 1.0))
 				mat.set_shader_parameter("depth_fade_distance", 0.65)
 				mat.set_shader_parameter("pixel_grid_density", 52.0)
 				mat.set_shader_parameter("wave_speed", 2.0)
 				mat.set_shader_parameter("wave_height", 0.02)
-				mat.set_shader_parameter("shoreline_foam_dist", 0.25)
-				mat.set_shader_parameter("reflection_strength", 0.28)
-				mat.set_shader_parameter("reflection_distortion_px", 1.5)
-				mat.set_shader_parameter("reflection_offset_px", 14.0)
+				mat.set_shader_parameter("shoreline_foam_dist", 0.35)
+				mat.set_shader_parameter("shoreline_ripple_rings", 3)
+				mat.set_shader_parameter("reflection_strength", 0.35)
 				child.material_override = mat
 				
 			elif mesh_name.begins_with("Ore_Crystals"):
@@ -70,7 +70,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.15, 0.12, 0.28, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
-				mat.set_shader_parameter("dither_spread", 0.0)
+				mat.set_shader_parameter("dither_spread", 0.12)
 				child.material_override = mat
 
 		if child.get_child_count() > 0:

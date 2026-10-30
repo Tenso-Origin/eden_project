@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled, depth_draw_always;
+render_mode unshaded, cull_disabled, depth_draw_never;
 
 // Shader de Água com Ondulações de Borda (Depth-Buffer), Espuma, Cáusticas e Reflexo Espelhado
 // Alinhado rigorosamente à grade de texels da Viewport (HD Pixel Art - David Holland)
@@ -128,3 +128,4 @@ void fragment() {
 	
 	ALBEDO = final_color;
 }
+

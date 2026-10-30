@@ -89,3 +89,4 @@ def create_pixel_art_ore_node(name="Iron_Ore_Block", ore_color=(0.85, 0.55, 0.25
 
 if __name__ == "__main__":
     create_pixel_art_ore_node("Gold_Ore_Block", ore_color=(0.95, 0.75, 0.15))
+

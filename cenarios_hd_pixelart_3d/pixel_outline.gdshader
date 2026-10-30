@@ -78,16 +78,16 @@ void fragment() {
 		}
 	}
 
-	vec3 final_color = base_color;
-
 	// Aplica primeiro o brilho de quina interna e sobrepõe com a linha escura de silhueta externa
-	if (normal_crease > 0.0 && depth_diff == 0.0) {
-		final_color = mix(final_color, vec3(1.0), highlight_brighten);
-	}
+	// Usa discard onde não há contorno, preservando a água transparente e camadas anteriores
 	if (depth_diff > 0.0) {
-		final_color = mix(final_color, vec3(0.0), shadow_darken);
+		ALBEDO = vec3(0.0);
+		ALPHA = shadow_darken;
+	} else if (normal_crease > 0.0) {
+		ALBEDO = vec3(1.0);
+		ALPHA = highlight_brighten;
+	} else {
+		discard;
 	}
-
-	ALBEDO = final_color;
 }
 

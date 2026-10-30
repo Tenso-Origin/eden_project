@@ -6,6 +6,7 @@ extends Camera3D
 
 @export var viewport_container: SubViewportContainer
 @export var target_resolution: Vector2i = Vector2i(480, 270)
+@export var distance_from_pivot: float = 20.0
 
 var _texel_size: float = 0.0
 
@@ -35,6 +36,7 @@ func _process(_delta: float) -> void:
 	var snapped_view_pos: Vector3 = view_space_pos
 	snapped_view_pos.x = round(view_space_pos.x / _texel_size) * _texel_size
 	snapped_view_pos.y = round(view_space_pos.y / _texel_size) * _texel_size
+	snapped_view_pos.z = view_space_pos.z + distance_from_pivot
 
 	# 3. Calcula o erro sub-pixel (em frações de -0.5 a 0.5 texel)
 	var subpixel_error: Vector2 = Vector2(

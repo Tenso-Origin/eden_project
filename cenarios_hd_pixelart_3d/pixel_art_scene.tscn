@@ -1,82 +1,32 @@
-[gd_scene load_steps=12 format=3 uid="uid://b1m5q7w3pixel"]
+[gd_scene load_steps=10 format=3 uid="uid://b1m5q7w3pixel"]
 
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]
 [ext_resource type="Script" path="res://camera_pivot_controller.gd" id="2_pivot"]
 [ext_resource type="Script" path="res://pixel_camera.gd" id="3_camera"]
 [ext_resource type="Shader" path="res://pixel_outline.gdshader" id="4_outline"]
-[ext_resource type="Shader" path="res://pixel_surface.gdshader" id="5_surface"]
-[ext_resource type="Shader" path="res://pixel_foliage.gdshader" id="6_foliage"]
+[ext_resource type="Script" path="res://validation_scene_loader.gd" id="5_loader"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_upscale"]
 shader = ExtResource("1_upscale")
 shader_parameter/cam_offset = Vector2(0, 0)
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
-render_priority = 0
+render_priority = 10
 shader = ExtResource("4_outline")
 shader_parameter/depth_threshold = 0.25
 shader_parameter/normal_threshold = 0.5
-shader_parameter/shadow_darken = 0.35
-shader_parameter/highlight_brighten = 0.2
+shader_parameter/shadow_darken = 0.45
+shader_parameter/highlight_brighten = 0.25
 
 [sub_resource type="QuadMesh" id="QuadMesh_postprocess"]
 size = Vector2(2, 2)
 
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_surface_ground"]
-render_priority = 0
-shader = ExtResource("5_surface")
-shader_parameter/albedo_color = Color(0.32, 0.55, 0.28, 1)
-shader_parameter/shadow_tint = Color(0.15, 0.12, 0.28, 1)
-shader_parameter/light_bands = 3
-shader_parameter/dither_spread = 0.12
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
-material = SubResource("ShaderMaterial_surface_ground")
-size = Vector2(30, 30)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_surface_building"]
-render_priority = 0
-shader = ExtResource("5_surface")
-shader_parameter/albedo_color = Color(0.75, 0.65, 0.52, 1)
-shader_parameter/shadow_tint = Color(0.18, 0.14, 0.32, 1)
-shader_parameter/light_bands = 3
-shader_parameter/dither_spread = 0.12
-
-[sub_resource type="BoxMesh" id="BoxMesh_building"]
-material = SubResource("ShaderMaterial_surface_building")
-size = Vector3(2.5, 3.5, 2.5)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_surface_stone"]
-render_priority = 0
-shader = ExtResource("5_surface")
-shader_parameter/albedo_color = Color(0.48, 0.45, 0.52, 1)
-shader_parameter/shadow_tint = Color(0.16, 0.13, 0.26, 1)
-shader_parameter/light_bands = 3
-shader_parameter/dither_spread = 0.12
-
-[sub_resource type="BoxMesh" id="BoxMesh_stone"]
-material = SubResource("ShaderMaterial_surface_stone")
-size = Vector3(1.8, 1.8, 1.8)
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_foliage_bush"]
-render_priority = 0
-shader = ExtResource("6_foliage")
-shader_parameter/albedo_color = Color(0.24, 0.68, 0.22, 1)
-shader_parameter/shadow_tint = Color(0.12, 0.10, 0.24, 1)
-shader_parameter/light_bands = 3
-shader_parameter/dither_spread = 0.12
-shader_parameter/alpha_scissor_threshold = 0.5
-
-[sub_resource type="QuadMesh" id="QuadMesh_foliage"]
-material = SubResource("ShaderMaterial_foliage_bush")
-size = Vector2(1.2, 1.2)
-
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
-background_color = Color(0.38, 0.58, 0.78, 1)
+background_color = Color(0.28, 0.42, 0.60, 1)
 ambient_light_source = 2
-ambient_light_color = Color(0.45, 0.42, 0.55, 1)
-ambient_light_energy = 0.6
+ambient_light_color = Color(0.42, 0.40, 0.52, 1)
+ambient_light_energy = 0.65
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -117,31 +67,17 @@ directional_shadow_mode = 0
 directional_shadow_fade_start = 1.0
 
 [node name="MapGeometry" type="Node3D" parent="SubViewportContainer/SubViewport/World3D"]
-
-[node name="Ground" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/MapGeometry"]
-mesh = SubResource("PlaneMesh_ground")
-
-[node name="Building1" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/MapGeometry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.5, 1.75, -1)
-mesh = SubResource("BoxMesh_building")
-
-[node name="StoneBlock" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/MapGeometry"]
-transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 1.8, 0.9, 0.5)
-mesh = SubResource("BoxMesh_stone")
-
-[node name="FoliageSample" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/MapGeometry"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 0.6, 1.8)
-mesh = SubResource("QuadMesh_foliage")
+script = ExtResource("5_loader")
 
 [node name="CameraPivot" type="Node3D" parent="SubViewportContainer/SubViewport/World3D"]
-transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 1, 0)
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0.6, 0)
 script = ExtResource("2_pivot")
-move_speed = 5.0
+move_speed = 4.0
 
 [node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("viewport_container")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 15)
 projection = 1
-size = 7.0
+size = 2.8
 current = true
 script = ExtResource("3_camera")
 viewport_container = NodePath("../../../..")

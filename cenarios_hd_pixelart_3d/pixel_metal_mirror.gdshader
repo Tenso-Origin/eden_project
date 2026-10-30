@@ -65,3 +65,4 @@ void light() {
 	vec3 lit_metal = mix(ALBEDO * metal_dark_band.rgb, ALBEDO * LIGHT_COLOR / PI, stepped_diffuse);
 	DIFFUSE_LIGHT += lit_metal + (metal_highlight.rgb * hard_glint * 0.85);
 }
+

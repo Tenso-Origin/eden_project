@@ -25,7 +25,7 @@ float bayer4x4(vec2 screen_pos) {
 
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
-	ALBEDO = albedo_color.rgb * tex.rgb;
+	ALBEDO = albedo_color.rgb * tex.rgb * COLOR.rgb;
 }
 
 void light() {

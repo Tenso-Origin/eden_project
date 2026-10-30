@@ -58,3 +58,4 @@ def setup_foliage_attributes_and_normals(obj, is_grass=False, canopy_center=Vect
                 
     # Aplica normais customizadas
     mesh.normals_split_custom_set(custom_normals)
+

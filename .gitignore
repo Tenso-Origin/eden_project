@@ -37,3 +37,8 @@ pipeline_3d/*.jpg
 pipeline_3d/*.jpeg
 pipeline_3d/*.webp
 
+## Godot Engine
+.godot/
+cenarios_hd_pixelart_3d/.godot/
+
+

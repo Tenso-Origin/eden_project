@@ -149,3 +149,4 @@ void light() {
 	vec3 shaded_color = mix(ALBEDO * shadow_tint.rgb, ALBEDO * LIGHT_COLOR / PI, stepped_light);
 	DIFFUSE_LIGHT += shaded_color + (LIGHT_COLOR * wet_glint);
 }
+

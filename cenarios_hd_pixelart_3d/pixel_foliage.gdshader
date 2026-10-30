@@ -5,12 +5,16 @@ render_mode diffuse_toon, specular_disabled, cull_disabled;
 // Modificado com NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 // para que as lâminas/planos de grama recebam iluminação idêntica ao solo subjacente.
 
-uniform vec4 albedo_color : source_color = vec4(0.28, 0.60, 0.22, 1.0);
+uniform vec4 albedo_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform sampler2D albedo_texture : source_color, filter_nearest, hint_default_white;
 uniform vec4 shadow_tint : source_color = vec4(0.15, 0.12, 0.28, 1.0);
 uniform int light_bands : hint_range(2, 6) = 3;
 uniform float dither_spread : hint_range(0.0, 0.5) = 0.12;
 uniform float alpha_scissor_threshold : hint_range(0.0, 1.0) = 0.5;
+
+group_uniforms WindAnimation;
+uniform float wind_strength : hint_range(0.0, 1.0) = 0.35;
+uniform float wind_speed : hint_range(0.5, 6.0) = 2.5;
 
 // Matriz de Bayer 4x4 normalizada
 float bayer4x4(vec2 screen_pos) {
@@ -25,10 +29,18 @@ float bayer4x4(vec2 screen_pos) {
 	return (float(bayer[y * 4 + x]) / 16.0) - 0.5;
 }
 
+void vertex() {
+	// Balanço do vento baseado no peso do canal R de WeatherData e fase no canal B
+	float phase = COLOR.b * 6.2831;
+	float sway = sin(TIME * wind_speed + phase) * wind_strength * 0.08 * COLOR.r;
+	VERTEX.x += sway;
+	VERTEX.z += sway * 0.4;
+}
+
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
-	ALBEDO = albedo_color.rgb * tex.rgb;
-	ALPHA = tex.a * albedo_color.a;
+	ALBEDO = albedo_color.rgb * tex.rgb * COLOR.rgb;
+	ALPHA = tex.a * albedo_color.a * COLOR.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_scissor_threshold;
 
 	// Normal Trick: força a normal a apontar para o teto (mundo Y up) no espaço de visão

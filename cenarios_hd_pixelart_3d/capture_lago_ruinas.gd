@@ -19,3 +19,4 @@ func _init():
 			print("Falha ao obter imagem da viewport de lago_ruinas")
 			
 	quit()
+

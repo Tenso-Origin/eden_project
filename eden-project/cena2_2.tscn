@@ -17,10 +17,10 @@ viewport_path = NodePath("SubViewport")
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
 render_priority = 10
 shader = ExtResource("4_outline")
-shader_parameter/depth_threshold = 0.05
-shader_parameter/normal_threshold = 0.25
-shader_parameter/shadow_darken = 0.65
-shader_parameter/highlight_brighten = 0.35
+shader_parameter/depth_threshold = 0.06
+shader_parameter/normal_threshold = 0.28
+shader_parameter/shadow_darken = 0.55
+shader_parameter/highlight_brighten = 0.30
 
 [sub_resource type="QuadMesh" id="QuadMesh_postprocess"]
 size = Vector2(2, 2)
@@ -44,7 +44,7 @@ script = ExtResource("1_main")
 [node name="SubViewport" type="SubViewport" parent="."]
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
-size = Vector2i(242, 137)
+size = Vector2i(642, 362)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewport"]
@@ -80,7 +80,7 @@ size = 7.2
 current = true
 script = ExtResource("3_camera")
 display_item = NodePath("../../../../TextureDisplay")
-target_resolution = Vector2i(240, 135)
+target_resolution = Vector2i(640, 360)
 distance_from_pivot = 25.0
 
 [node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewport/World3D/CameraPivot/Camera3D"]
@@ -101,3 +101,4 @@ mouse_filter = 2
 texture = SubResource("ViewportTexture_main")
 expand_mode = 1
 stretch_mode = 5
+

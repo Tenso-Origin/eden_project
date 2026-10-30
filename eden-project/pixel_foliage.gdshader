@@ -1,16 +1,15 @@
 shader_type spatial;
 render_mode diffuse_toon, specular_disabled, cull_disabled;
 
-// Shader de Folhagem e Grama Pixel-Art (Normal Trick)
+// Shader de Folhagem e Grama Pixel-Art (David Holland Normal Trick)
 // Modificado com NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
-// para que as lâminas/planos de grama recebam iluminação idêntica ao solo subjacente.
+// para que as lâminas herdem a iluminação suave do terreno, recebendo contorno apenas nas pontas.
 
 uniform vec4 albedo_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform sampler2D albedo_texture : source_color, filter_nearest, hint_default_white;
-uniform vec4 shadow_tint : source_color = vec4(0.15, 0.12, 0.28, 1.0);
+uniform vec4 shadow_tint : source_color = vec4(0.12, 0.10, 0.24, 1.0);
 uniform int light_bands : hint_range(2, 6) = 3;
 uniform float dither_spread : hint_range(0.0, 0.5) = 0.12;
-uniform float alpha_scissor_threshold : hint_range(0.0, 1.0) = 0.5;
 
 group_uniforms WindAnimation;
 uniform float wind_strength : hint_range(0.0, 1.0) = 0.35;
@@ -30,20 +29,21 @@ float bayer4x4(vec2 screen_pos) {
 }
 
 void vertex() {
-	// Balanço do vento baseado no peso do canal R de WeatherData e fase no canal B
-	float phase = COLOR.b * 6.2831;
-	float sway = sin(TIME * wind_speed + phase) * wind_strength * 0.08 * COLOR.r;
+	// Balanço do vento usando o peso no canal Alpha de COLOR (0.0 na raiz, 1.0 nas pontas)
+	float phase = VERTEX.x * 4.0 + VERTEX.z * 3.0;
+	float sway = sin(TIME * wind_speed + phase) * wind_strength * 0.09 * COLOR.a;
 	VERTEX.x += sway;
-	VERTEX.z += sway * 0.4;
+	VERTEX.z += sway * 0.35;
 }
 
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
-	ALBEDO = albedo_color.rgb * tex.rgb * COLOR.rgb;
-	ALPHA = tex.a * albedo_color.a * COLOR.a;
-	ALPHA_SCISSOR_THRESHOLD = alpha_scissor_threshold;
+	
+	// Gradiente vertical sutil da raiz para a ponta
+	vec3 height_tint = mix(vec3(0.78, 0.88, 0.72), vec3(1.12, 1.18, 0.95), clamp(COLOR.a, 0.0, 1.0));
+	ALBEDO = albedo_color.rgb * tex.rgb * COLOR.rgb * height_tint;
 
-	// Normal Trick: força a normal a apontar para o teto (mundo Y up) no espaço de visão
+	// Normal Trick do David Holland: força a normal a apontar para o céu no View Space
 	NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 }
 
@@ -58,4 +58,3 @@ void light() {
 	vec3 shaded_color = mix(ALBEDO * shadow_tint.rgb, ALBEDO * LIGHT_COLOR / PI, stepped_light);
 	DIFFUSE_LIGHT += shaded_color;
 }
-

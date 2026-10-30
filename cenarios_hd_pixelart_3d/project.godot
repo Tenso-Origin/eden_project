@@ -12,7 +12,7 @@ config_version=5
 
 config/name="HD Pixel Art 3D Scenarios (Eden Project)"
 config/description="Pipeline de renderização e cenários 3D HD Pixel Art sem pixel creeping baseado na arquitetura de David Holland."
-run/main_scene="res://pixel_art_scene.tscn"
+run/main_scene="res://cena2.tscn"
 config/features=PackedStringArray("4.7")
 config/icon="res://icon.svg"
 

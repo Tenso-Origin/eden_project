@@ -1,19 +1,18 @@
 shader_type spatial;
 render_mode unshaded, depth_draw_never, depth_test_disabled, cull_disabled;
 
-// Shader de Contornos 3D Pixel-Perfect (Depth + Normal Buffers)
-// Requer Godot 4 renderizador Forward+ para acessar normal_roughness_texture.
-// Aplique como Material Override em um MeshInstance3D com QuadMesh 2x2 filho da Camera3D.
+// Shader de Contornos 3D Pixel-Perfect (David Holland Architecture)
+// Lê apenas depth_texture e normal_roughness_texture, sem screen_texture opaco,
+// desenhando apenas as linhas de contorno (silhueta) e creases com transparência (ALPHA).
 
-uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
 uniform sampler2D depth_texture : hint_depth_texture, repeat_disable, filter_nearest;
 uniform sampler2D normal_roughness_texture : hint_normal_roughness_texture, repeat_disable, filter_nearest;
 
 group_uniforms OutlineSettings;
-uniform float depth_threshold : hint_range(0.01, 2.0) = 0.25;
-uniform float normal_threshold : hint_range(0.01, 2.0) = 0.5;
-uniform float shadow_darken : hint_range(0.0, 1.0) = 0.35; // Escurece bordas externas (Silhueta)
-uniform float highlight_brighten : hint_range(0.0, 1.0) = 0.2; // Clareia quinas convexas (Creases)
+uniform float depth_threshold : hint_range(0.01, 1.0) = 0.05;
+uniform float normal_threshold : hint_range(0.01, 1.0) = 0.25;
+uniform float shadow_darken : hint_range(0.0, 1.0) = 0.65; // Escurece bordas externas (Silhueta)
+uniform float highlight_brighten : hint_range(0.0, 1.0) = 0.35; // Clareia quinas convexas (Creases)
 
 void vertex() {
 	// Trava o Quad 2x2 diretamente no Clip Space cobrindo toda a câmera
@@ -35,7 +34,6 @@ vec3 get_view_normal(vec2 uv) {
 
 void fragment() {
 	vec2 texel = 1.0 / VIEWPORT_SIZE;
-	vec3 base_color = texture(screen_texture, SCREEN_UV).rgb;
 	vec3 center_pos = get_view_pos(SCREEN_UV, INV_PROJECTION_MATRIX);
 	vec3 center_normal = get_view_normal(SCREEN_UV);
 
@@ -78,8 +76,8 @@ void fragment() {
 		}
 	}
 
-	// Aplica primeiro o brilho de quina interna e sobrepõe com a linha escura de silhueta externa
-	// Usa discard onde não há contorno, preservando a água transparente e camadas anteriores
+	// Desenha APENAS as linhas de contorno e crease, descartando onde não há bordas
+	// Isso permite que objetos transparentes (como a água) continuem 100% visíveis abaixo!
 	if (depth_diff > 0.0) {
 		ALBEDO = vec3(0.0);
 		ALPHA = shadow_darken;
@@ -87,7 +85,7 @@ void fragment() {
 		ALBEDO = vec3(1.0);
 		ALPHA = highlight_brighten;
 	} else {
+		ALPHA = 0.0;
 		discard;
 	}
 }
-

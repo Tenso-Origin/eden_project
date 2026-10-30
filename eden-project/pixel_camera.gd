@@ -2,10 +2,10 @@ extends Camera3D
 
 ## Pixel-Perfect Orthographic Camera (David Holland Architecture)
 ## Trava a câmera 3D na grade de texels no espaço de visão (view space)
-## e compensa o erro sub-pixel enviando o offset fracionário para o shader 2D do SubViewportContainer.
+## e compensa o erro sub-pixel enviando o offset fracionário para o shader 2D de upscale.
 
-@export var viewport_container: SubViewportContainer
-@export var target_resolution: Vector2i = Vector2i(480, 270)
+@export var display_item: CanvasItem
+@export var target_resolution: Vector2i = Vector2i(240, 135)
 @export var distance_from_pivot: float = 20.0
 
 var _texel_size: float = 0.0
@@ -16,8 +16,8 @@ func _ready() -> void:
 	var svp := get_viewport() as SubViewport
 	if svp:
 		svp.size = target_resolution + Vector2i(2, 2)
-		if not viewport_container and svp.get_parent() is SubViewportContainer:
-			viewport_container = svp.get_parent() as SubViewportContainer
+		if not display_item and svp.get_parent() is CanvasItem:
+			display_item = svp.get_parent() as CanvasItem
 
 func _process(_delta: float) -> void:
 	var parent_node := get_parent_node_3d()
@@ -48,6 +48,6 @@ func _process(_delta: float) -> void:
 	global_position = cam_basis * snapped_view_pos
 
 	# 5. Envia o deslocamento sub-pixel para o shader 2D deslizar a imagem suavemente
-	if viewport_container and viewport_container.material is ShaderMaterial:
-		var mat := viewport_container.material as ShaderMaterial
+	if display_item and display_item.material is ShaderMaterial:
+		var mat := display_item.material as ShaderMaterial
 		mat.set_shader_parameter("cam_offset", subpixel_error)

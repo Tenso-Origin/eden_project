@@ -1,3 +1,4 @@
 @echo off
 echo Abrindo Editor do Godot no projeto Eden_Project...
 start "" "E:\Godot\Godot_v4.7.2-stable_win64.exe" -e --path "%~dp0eden-project"
+

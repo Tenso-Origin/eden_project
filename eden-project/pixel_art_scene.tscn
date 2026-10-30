@@ -1,0 +1,89 @@
+[gd_scene load_steps=10 format=3 uid="uid://b1m5q7w3pixel"]
+
+[ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]
+[ext_resource type="Script" path="res://camera_pivot_controller.gd" id="2_pivot"]
+[ext_resource type="Script" path="res://pixel_camera.gd" id="3_camera"]
+[ext_resource type="Shader" path="res://pixel_outline.gdshader" id="4_outline"]
+[ext_resource type="Script" path="res://validation_scene_loader.gd" id="5_loader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_upscale"]
+shader = ExtResource("1_upscale")
+shader_parameter/cam_offset = Vector2(0, 0)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
+render_priority = 10
+shader = ExtResource("4_outline")
+shader_parameter/depth_threshold = 0.25
+shader_parameter/normal_threshold = 0.5
+shader_parameter/shadow_darken = 0.45
+shader_parameter/highlight_brighten = 0.25
+
+[sub_resource type="QuadMesh" id="QuadMesh_postprocess"]
+size = Vector2(2, 2)
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.28, 0.42, 0.60, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.42, 0.40, 0.52, 1)
+ambient_light_energy = 0.65
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="SubViewportContainer" type="SubViewportContainer" parent="."]
+texture_filter = 0
+material = SubResource("ShaderMaterial_upscale")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+stretch = false
+
+[node name="SubViewport" type="SubViewport" parent="SubViewportContainer"]
+handle_input_locally = false
+snap_2d_transforms_to_pixel = true
+size = Vector2i(482, 272)
+render_target_update_mode = 4
+
+[node name="World3D" type="Node3D" parent="SubViewportContainer/SubViewport"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewportContainer/SubViewport/World3D"]
+environment = SubResource("Environment_main")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewportContainer/SubViewport/World3D"]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 10, 0)
+shadow_enabled = true
+shadow_bias = 0.02
+shadow_blur = 0.0
+directional_shadow_mode = 0
+directional_shadow_fade_start = 1.0
+
+[node name="MapGeometry" type="Node3D" parent="SubViewportContainer/SubViewport/World3D"]
+script = ExtResource("5_loader")
+
+[node name="CameraPivot" type="Node3D" parent="SubViewportContainer/SubViewport/World3D"]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0.6, 0)
+script = ExtResource("2_pivot")
+move_speed = 4.0
+
+[node name="Camera3D" type="Camera3D" parent="SubViewportContainer/SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("viewport_container")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 15)
+projection = 1
+size = 2.8
+current = true
+script = ExtResource("3_camera")
+viewport_container = NodePath("../../../..")
+target_resolution = Vector2i(480, 270)
+
+[node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewportContainer/SubViewport/World3D/CameraPivot/Camera3D"]
+extra_cull_margin = 16384.0
+material_override = SubResource("ShaderMaterial_outline")
+mesh = SubResource("QuadMesh_postprocess")

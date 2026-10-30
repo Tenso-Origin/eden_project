@@ -20,3 +20,4 @@ func _init():
 			print("Falha ao obter imagem da viewport")
 			
 	quit()
+

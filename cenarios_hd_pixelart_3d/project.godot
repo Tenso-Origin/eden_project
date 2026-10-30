@@ -1,6 +1,10 @@
 ; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
-; but it can also be modified by text editors.
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -9,7 +13,7 @@ config_version=5
 config/name="HD Pixel Art 3D Scenarios (Eden Project)"
 config/description="Pipeline de renderização e cenários 3D HD Pixel Art sem pixel creeping baseado na arquitetura de David Holland."
 run/main_scene="res://pixel_art_scene.tscn"
-config/features=PackedStringArray("4.7", "Forward+")
+config/features=PackedStringArray("4.7")
 config/icon="res://icon.svg"
 
 [display]
@@ -17,12 +21,8 @@ config/icon="res://icon.svg"
 window/size/viewport_width=964
 window/size/viewport_height=544
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
 
 [rendering]
 
-renderer/rendering_method="forward_plus"
 textures/canvas_textures/default_texture_filter=0
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality=0
-anti_aliasing/quality/msaa_3d=0
-

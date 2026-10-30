@@ -485,8 +485,7 @@ public static class SpeciesCatalog
             new TrophicInteraction(IdMosquito, IdCat, 1.0f, 0.75f, 0.05f, 10.0f),
             new TrophicInteraction(IdBeetle, IdVegetation, 30.0f, 1.0f, 0.3f, 45.0f),
             new TrophicInteraction(IdRoach, IdVegetation, 20.0f, 1.0f, 0.2f, 35.0f),
-            new TrophicInteraction(IdTermite, IdVegetation, 8.0f, 1.0f, 0.1f, 25.0f)
-            ),
+            new TrophicInteraction(IdTermite, IdVegetation, 8.0f, 1.0f, 0.1f, 25.0f),
 
             // Harpia preda Gato em Campo Aberto (Chance de Revide Felino!)
             new TrophicInteraction(

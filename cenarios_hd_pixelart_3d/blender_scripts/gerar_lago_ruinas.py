@@ -50,6 +50,7 @@ def create_water_surface():
 
 def create_riverbed():
     # Riverbed mesh at (0, 0, -0.6), dim 16x12x0.2
+    # Cor uniforme azul-petróleo escuro #12354a SEM manchas falsas
     bpy.ops.mesh.primitive_cube_add(size=1.0, location=(0, 0, -0.6))
     obj = bpy.context.active_object
     obj.name = "Riverbed"
@@ -57,9 +58,8 @@ def create_riverbed():
     obj.scale = (16.0, 12.0, 0.2)
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     
-    # Subdivide top face for vertex color variation
     bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.subdivide(number_cuts=15)
+    bpy.ops.mesh.subdivide(number_cuts=7)
     bpy.ops.object.mode_set(mode='OBJECT')
     
     mesh = obj.data
@@ -67,63 +67,48 @@ def create_riverbed():
     mesh.color_attributes.active_color_name = "AlbedoCol"
     
     base_col = hex_to_rgb("#12354a")
-    dark_col = hex_to_rgb("#0b2233")
-    
-    # Dark spots below island (0, 0) and pillars (-3.2, -1.8), (3.1, 2.2), (-5.2, 3.4)
-    shadow_centers = [
-        Vector((0.0, 0.0, 0.0)),
-        Vector((-3.2, -1.8, 0.0)),
-        Vector((3.1, 2.2, 0.0)),
-        Vector((-5.2, 3.4, 0.0))
-    ]
-    shadow_radii = [2.2, 1.4, 1.4, 1.4]
-    
     for poly in mesh.polygons:
         poly.use_smooth = False
         for loop_idx in poly.loop_indices:
-            v_idx = mesh.loops[loop_idx].vertex_index
-            v_pos = mesh.vertices[v_idx].co
-            
-            # Check proximity to shadows
-            is_dark = False
-            for c, r in zip(shadow_centers, shadow_radii):
-                if (Vector((v_pos.x, v_pos.y, 0)) - c).length < r:
-                    is_dark = True
-                    break
-            
-            color_attr.data[loop_idx].color = dark_col if is_dark else base_col
+            color_attr.data[loop_idx].color = base_col
             
     return obj
 
 def create_soil_island():
-    # Octagonal/cylinder beveled block at (0, 0, -0.15), scale (2.4, 2.2, 0.45)
-    # Shade Flat. Top: olive-green #4e7a32, sides: brown #4a3525
+    # Ilha central estendida para baixo até Z = -0.65m (cravada no Riverbed a -0.60m)
+    # Topo em Z = +0.10m, base em Z = -0.65m (altura total = 0.75m, centro em Z = -0.275m)
     bpy.ops.mesh.primitive_cylinder_add(
-        vertices=10,
+        vertices=12,
         radius=1.0,
-        depth=1.0,
-        location=(0, 0, 0)
+        depth=0.75,
+        location=(0.0, 0.0, -0.275)
     )
     obj = bpy.context.active_object
     obj.name = "Soil_Island"
     obj.data.name = "Soil_Island"
-    obj.scale = (1.2, 1.1, 0.45) # diameter ~ 2.4 x 2.2
+    obj.scale = (1.2, 1.1, 1.0) # diâmetro ~ 2.4 x 2.2
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    obj.location = (0.0, 0.0, -0.15)
-    bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
     
     mesh = obj.data
     color_attr = mesh.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
     mesh.color_attributes.active_color_name = "AlbedoCol"
     
-    top_col = hex_to_rgb("#4e7a32")
-    side_col = hex_to_rgb("#4a3525")
+    top_col = hex_to_rgb("#4e7a32")       # Grama verde-oliva
+    side_col = hex_to_rgb("#4a3525")      # Terra marrom visível
+    sub_col = hex_to_rgb("#2d2017")       # Terra escura submersa
     
     for poly in mesh.polygons:
         poly.use_smooth = False
         is_top = (poly.normal.z > 0.5)
         for loop_idx in poly.loop_indices:
-            color_attr.data[loop_idx].color = top_col if is_top else side_col
+            v_idx = mesh.loops[loop_idx].vertex_index
+            z = mesh.vertices[v_idx].co.z
+            if is_top:
+                color_attr.data[loop_idx].color = top_col
+            elif z < 0.0:
+                color_attr.data[loop_idx].color = sub_col
+            else:
+                color_attr.data[loop_idx].color = side_col
             
     return obj
 
@@ -151,11 +136,9 @@ def create_tree():
         for loop_idx in poly.loop_indices:
             v_idx = trunk.data.loops[loop_idx].vertex_index
             z = trunk.data.vertices[v_idx].co.z
-            # Dark patch at bottom (z < 0.1)
             t_attr.data[loop_idx].color = dark_patch if z < 0.1 else birch_col
 
     # 2. Canopy: Droplet / rounded cone at (0, 0, 1.85), base width 2.4m, top 1.4m, height 2.8m
-    # Multiple merged low-poly icospheres for organic stepped silhouette
     spheres = []
     
     # Bottom cluster
@@ -188,7 +171,6 @@ def create_tree():
     s5 = bpy.context.active_object
     spheres.append(s5)
     
-    # Join into one canopy
     bpy.ops.object.select_all(action='DESELECT')
     for s in spheres:
         s.select_set(True)
@@ -198,20 +180,16 @@ def create_tree():
     canopy.name = "Tree_Canopy"
     canopy.data.name = "Tree_Canopy"
     
-    # Triangulate and flat shade
     bpy.ops.object.mode_set(mode='EDIT')
     bpy.ops.mesh.quads_convert_to_tris(quad_method='BEAUTY', ngon_method='BEAUTY')
     bpy.ops.object.mode_set(mode='OBJECT')
     set_flat_shading(canopy)
     
-    # Vertex colors: Vertical gradient RGB (#568235 at base to #c5e063 at top-left sun direction)
-    # Alpha = 0.0 at center to 1.0 at outer tips
     c_attr = canopy.data.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
     canopy.data.color_attributes.active_color_name = "AlbedoCol"
     
     col_base = Vector((0.337, 0.510, 0.208)) # #568235
     col_top = Vector((0.773, 0.878, 0.388))  # #c5e063
-    
     sun_dir = Vector((-0.707, 0.5, 0.8)).normalized()
     
     for poly in canopy.data.polygons:
@@ -220,43 +198,50 @@ def create_tree():
             v_idx = canopy.data.loops[loop_idx].vertex_index
             v_pos = canopy.data.vertices[v_idx].co
             
-            # Vertical height factor (z from ~0.8 to ~3.3)
-            z_norm = (v_pos.z - 0.8) / 2.5
-            z_norm = max(0.0, min(1.0, z_norm))
-            
-            # Sun bias towards top-left
+            z_norm = max(0.0, min(1.0, (v_pos.z - 0.8) / 2.5))
             dir_dot = max(0.0, v_pos.normalized().dot(sun_dir))
             t = max(0.0, min(1.0, z_norm * 0.75 + dir_dot * 0.35))
-            
             rgb = col_base.lerp(col_top, t)
             
-            # Wind alpha: 0.0 at center, 1.0 at outer tips
             dist_xy = Vector((v_pos.x, v_pos.y)).length
             alpha = max(0.0, min(1.0, (dist_xy / 1.1) * z_norm))
-            
             c_attr.data[loop_idx].color = (rgb.x, rgb.y, rgb.z, alpha)
             
     return trunk, canopy
 
 def create_ruin_pillar(name, pos, height, has_capital=True):
-    # Stacked beveled blocks 1x1m with protruding bricks and top capital
+    # Pilares estendidos até o fundo do lago (Z = -0.65m no Blender)
+    # Base submersa de fundação: Z de -0.65 até 0.0 (0.65m de altura)
     bm = bmesh.new()
     
-    # Base block: 0.9x0.9 x 0.5
-    bmesh.ops.create_cube(bm, size=1.0)
-    for v in bm.verts:
+    # 1. Bloco de fundação submerso: de Z = -0.65 até Z = 0.0 (1.0x1.0m)
+    bm_sub = bmesh.new()
+    bmesh.ops.create_cube(bm_sub, size=1.0)
+    for v in bm_sub.verts:
+        v.co.x *= 1.0
+        v.co.y *= 1.0
+        v.co.z = v.co.z * 0.65 - 0.325 # Z de -0.65 a 0.0
+    for f in bm_sub.faces:
+        bm.faces.new([bm.verts.new(v.co) for v in f.verts])
+    bm_sub.free()
+
+    # 2. Base emersa logo acima da água: de Z = 0.0 até Z = 0.5 (0.9x0.9m)
+    bm_base = bmesh.new()
+    bmesh.ops.create_cube(bm_base, size=1.0)
+    for v in bm_base.verts:
         v.co.x *= 0.9
         v.co.y *= 0.9
-        v.co.z = v.co.z * 0.5 + 0.25
+        v.co.z = v.co.z * 0.5 + 0.25 # Z de 0.0 a 0.5
+    for f in bm_base.faces:
+        bm.faces.new([bm.verts.new(v.co) for v in f.verts])
+    bm_base.free()
         
-    # Stack central shaft blocks up to height
+    # 3. Fuste central modular: de Z = 0.5 até (height - 0.4)
     z_cur = 0.5
     shaft_w = 0.7
     block_h = 0.45
-    
     step_idx = 0
     while z_cur + block_h <= (height - 0.4 if has_capital else height):
-        # Add a block with slight random brick protrusion (+/- 0.06m)
         offset_x = (0.06 if step_idx % 2 == 0 else -0.05)
         offset_y = (-0.05 if step_idx % 3 == 0 else 0.06)
         
@@ -266,8 +251,6 @@ def create_ruin_pillar(name, pos, height, has_capital=True):
             v.co.x = v.co.x * shaft_w + offset_x * 0.4
             v.co.y = v.co.y * shaft_w + offset_y * 0.4
             v.co.z = v.co.z * block_h + z_cur + block_h * 0.5
-        bm_block.to_mesh(bpy.data.meshes.new("temp"))
-        # Merge into bm
         for f in bm_block.faces:
             bm.faces.new([bm.verts.new(v.co) for v in f.verts])
         bm_block.free()
@@ -275,7 +258,7 @@ def create_ruin_pillar(name, pos, height, has_capital=True):
         z_cur += block_h
         step_idx += 1
         
-    # Capital block at top: 1.1x1.1x0.4m with L-notch
+    # 4. Capitel no topo: 1.1x1.1x0.4m
     if has_capital:
         bm_cap = bmesh.new()
         bmesh.ops.create_cube(bm_cap, size=1.0)
@@ -292,34 +275,42 @@ def create_ruin_pillar(name, pos, height, has_capital=True):
     bm.free()
     
     obj = bpy.data.objects.new(name, mesh)
+    obj.data.name = name
     bpy.context.collection.objects.link(obj)
     obj.location = pos
     
     set_flat_shading(obj)
     
-    # Vertex color: #b8b2a6 on top, #78757a on sides
     attr = mesh.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
     mesh.color_attributes.active_color_name = "AlbedoCol"
     
     top_col = hex_to_rgb("#b8b2a6")
     side_col = hex_to_rgb("#78757a")
+    sub_col = hex_to_rgb("#4e4b52") # Pedra úmida submersa
     
     for poly in mesh.polygons:
         poly.use_smooth = False
         is_top = (poly.normal.z > 0.5)
         for loop_idx in poly.loop_indices:
-            attr.data[loop_idx].color = top_col if is_top else side_col
+            v_idx = mesh.loops[loop_idx].vertex_index
+            z = mesh.vertices[v_idx].co.z
+            if is_top:
+                attr.data[loop_idx].color = top_col
+            elif z < 0.0:
+                attr.data[loop_idx].color = sub_col
+            else:
+                attr.data[loop_idx].color = side_col
             
     return obj
 
 def create_submerged_debris():
     debris_coords = [
-        Vector((-4.5, -2.5, -0.15)),
-        Vector((-4.2, -2.7, -0.18)),
-        Vector((2.5, -3.2, -0.18)),
-        Vector((2.8, -3.0, -0.16)),
-        Vector((1.8, -3.5, -0.15)),
-        Vector((1.5, -3.3, -0.17))
+        Vector((-4.5, -2.5, -0.45)),
+        Vector((-4.2, -2.7, -0.48)),
+        Vector((2.5, -3.2, -0.48)),
+        Vector((2.8, -3.0, -0.46)),
+        Vector((1.8, -3.5, -0.45)),
+        Vector((1.5, -3.3, -0.47))
     ]
     
     bm = bmesh.new()
@@ -332,8 +323,7 @@ def create_submerged_debris():
         for v in bm_block.verts:
             vx = v.co.x * 0.4
             vy = v.co.y * 0.4
-            vz = v.co.z * 0.2
-            # Rotate around Z
+            vz = v.co.z * 0.25
             rx = vx * cos_r - vy * sin_r + c.x
             ry = vx * sin_r + vy * cos_r + c.y
             rz = vz + c.z
@@ -347,13 +337,14 @@ def create_submerged_debris():
     bm.free()
     
     obj = bpy.data.objects.new("Ruin_Debris_Submerged", mesh)
+    obj.data.name = "Ruin_Debris_Submerged"
     bpy.context.collection.objects.link(obj)
     set_flat_shading(obj)
     
     attr = mesh.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
     mesh.color_attributes.active_color_name = "AlbedoCol"
-    top_col = hex_to_rgb("#b8b2a6")
-    side_col = hex_to_rgb("#78757a")
+    top_col = hex_to_rgb("#78757a")
+    side_col = hex_to_rgb("#4e4b52")
     for poly in mesh.polygons:
         poly.use_smooth = False
         is_top = (poly.normal.z > 0.5)
@@ -362,43 +353,55 @@ def create_submerged_debris():
     return obj
 
 def create_faceted_rock(name, pos, scale, rot_z_deg=0.0):
-    # Faceted beveled pyramid/cone style rock (Shade Flat)
-    # Upper vertices #7c8288, bottom vertices near water #3b4048
+    # Rochas estendidas até Z = -0.65m para tocarem o leito do lago
+    # Criamos o cone com base estendida para baixo
+    total_height = scale[2] * 1.5 + 0.70 # Altura estendida
+    z_center = pos[2] - 0.35            # Centro deslocado para baixo
+    
     bpy.ops.mesh.primitive_cone_add(
         vertices=7,
         radius1=1.0,
         radius2=0.35,
-        depth=1.5,
+        depth=total_height,
         location=(0, 0, 0)
     )
     obj = bpy.context.active_object
     obj.name = name
     obj.data.name = name
     
-    # Scale and apply
-    obj.scale = scale
+    obj.scale = (scale[0], scale[1], 1.0)
     obj.rotation_euler.z = math.radians(rot_z_deg)
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-    obj.location = pos
-    bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
     
+    # Ajusta os vértices da base para garantir que toquem Z = -0.65m
     mesh = obj.data
+    for v in mesh.vertices:
+        v.co.x += pos[0]
+        v.co.y += pos[1]
+        v.co.z += z_center
+        if v.co.z < -0.65:
+            v.co.z = -0.65
+            
     set_flat_shading(obj)
     
     attr = mesh.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
     mesh.color_attributes.active_color_name = "AlbedoCol"
     
     top_col = Vector(hex_to_rgb("#7c8288")[:3])
-    bot_col = Vector(hex_to_rgb("#3b4048")[:3])
+    water_col = Vector(hex_to_rgb("#3b4048")[:3])
+    sub_col = Vector(hex_to_rgb("#23272e")[:3]) # Fundo escuro submerso
     
-    # Color gradient based on local Z
     for poly in mesh.polygons:
         poly.use_smooth = False
         for loop_idx in poly.loop_indices:
             v_idx = mesh.loops[loop_idx].vertex_index
             z = mesh.vertices[v_idx].co.z
-            factor = max(0.0, min(1.0, (z - pos[2] + 0.3) / (scale[2] * 1.5)))
-            rgb = bot_col.lerp(top_col, factor)
+            if z < 0.0:
+                factor = max(0.0, min(1.0, (z + 0.65) / 0.65))
+                rgb = sub_col.lerp(water_col, factor)
+            else:
+                factor = max(0.0, min(1.0, z / (scale[2] * 1.5)))
+                rgb = water_col.lerp(top_col, factor)
             attr.data[loop_idx].color = (rgb.x, rgb.y, rgb.z, 1.0)
             
     return obj
@@ -420,22 +423,17 @@ def create_grass_tufts():
     tuft_col = Vector(hex_to_rgb("#88d47e")[:3])
     
     for c in tuft_coords:
-        # Create 4 blades per tuft with outward spread
         for b_idx in range(4):
             angle = b_idx * (math.pi / 2.0) + 0.2
             dx = math.cos(angle)
             dy = math.sin(angle)
             
-            # Root
             v0 = bm.verts.new(c + Vector((-dy * blade_w, dx * blade_w, 0.0)))
             v1 = bm.verts.new(c + Vector((dy * blade_w, -dx * blade_w, 0.0)))
-            # Mid
             v2 = bm.verts.new(c + Vector((-dy * blade_w * 0.8 + dx * 0.08, dx * blade_w * 0.8 + dy * 0.08, blade_h * 0.5)))
             v3 = bm.verts.new(c + Vector((dy * blade_w * 0.8 + dx * 0.08, -dx * blade_w * 0.8 + dy * 0.08, blade_h * 0.5)))
-            # Tip
             v4 = bm.verts.new(c + Vector((dx * 0.18, dy * 0.18, blade_h)))
             
-            # Faces
             bm.faces.new([v0, v1, v3, v2])
             bm.faces.new([v2, v3, v4])
             
@@ -444,6 +442,7 @@ def create_grass_tufts():
     bm.free()
     
     obj = bpy.data.objects.new("Grass_Tuft", mesh)
+    obj.data.name = "Grass_Tuft"
     bpy.context.collection.objects.link(obj)
     set_flat_shading(obj)
     
@@ -461,24 +460,24 @@ def create_grass_tufts():
     return obj
 
 def main():
-    print("Iniciando geração da cena lago_ruinas.glb...")
+    print("Iniciando geração da cena lago_ruinas.glb refinada...")
     clear_scene()
     
-    # 1. Água e Leito do Lago
+    # 1. Água e Leito do Lago (uniforme, sem manchas falsas)
     water = create_water_surface()
     riverbed = create_riverbed()
     
-    # 2. Ilha Central e Árvore
+    # 2. Ilha Central e Árvore (ilha estendida até Z = -0.65m)
     island = create_soil_island()
     trunk, canopy = create_tree()
     
-    # 3. Pilares das Ruínas
+    # 3. Pilares das Ruínas (estendidos com fundações submersas até Z = -0.65m)
     pillar_sw = create_ruin_pillar("Ruin_Pillar_SW", (-3.2, -1.8, 0.0), 2.6, has_capital=True)
     pillar_ne = create_ruin_pillar("Ruin_Pillar_NE", (3.1, 2.2, 0.0), 2.8, has_capital=True)
     pillar_nw = create_ruin_pillar("Ruin_Pillar_NW", (-5.2, 3.4, 0.0), 2.5, has_capital=True)
     debris = create_submerged_debris()
     
-    # 4. Rochas Facetadas
+    # 4. Rochas Facetadas (estendidas até Z = -0.65m)
     rocks = [
         create_faceted_rock("Rock_Center_Front", (0.35, -1.35, 0.05), (0.75, 0.65, 0.85), rot_z_deg=25.0),
         create_faceted_rock("Rock_Center_Small", (1.25, -1.20, 0.02), (0.35, 0.35, 0.40)),

@@ -34,7 +34,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.12, 0.10, 0.24, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
-				mat.set_shader_parameter("dither_spread", 0.12)
+				mat.set_shader_parameter("dither_spread", 0.0)
 				mat.set_shader_parameter("wind_strength", 0.35)
 				mat.set_shader_parameter("wind_speed", 2.2)
 				child.material_override = mat
@@ -70,7 +70,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.15, 0.12, 0.28, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
-				mat.set_shader_parameter("dither_spread", 0.12)
+				mat.set_shader_parameter("dither_spread", 0.0)
 				child.material_override = mat
 
 		if child.get_child_count() > 0:

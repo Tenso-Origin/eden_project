@@ -3,19 +3,18 @@ render_mode diffuse_toon, specular_disabled, cull_disabled;
 
 // Shader de Folhagem e Grama Pixel-Art (David Holland Normal Trick)
 // Modificado com NORMAL = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
-// para que as lâminas herdem a iluminação suave do terreno, recebendo contorno apenas nas pontas.
+// Transição de iluminação limpa com smoothstep sem ruído xadrez.
 
 uniform vec4 albedo_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform sampler2D albedo_texture : source_color, filter_nearest, hint_default_white;
 uniform vec4 shadow_tint : source_color = vec4(0.12, 0.10, 0.24, 1.0);
 uniform int light_bands : hint_range(2, 6) = 3;
-uniform float dither_spread : hint_range(0.0, 0.5) = 0.12;
+uniform float dither_spread : hint_range(0.0, 0.5) = 0.0;
 
 group_uniforms WindAnimation;
 uniform float wind_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float wind_speed : hint_range(0.5, 6.0) = 2.5;
 
-// Matriz de Bayer 4x4 normalizada
 float bayer4x4(vec2 screen_pos) {
 	int x = int(mod(screen_pos.x, 4.0));
 	int y = int(mod(screen_pos.y, 4.0));
@@ -29,7 +28,6 @@ float bayer4x4(vec2 screen_pos) {
 }
 
 void vertex() {
-	// Balanço do vento usando o peso no canal Alpha de COLOR (0.0 na raiz, 1.0 nas pontas)
 	float phase = VERTEX.x * 4.0 + VERTEX.z * 3.0;
 	float sway = sin(TIME * wind_speed + phase) * wind_strength * 0.09 * COLOR.a;
 	VERTEX.x += sway;
@@ -39,7 +37,6 @@ void vertex() {
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
 	
-	// Gradiente vertical sutil da raiz para a ponta
 	vec3 height_tint = mix(vec3(0.78, 0.88, 0.72), vec3(1.12, 1.18, 0.95), clamp(COLOR.a, 0.0, 1.0));
 	ALBEDO = albedo_color.rgb * tex.rgb * COLOR.rgb * height_tint;
 
@@ -51,9 +48,18 @@ void light() {
 	float NdotL = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
 	float raw_light = NdotL * ATTENUATION;
 
-	float dither = bayer4x4(FRAGCOORD.xy) * dither_spread;
-	float stepped_light = floor((raw_light + dither) * float(light_bands)) / float(light_bands - 1);
-	stepped_light = clamp(stepped_light, 0.0, 1.0);
+	float bands = float(max(1, light_bands - 1));
+	float scaled_light = raw_light * bands;
+	float base_band = floor(scaled_light);
+	float frac = scaled_light - base_band;
+	
+	float smoothed = smoothstep(0.35, 0.65, frac);
+	float stepped_light = clamp((base_band + smoothed) / bands, 0.0, 1.0);
+
+	if (dither_spread > 0.0) {
+		float dither = bayer4x4(FRAGCOORD.xy) * dither_spread;
+		stepped_light = clamp(stepped_light + dither, 0.0, 1.0);
+	}
 
 	vec3 shaded_color = mix(ALBEDO * shadow_tint.rgb, ALBEDO * LIGHT_COLOR / PI, stepped_light);
 	DIFFUSE_LIGHT += shaded_color;

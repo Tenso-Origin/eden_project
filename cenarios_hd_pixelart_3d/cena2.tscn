@@ -1,5 +1,6 @@
-[gd_scene load_steps=11 format=3 uid="uid://d2k4m7v8pixel2"]
+[gd_scene load_steps=12 format=3 uid="uid://d2k4m7v8pixel2"]
 
+[ext_resource type="Script" path="res://main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]
 [ext_resource type="Script" path="res://camera_pivot_controller.gd" id="2_pivot"]
 [ext_resource type="Script" path="res://pixel_camera.gd" id="3_camera"]
@@ -38,6 +39,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_main")
 
 [node name="SubViewport" type="SubViewport" parent="."]
 handle_input_locally = false
@@ -64,7 +66,7 @@ script = ExtResource("5_loader_v2")
 [node name="CameraPivot" type="Node3D" parent="SubViewport/World3D"]
 transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0.15, 0.4, 0)
 script = ExtResource("2_pivot")
-move_speed = 4.0
+move_speed = 6.0
 
 [node name="Camera3D" type="Camera3D" parent="SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("display_item")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 15)
@@ -90,6 +92,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+mouse_filter = 2
 texture = SubResource("ViewportTexture_main")
 expand_mode = 1
 stretch_mode = 5

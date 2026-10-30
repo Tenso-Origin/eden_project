@@ -25,3 +25,4 @@ func _input(event: InputEvent) -> void:
 				else:
 					DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 				get_viewport().set_input_as_handled()
+

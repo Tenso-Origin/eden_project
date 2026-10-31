@@ -106,4 +106,3 @@ mouse_filter = 2
 texture = SubResource("ViewportTexture_main")
 expand_mode = 1
 stretch_mode = 5
-

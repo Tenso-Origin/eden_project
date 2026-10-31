@@ -66,9 +66,22 @@ def create_sand_riverbed():
     start_x = -grid_w / 2.0
     start_y = -grid_d / 2.0
     
-    # Paleta de areia uniforme com sutil gradiente vertical de profundidade (sem manchas estáticas)
-    sand_top = Vector(hex_to_rgb("#d8be8a")[:3])
-    sand_side = Vector(hex_to_rgb("#c4a974")[:3])
+    # Pontos de sombra sob as ruínas e ilha para tingimento escuro de areia
+    shadow_centers = [
+        Vector((0.0, 0.0)),     # Ilha
+        Vector((-3.2, -1.8)),   # Pilar SW
+        Vector((3.1, 2.2)),     # Pilar NE
+        Vector((-5.2, 3.4)),    # Pilar NW
+        Vector((-1.65, 1.45)),  # Rocha NW
+        Vector((1.55, 1.45))    # Rocha NE
+    ]
+    shadow_radii = [2.2, 1.5, 1.5, 1.5, 1.3, 1.3]
+    
+    # Paleta de areia
+    sand_base = Vector(hex_to_rgb("#d4ba85")[:3])
+    sand_light = Vector(hex_to_rgb("#e3cc96")[:3])
+    sand_wet = Vector(hex_to_rgb("#b89d6c")[:3])
+    sand_shadow = Vector(hex_to_rgb("#7a6542")[:3])
     
     block_size = 1.0
     block_h = 1.0 # 1m de altura (Z de -2.0 a -1.0)
@@ -134,16 +147,24 @@ def create_sand_riverbed():
             poly_center += mesh.vertices[v_idx].co
         poly_center /= float(len(poly.loop_indices))
         
-        # Leve variação textural de areia (mosaico suave de 2% para cel-shading)
+        # Fator de sombra
+        c_2d = Vector((poly_center.x, poly_center.y))
+        shadow_weight = 0.0
+        for sc, sr in zip(shadow_centers, shadow_radii):
+            dist = (c_2d - sc).length
+            if dist < sr:
+                shadow_weight = max(shadow_weight, 1.0 - (dist / sr))
+        
+        # Variação pseudo-aleatória sutil por face (mosaico pixel art)
         hash_val = math.sin(poly_center.x * 12.9898 + poly_center.y * 78.233) * 43758.5453
-        tint_noise = (hash_val - math.floor(hash_val)) * 0.04 - 0.02
+        tint_noise = (hash_val - math.floor(hash_val)) * 0.14 - 0.07
         
-        # Gradiente vertical suave entre face lateral e face superior (sem manchas estáticas)
-        z_norm = (poly_center.z - bot_z) / max(0.1, (top_z - bot_z))
-        z_norm = max(0.0, min(1.0, z_norm))
-        
-        base_color = sand_side.lerp(sand_top, z_norm) if is_top else sand_side
-        col = base_color + Vector((tint_noise, tint_noise, tint_noise))
+        if is_top:
+            col = sand_base.lerp(sand_light, 0.3 + tint_noise)
+            if shadow_weight > 0.0:
+                col = col.lerp(sand_shadow, shadow_weight * 0.85)
+        else:
+            col = sand_wet.lerp(sand_shadow, 0.4 + shadow_weight * 0.4)
             
         for loop_idx in poly.loop_indices:
             attr.data[loop_idx].color = (col.x, col.y, col.z, 1.0)

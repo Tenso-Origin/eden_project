@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://d027d531ale4y"]
+[gd_scene load_steps=12 format=3 uid="uid://c7m9x4k3cena23"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]
@@ -106,4 +106,3 @@ mouse_filter = 2
 texture = SubResource("ViewportTexture_main")
 expand_mode = 1
 stretch_mode = 5
-

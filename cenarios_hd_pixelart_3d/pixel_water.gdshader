@@ -4,6 +4,7 @@ render_mode unshaded, cull_disabled, depth_draw_always;
 // Shader de Água HD Pixel Art 3D com Lei da Reflexão Planar Óptica de Superfície (David Holland Architecture)
 // Suporta reflexos Screen-Space ancorados que orbitam em 360° com a câmera (Y-Up),
 // corte físico por nível de água (Y > water_y), reflexo situado NA SUPERFÍCIE DA ÁGUA (sobre o leito e cáusticas),
+// escala rigorosa do tamanho do reflexo pela altura do objeto exposto acima da água (pedras pequenas = reflexos curtos),
 // variação dinâmica viva com o movimento e ondulações da superfície, e anéis de espuma de profundidade linear.
 
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
@@ -110,8 +111,7 @@ void fragment() {
 		float caustic_band = step(0.72, v_wave);
 		float specular_glint = step(specular_glint_threshold, v_wave);
 		
-		// 4. Reflexo Planar Óptico na SUPERFÍCIE com Variação Dinâmica de Movimento
-		// Vetor de subida de 1m no eixo vertical (Y-Up) projetado no espaço de tela (SCREEN_UV)
+		// 4. Reflexo Planar Óptico na SUPERFÍCIE com Escala Proporcional à Altura Exposta
 		vec4 clip_curr = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos, 1.0);
 		vec4 clip_up = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos + vec3(0.0, 1.0, 0.0), 1.0);
 		vec2 uv_curr = (clip_curr.xy / clip_curr.w) * 0.5 + 0.5;
@@ -133,9 +133,11 @@ void fragment() {
 		vec3 reflected_scene = vec3(0.0);
 		float reflection_weight = 0.0;
 		
-		// Marcha em 20 passos de 0.22m (alcance de até 4.4m acima do nível da água)
-		for (int step_idx = 1; step_idx <= 20; step_idx++) {
-			float h = float(step_idx) * 0.22;
+		// Marcha progressiva em 24 passos: granularidade fina perto da superfície (~0.07m) para capturar
+		// pedras rasas, expandindo suavemente até 4.8m para refletir árvores e colunas altas
+		for (int step_idx = 1; step_idx <= 24; step_idx++) {
+			float t = float(step_idx) / 24.0;
+			float h = t * t * 3.2 + t * 1.6;
 			vec2 sample_uv = SCREEN_UV + screen_up_per_meter * h + pixel_wave_distortion;
 			
 			if (sample_uv.x < 0.005 || sample_uv.x > 0.995 || sample_uv.y < 0.005 || sample_uv.y > 0.995) {
@@ -148,19 +150,35 @@ void fragment() {
 			sample_view.xyz /= sample_view.w;
 			vec3 sample_world_pos = (INV_VIEW_MATRIX * vec4(sample_view.xyz, 1.0)).xyz;
 			
-			// Condição de Espelho Real de Superfície:
-			// 1. O ponto amostrado está ACIMA da água: sample_world_pos.y > v_world_pos.y + 0.03
-			// 2. A altura real do objeto intercepta o raio óptico com modulação pela onda da superfície
-			// 3. O ponto está mais ao fundo no view space que o fragmento da água
+			// Altura real da geometria física acima da superfície da água
 			float obj_h = sample_world_pos.y - v_world_pos.y;
-			float wave_h_mod = wave_curr * wave_height * 3.5;
+			
+			// Descarta pontos submersos
+			if (obj_h <= 0.02) {
+				continue;
+			}
+			
+			// REGRA ÓPTICA DE ALCANCE POR ALTURA EXPOSTA:
+			// O alcance do reflexo na superfície da água é rigorosamente limitado pela altura do objeto exposto acima da água.
+			// Objetos menores (ex: pontas de pedras de 0.05m a 0.15m) não projetam reflexos além de sua silhueta física.
+			if (h > obj_h * 2.2 + 0.15) {
+				continue;
+			}
+			
+			// Tolerância proporcional à altura exposta (evita reflexos desproporcionais em objetos baixos)
+			float max_tol = max(0.045, obj_h * 0.35);
+			float wave_h_mod = wave_curr * wave_height * 2.5;
 			float expected_h = h * 0.5 + wave_h_mod;
 			
-			if (obj_h > 0.03 && abs(obj_h - expected_h) < 0.55 && sample_view.z < VERTEX.z + 0.25) {
+			if (abs(obj_h - expected_h) < max_tol && sample_view.z < VERTEX.z + 0.25) {
 				reflected_scene = texture(screen_texture, sample_uv).rgb;
-				float falloff = 1.0 - (float(step_idx) / 20.0) * 0.25;
-				reflection_weight = clamp(reflection_strength * 1.65 * falloff, 0.0, 0.82);
-				break; // Interrompe no primeiro hit para impedir duplicação / espelho infinito
+				
+				// Intensidade proporcional: pontas de pedra têm reflexos suaves e contidos na sua borda;
+				// estruturas altas têm reflexos ricos e dominantes
+				float height_scale = clamp(obj_h / 0.35, 0.30, 1.0);
+				float falloff = 1.0 - t * 0.30;
+				reflection_weight = clamp(reflection_strength * 1.65 * falloff * height_scale, 0.0, 0.82);
+				break; // Interrompe no primeiro hit válido
 			}
 		}
 		

@@ -77,7 +77,6 @@ func setup_materials(root: Node) -> void:
 				mat.shader = SHADER_WATER
 				mat.set_shader_parameter("shallow_color", Color(0.18, 0.68, 0.82, 0.88))
 				mat.set_shader_parameter("deep_color", Color(0.10, 0.42, 0.62, 0.95))
-				mat.set_shader_parameter("foam_color", Color(1.0, 1.0, 1.0))
 				mat.set_shader_parameter("depth_fade_distance", 0.75)
 				mat.set_shader_parameter("pixel_grid_density", 52.0)
 				mat.set_shader_parameter("wave_speed", 2.0)

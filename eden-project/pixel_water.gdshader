@@ -1,9 +1,9 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_always;
 
-// Shader de Água com Volume Diorama, Ondulações e Espuma de Borda (David Holland)
-// Suporta tanto a superfície superior (com anéis de espuma e ondas)
-// quanto as paredes laterais do bloco de água (volume diorama translúcido).
+// Shader de Água HD Pixel Art 3D com Lei da Reflexão Planar Óptica (David Holland Architecture)
+// Suporta reflexos Screen-Space ancorados que orbitam em 360° com a câmera (Y-Up),
+// corte físico por nível de água (Y > water_y), ondulações Voronoi e anéis de espuma de profundidade linear.
 
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
 uniform sampler2D depth_texture : hint_depth_texture, repeat_disable, filter_nearest;
@@ -12,18 +12,18 @@ group_uniforms WaterColors;
 uniform vec4 shallow_color : source_color = vec4(0.20, 0.72, 0.78, 0.85);
 uniform vec4 deep_color : source_color = vec4(0.06, 0.22, 0.44, 0.92);
 uniform vec3 foam_color : source_color = vec3(1.0, 1.0, 1.0); // Espuma branca 100% opaca
-uniform float depth_fade_distance : hint_range(0.1, 5.0) = 0.65;
+uniform float depth_fade_distance : hint_range(0.1, 5.0) = 0.75;
 
 group_uniforms RipplesAndWaves;
-uniform float pixel_grid_density : hint_range(8.0, 64.0) = 32.0; // Texels por metro
+uniform float pixel_grid_density : hint_range(8.0, 128.0) = 52.0; // Texels por metro
 uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float wave_height : hint_range(0.0, 0.1) = 0.02;
-uniform float shoreline_foam_dist : hint_range(0.05, 1.0) = 0.35;
+uniform float shoreline_foam_dist : hint_range(0.05, 1.0) = 0.32;
 uniform int shoreline_ripple_rings : hint_range(1, 5) = 3;
 
-group_uniforms MirrorReflection;
+group_uniforms ScreenSpaceReflection;
 uniform float reflection_strength : hint_range(0.0, 1.0) = 0.35;
-uniform float reflection_distortion_px : hint_range(0.0, 6.0) = 2.0;
+uniform float reflection_distortion_px : hint_range(0.0, 6.0) = 1.5;
 uniform float specular_glint_threshold : hint_range(0.5, 0.99) = 0.88;
 
 varying vec3 v_world_pos;
@@ -68,7 +68,7 @@ void fragment() {
 	vec2 texel_size = 1.0 / VIEWPORT_SIZE;
 	bool is_top = v_world_normal.y > 0.5;
 	
-	// Refração do fundo através do screen_texture
+	// Refração sutil do fundo através da screen_texture
 	vec2 pixel_wave_offset = round(vec2(
 		sin(v_world_pos.z * 16.0 + TIME * wave_speed * 2.0),
 		cos(v_world_pos.x * 16.0 + TIME * wave_speed * 1.5)
@@ -82,7 +82,7 @@ void fragment() {
 		vec2 world_xz_snapped = floor(v_world_pos.xz * pixel_grid_density) / pixel_grid_density;
 		vec2 animated_xz = world_xz_snapped - flow_dir * (TIME * 0.25);
 		
-		// 1. Reconstrução de Profundidade Linear
+		// 1. Reconstrução de Profundidade Linear do Fundo
 		float bg_depth_raw = texture(depth_texture, SCREEN_UV).r;
 		vec3 bg_ndc = vec3(SCREEN_UV * 2.0 - 1.0, bg_depth_raw);
 		vec4 bg_view = INV_PROJECTION_MATRIX * vec4(bg_ndc, 1.0);
@@ -90,9 +90,9 @@ void fragment() {
 		
 		float water_depth = max(0.0, VERTEX.z - bg_view.z);
 		float depth_factor = clamp(water_depth / depth_fade_distance, 0.0, 1.0);
-		float stepped_depth = floor(depth_factor * 4.0) / 4.0;
+		float stepped_depth = floor(depth_factor * 5.0) / 5.0;
 		
-		// 2. Ondulações concêntricas de espuma ao redor da rocha e da margem
+		// 2. Ondulações concêntricas de espuma ao redor da rocha e margens
 		float foam_mask = 0.0;
 		if (water_depth < shoreline_foam_dist && water_depth > 0.001) {
 			float norm_shore = water_depth / shoreline_foam_dist;
@@ -103,17 +103,63 @@ void fragment() {
 			foam_mask = clamp(ring_step + edge_solid, 0.0, 1.0);
 		}
 		
-		// 3. Ondas Voronoi e Reflexo
+		// 3. Ondas Voronoi e Glints Especulares
 		float v_wave = voronoi_wave(animated_xz * 3.5, TIME);
 		float caustic_band = step(0.72, v_wave);
 		float specular_glint = step(specular_glint_threshold, v_wave);
 		
-		vec2 mirror_uv = clamp(vec2(SCREEN_UV.x, 1.0 - SCREEN_UV.y) + pixel_wave_offset, texel_size, 1.0 - texel_size);
-		vec3 reflected_scene = texture(screen_texture, mirror_uv).rgb;
+		// 4. Reflexo Planar Óptico com Projeção na Direção da Câmera (+Camera_Forward_XZ)
+		// Vetor de subida de 1m no eixo vertical (Y-Up) projetado no espaço de tela (SCREEN_UV)
+		vec4 clip_curr = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos, 1.0);
+		vec4 clip_up = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos + vec3(0.0, 1.0, 0.0), 1.0);
+		vec2 uv_curr = (clip_curr.xy / clip_curr.w) * 0.5 + 0.5;
+		vec2 uv_up = (clip_up.xy / clip_up.w) * 0.5 + 0.5;
+		vec2 screen_up_per_meter = uv_up - uv_curr;
 		
+		float ripple_phase = (v_world_pos.x + v_world_pos.z) * 10.0 + TIME * wave_speed * 1.5;
+		float ripple_x = sin(ripple_phase) * (reflection_distortion_px * texel_size.x);
+		
+		vec3 reflected_scene = vec3(0.0);
+		float reflection_weight = 0.0;
+		
+		// Marcha em 12 passos de 0.18m a 2.34m acima do nível da água
+		for (int step_idx = 1; step_idx <= 12; step_idx++) {
+			float h = float(step_idx) * 0.18;
+			vec2 sample_uv = SCREEN_UV + screen_up_per_meter * h + vec2(ripple_x, 0.0);
+			
+			if (sample_uv.x < 0.005 || sample_uv.x > 0.995 || sample_uv.y < 0.005 || sample_uv.y > 0.995) {
+				break;
+			}
+			
+			float sample_depth = texture(depth_texture, sample_uv).r;
+			vec3 sample_ndc = vec3(sample_uv * 2.0 - 1.0, sample_depth);
+			vec4 sample_view = INV_PROJECTION_MATRIX * vec4(sample_ndc, 1.0);
+			sample_view.xyz /= sample_view.w;
+			vec3 sample_world_pos = (INV_VIEW_MATRIX * vec4(sample_view.xyz, 1.0)).xyz;
+			
+			// Condição de Espelho Real:
+			// 1. O ponto amostrado está acima da água: sample_world_pos.y > v_world_pos.y + 0.03
+			// 2. A altura real do objeto intercepta o raio espelhado: abs((sample_world_pos.y - v_world_pos.y) - (h * 0.5)) < 0.35
+			// 3. O ponto está mais ao fundo no view space que o pixel da água: sample_view.z < VERTEX.z + 0.25
+			float obj_h = sample_world_pos.y - v_world_pos.y;
+			float expected_h = h * 0.5;
+			
+			if (obj_h > 0.03 && abs(obj_h - expected_h) < 0.35 && sample_view.z < VERTEX.z + 0.25) {
+				reflected_scene = texture(screen_texture, sample_uv).rgb;
+				reflection_weight = reflection_strength;
+				break; // Interrompe no primeiro hit para impedir duplicação / espelho infinito
+			}
+		}
+		
+		// 5. Composição de Cor da Água
 		vec4 base_water = mix(shallow_color, deep_color, stepped_depth);
 		vec3 water_composite = mix(refracted_bg, base_water.rgb, base_water.a);
-		water_composite = mix(water_composite, reflected_scene, reflection_strength * (0.5 + 0.5 * stepped_depth));
+		
+		// Aplica reflexo óptico ancorado se houver interseção
+		if (reflection_weight > 0.0) {
+			water_composite = mix(water_composite, reflected_scene, reflection_weight);
+		}
+		
 		water_composite = mix(water_composite, shallow_color.rgb * 1.25, caustic_band * 0.35);
 		
 		// A espuma branca é 100% opaca e brilhante
@@ -122,7 +168,6 @@ void fragment() {
 		ALPHA = 0.92;
 	} else {
 		// --- FACES LATERAIS DO VOLUME DIORAMA (Aquário em corte) ---
-		// Mostra a água em corte vertical com azul profundo translúcido
 		vec3 side_color = mix(deep_color.rgb * 0.75, deep_color.rgb, clamp(v_world_pos.y / 0.85, 0.0, 1.0));
 		ALBEDO = mix(refracted_bg, side_color, 0.65);
 		ALPHA = 0.82;

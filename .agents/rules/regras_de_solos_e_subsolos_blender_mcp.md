@@ -115,3 +115,80 @@ def create_stratified_soil_tile(name="Soil_Grass_Block_1m", has_grass_cap=True):
             
     return obj
 ```
+
+---
+
+## 6. Sistema Multi-Angular (15°, 30°, 45°, 60° e 75°) em Grid 1x1x1m
+
+Para evitar fatiar o bloco de `1x1x1m` em micro-cubos (voxels) e ainda assim permitir inclinações suaves (`15°`, `30°`), médias (`45°`) e paredões íngremes (`60°`, `75°`) estilo *Valheim*, todos os blocos de terreno e subsolo devem obedecer à **Grade de Quantização de Quarto de Metro (`0.25m` Snap Step)** nas bordas do bloco de `1x1x1m`:
+
+### A. Tabela de Perfis de Inclinação (Dentro do Volume 1x1x1m)
+Nunca fatie o bloco em cubinhos menores. Modifique apenas a altura (`Z` no Blender / `Y` no Godot) ou o recuo horizontal (`X`/`Y`) dos loops da malha de `1x1x1m`:
+
+1. **Rampa de 15° (`Slope_15deg` - Subida de `0.25m` por bloco)**:
+   - Ocupa `1.0m x 1.0m` na base. Sobe `0.25m` por metro horizontal.
+   - Para vencer `1.0m` de altura completa, o kit usa 4 peças encadeadas (ou alturas de base `0.0->0.25m`, `0.25->0.50m`, `0.50->0.75m`, `0.75->1.00m`).
+2. **Rampa de 30° (`Slope_30deg` - Subida de `0.50m` por bloco)**:
+   - Ocupa `1.0m x 1.0m` na base. Sobe `0.50m` por metro horizontal.
+   - Usa 2 peças encadeadas para vencer `1.0m` de altura (`0.0->0.50m` e `0.50->1.00m`).
+3. **Rampa de 45° (`Slope_45deg` - Subida de `1.00m` por bloco)**:
+   - Ocupa `1.0m x 1.0m` na base. Sobe `1.00m` diretamente de uma borda à outra.
+4. **Escarpa de 60° (`Cliff_60deg` - Avanço horizontal de `0.50m` para `1.00m` de altura)**:
+   - Bloco de `1x1x1m` onde a face frontal sobe de `Z = 0.0m` (em `Y = -0.50m`) até `Z = 1.00m` (em `Y = 0.00m`), mantendo a metade traseira do topo (`Y = 0.00m` até `+0.50m`) plana em `Z = 1.00m`.
+5. **Falésia de 75° (`Cliff_75deg` - Avanço horizontal de `0.25m` para `1.00m` de altura)**:
+   - Bloco de `1x1x1m` quase vertical onde a face frontal sobe de `Z = 0.0m` (em `Y = -0.50m`) até `Z = 1.00m` (em `Y = -0.25m`), mantendo `75%` do topo plano (`Y = -0.25m` até `+0.50m`).
+
+### B. Função Python (`bpy`) para Gerar Qualquer Ângulo (15°, 30°, 45°, 60°, 75°) sem Fatiar o Bloco
+
+```python
+import bpy
+import bmesh
+
+def create_multi_angle_terrain_tile(name, angle_deg, z_start=0.0, location=(0, 0, 0)):
+    """
+    Gera um bloco modular 1x1x1m com rampa/escarpa de 15, 30, 45, 60 ou 75 graus
+    usando quantização de 0.25m nas costuras (Zero Micro-Voxels).
+    """
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    obj.location = location
+
+    bm = bmesh.new()
+    # Cria grade 8x8 em 1x1m (garante divisões exatas em 0.25m e 0.50m)
+    bmesh.ops.create_grid(bm, x_segments=8, y_segments=8, size=0.5)
+
+    # Mapeamento de perfil (y_local vai de -0.5 na frente a +0.5 atrás)
+    for v in bm.verts:
+        # Normaliza Y de [-0.5, 0.5] para t em [0.0, 1.0]
+        t = v.co.y + 0.5
+        
+        if angle_deg == 15:
+            v.co.z = z_start + (t * 0.25)
+        elif angle_deg == 30:
+            v.co.z = z_start + (t * 0.50)
+        elif angle_deg == 45:
+            v.co.z = t * 1.00
+        elif angle_deg == 60:
+            # Sobe 1.0m nos primeiros 0.50m horizontais, depois fica plano no topo
+            v.co.z = min(1.0, t * 2.0)
+        elif angle_deg == 75:
+            # Sobe 1.0m nos primeiros 0.25m horizontais, depois fica plano no topo
+            v.co.z = min(1.0, t * 4.0)
+
+    # Extruda a saia lateral/base até Z = 0.0 para fechar o volume sólido do bloco
+    boundary_edges = [e for e in bm.edges if e.is_boundary]
+    ret = bmesh.ops.extrude_edge_only(bm, edges=boundary_edges)
+    extruded_verts = [ele for ele in ret["geom"] if isinstance(ele, bmesh.types.BMVert)]
+    for v in extruded_verts:
+        v.co.z = 0.0
+
+    bmesh.ops.contextual_create(bm, geom=extruded_verts)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    for f in bm.faces:
+        f.smooth = False  # Shade Flat obrigatório
+
+    bm.to_mesh(mesh)
+    bm.free()
+    return obj
+```

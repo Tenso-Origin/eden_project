@@ -49,12 +49,17 @@ Todos os materiais, cores de vértice (`AlbedoCol`) e geometrias geradas no Blen
 
 Para que o mundo seja modular em grade de $1\times 1\times 1\text{m}$ **sem parecer cubos de Minecraft** e **sem deixar pontas esticadas bizarras na malha como o Valheim quando o jogador escava/minera**:
 
-### Regra 1: Terreno "Low-Poly Marching Tiles" (Inspirado em Valheim, mas com malha controlada)
-Em vez de usar cubos de $90^\circ$ (Minecraft) ou um *Heightmap* elástico único que estica triângulos verticalmente (Valheim), cada estrato de solo deve ter um **Kit de 6 Peças Modulares $1\times 1\times 1\text{m}$** que se conectam sem costuras:
-1. **`Tile_Flat` ($1\times 1\times 1\text{m}$):** Topo orgânico triangulado ($6\times 6$ subdivisões) onde as bordas externas ($\vert X \vert = 0.5$ ou $\vert Y \vert = 0.5$) estão **travadas exatamente em $Z = 1.00\text{m}$**, mas o interior possui ondulações suaves ($\pm 0.05\text{m}$) em *Shade Flat*.
-2. **`Tile_Slope_45` (Rampa Natural $1\times 1\times 1\text{m}$):** Desce suavemente de $Z = 1.0\text{m}$ em uma borda até $Z = 0.0\text{m}$ na borda oposta, com faces trianguladas irregulares no meio (parecendo um barranco natural de Valheim, nunca uma escada quadrada).
-3. **`Tile_Corner_Out` (Canto Convexo de Rampa)** e **`Tile_Corner_In` (Canto Côncavo de Rampa):** Fecham as diagonais dos barrancos em $45^\circ$.
-4. **`Tile_Cliff_Wall` (Corte de Barranco Vertical Estratificado):** Quando há um corte de $1\text{m}$ ou mais de altura, a parede lateral não é reta: ela possui recuos horizontais de $0.05\text{m}$ a $0.12\text{m}$, chanfros de $45^\circ$ e pedriscos de laterita/raízes saltadas para que o shader `pixel_outline.gdshader` desenhe as linhas de estrato.
+### Regra 1: Sistema Multi-Angular (15°, 30°, 45°, 60° e 75°) com Quantização de 0.25m (Anti-Micro-Voxels)
+Em vez de fatiar o bloco de $1\times 1\times 1\text{m}$ em cubinhos menores (voxels) ou esticar vértices arbitrariamente, as rampas e escarpas obedecem à **Grade de Quantização de Quarto de Metro (`0.25m` Snap Step)** nas costuras do volume:
+
+1. **`Tile_Flat` ($1\times 1\times 1\text{m}$):** Topo orgânico triangulado ($8\times 8$ subdivisões) com bordas externas travadas em $Z = 1.00\text{m}$ e relevo interno suave ($\pm 0.04\text{m}$).
+2. **Rampa Suave de 15° (`Slope_15deg` - Subida de $0.25\text{m}/\text{bloco}$):** Base $1.0\times 1.0\text{m}$, sobe $0.25\text{m}$ por metro horizontal. Encadeia em 4 patamares ($0.0\rightarrow 0.25\text{m}$, $0.25\rightarrow 0.50\text{m}$, $0.50\rightarrow 0.75\text{m}$, $0.75\rightarrow 1.00\text{m}$) para vencer $1.0\text{m}$ total com inclinação suave de caminhada.
+3. **Rampa Média de 30° (`Slope_30deg` - Subida de $0.50\text{m}/\text{bloco}$):** Base $1.0\times 1.0\text{m}$, sobe $0.50\text{m}$ por metro horizontal. Encadeia em 2 blocos ($0.0\rightarrow 0.50\text{m}$ e $0.50\rightarrow 1.00\text{m}$) para vencer $1.0\text{m}$ total.
+4. **Rampa Clássica de 45° (`Slope_45deg` - Subida de $1.00\text{m}/\text{bloco}$):** Base $1.0\times 1.0\text{m}$, sobe de $Z = 0.0\text{m}$ a $Z = 1.00\text{m}$ diretamente de uma borda à oposta.
+5. **Escarpa de 60° (`Cliff_60deg` - Avanço horizontal de $0.50\text{m}$ para $1.00\text{m}$ de altura):** Sobe de $Z = 0.0\text{m}$ (em $Y = -0.50\text{m}$) até $Z = 1.00\text{m}$ (em $Y = 0.00\text{m}$), mantendo os $50\%$ posteriores planos em $Z = 1.00\text{m}$.
+6. **Falésia de 75° (`Cliff_75deg` - Avanço horizontal de $0.25\text{m}$ para $1.00\text{m}$ de altura):** Sobe de $Z = 0.0\text{m}$ (em $Y = -0.50\text{m}$) até $Z = 1.00\text{m}$ (em $Y = -0.25\text{m}$), mantendo $75\%$ do topo plano em $Z = 1.00\text{m}$.
+7. **Cantos (`Corner_Out` e `Corner_In`):** Fecham as diagonais em $45^\circ$ e transições multi-angulares sem frestas.
+8. **Paredão Vertical Estratificado (`Cliff_Wall_90deg`):** Cortes verticais de $1.0\text{m}$ com recuos de estrato ($0.05\text{m}$ a $0.12\text{m}$) e chanfros de $45^\circ$ para ativação do `pixel_outline.gdshader`.
 
 ### Regra 2: Rochas Mineráveis por "Clivagem Poliédrica" (*Voronoi Cleavage Chunks*)
 No Valheim, quando você dá uma picaretada num matacão, ele reduz a esfera de colisão e deixa "agulhas/pontas flutuantes" horríveis.

@@ -55,3 +55,4 @@ func _init():
 	
 	print("Todas as capturas do riacho concluidas com sucesso!")
 	quit()
+

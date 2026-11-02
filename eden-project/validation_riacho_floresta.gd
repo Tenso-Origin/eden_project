@@ -59,3 +59,4 @@ func setup_materials(root: Node) -> void:
 
 		if child.get_child_count() > 0:
 			setup_materials(child)
+

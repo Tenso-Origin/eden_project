@@ -27,6 +27,11 @@ uniform float reflection_strength : hint_range(0.0, 1.0) = 0.45;
 uniform float reflection_distortion_px : hint_range(0.0, 6.0) = 1.8;
 uniform float specular_glint_threshold : hint_range(0.5, 0.99) = 0.88;
 
+group_uniforms Foam;
+uniform vec3 foam_color : source_color = vec3(1.0, 1.0, 1.0);
+uniform float wave_crest_foam_threshold : hint_range(0.70, 0.99) = 0.86;
+uniform float wave_crest_voronoi_threshold : hint_range(0.50, 0.99) = 0.76;
+
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
 varying vec4 v_flow_data;
@@ -118,6 +123,10 @@ void fragment() {
 	float caustic_band = step(0.72, v_wave);
 	float crest_turbid = clamp(caustic_band * 0.65 + step(specular_glint_threshold, v_wave) * 0.35, 0.0, 1.0);
 	
+	// Espuma branca sutil somente no ponto mais alto da ondulação (cristas de onda)
+	// Quantidade reduzida: apenas no ápice da marola combinada com o pico da célula Voronoi
+	float crest_foam = step(wave_crest_foam_threshold, wave_curr) * step(wave_crest_voronoi_threshold, v_wave);
+	
 	// Fator total de embaçamento/turbidez: ativo nas bordas e cristas das ondas
 	float turbid_factor = clamp(shoreline_turbid * 0.90 + crest_turbid * 0.70, 0.0, 1.0);
 	
@@ -199,6 +208,11 @@ void fragment() {
 	vec3 surface_composite = underwater_floor;
 	if (reflection_weight > 0.0) {
 		surface_composite = mix(underwater_floor, reflected_scene, reflection_weight);
+	}
+	
+	// Espuma branca aplicada somente no ponto mais alto da ondulação
+	if (crest_foam > 0.0) {
+		surface_composite = mix(surface_composite, foam_color, 0.92);
 	}
 	
 	// Aplicação direta no ALBEDO com opacidade total (sem acúmulo de camadas transparentes)

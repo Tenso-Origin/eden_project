@@ -3,15 +3,12 @@ extends Camera3D
 ## Pixel-Perfect Orthographic Camera (David Holland Architecture)
 ## Trava a câmera 3D na grade de texels no espaço de visão (view space)
 ## e compensa o erro sub-pixel enviando o offset fracionário para o shader 2D de upscale.
-## Sincroniza a ReflectionCamera espelhada para reflexão planar pura na água.
 
 @export var display_item: CanvasItem
 @export var target_resolution: Vector2i = Vector2i(240, 135)
 @export var distance_from_pivot: float = 20.0
 
 var _texel_size: float = 0.0
-var refl_cam: Camera3D = null
-var water_y: float = 0.0
 
 func _ready() -> void:
 	projection = Camera3D.PROJECTION_ORTHOGONAL
@@ -54,15 +51,3 @@ func _process(_delta: float) -> void:
 	if display_item and display_item.material is ShaderMaterial:
 		var mat := display_item.material as ShaderMaterial
 		mat.set_shader_parameter("cam_offset", subpixel_error)
-
-	# 6. Sincronização Matemática da ReflectionCamera (Regra do Espelho 2h -> 4h)
-	if refl_cam and is_instance_valid(refl_cam) and refl_cam.is_inside_tree() and is_inside_tree():
-		refl_cam.size = self.size
-		var cam_pos: Vector3 = global_position
-		refl_cam.global_position = Vector3(cam_pos.x, 2.0 * water_y - cam_pos.y, cam_pos.z)
-
-		var forward: Vector3 = -global_transform.basis.z
-		var up: Vector3 = global_transform.basis.y
-		var refl_forward: Vector3 = Vector3(forward.x, -forward.y, forward.z).normalized()
-		var refl_up: Vector3 = Vector3(-up.x, up.y, -up.z).normalized()
-		refl_cam.look_at(refl_cam.global_position + refl_forward, refl_up)

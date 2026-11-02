@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_toon, specular_disabled;
+render_mode diffuse_toon, specular_disabled, cull_disabled;
 
 // Shader de Superfície: Cel Shading com Bandas Suaves (David Holland Architecture)
 // Substitui a iluminação com ruído Bayer por degraus estilizados de luz (light_bands)
@@ -13,6 +13,7 @@ uniform float dither_spread : hint_range(0.0, 0.5) = 0.0;
 
 group_uniforms TopSurfaceTexture;
 uniform bool use_top_texture = false;
+uniform bool use_vertex_alpha_for_texture = false;
 uniform sampler2D top_albedo_texture : source_color, filter_nearest, repeat_enable;
 uniform float top_texture_scale : hint_range(0.05, 4.0) = 0.35;
 
@@ -42,7 +43,8 @@ void fragment() {
 	if (use_top_texture && v_world_normal.y > 0.55) {
 		vec2 top_uv = v_world_pos.xz * top_texture_scale;
 		vec4 top_tex = texture(top_albedo_texture, top_uv);
-		base_color = top_tex.rgb;
+		float blend_factor = use_vertex_alpha_for_texture ? COLOR.a : clamp((0.55 - COLOR.r) * 3.5, 0.0, 1.0);
+		base_color = mix(COLOR.rgb, top_tex.rgb, blend_factor);
 	} else {
 		vec4 tex = texture(albedo_texture, UV);
 		base_color *= tex.rgb;

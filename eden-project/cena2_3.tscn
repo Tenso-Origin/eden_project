@@ -64,11 +64,11 @@ directional_shadow_fade_start = 1.0
 [node name="MapGeometry" type="Node3D" parent="SubViewport/World3D"]
 script = ExtResource("5_loader_v2")
 glb_path = "res://lago_ruinas.glb"
-tide_enabled = true
+tide_enabled = false
 tide_min_y = -0.8
 tide_max_y = -0.2
 tide_speed = 0.25
-manual_water_level = -0.5
+manual_water_level = 0.9
 
 [node name="CameraPivot" type="Node3D" parent="SubViewport/World3D"]
 transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0.35, 0)

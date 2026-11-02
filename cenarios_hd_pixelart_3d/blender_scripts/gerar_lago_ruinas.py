@@ -46,7 +46,7 @@ def create_water_surface():
     bpy.ops.mesh.subdivide(number_cuts=23)
     bpy.ops.object.mode_set(mode='OBJECT')
     
-    create_color_attribute(obj, "AlbedoCol", (0.18, 0.68, 0.82, 0.88))
+    create_color_attribute(obj, "AlbedoCol", (0.5, 0.5, 0.0, 0.0))
     set_flat_shading(obj)
     return obj
 
@@ -620,6 +620,221 @@ def create_grass_tufts():
             
     return obj
 
+def create_aquatic_riverbed_plants():
+    """
+    Plantinhas aquaticas submersas no fundo do leito de areia (Riverbed em Z = -1.0m):
+    - Fitas ondulantes (Vallisneria), macrofitas em roseta (Anubias) e hastes ramificadas (Elodea).
+    - Alturas entre 0.28m e 0.62m (Z final entre -0.72m e -0.38m), totalmente submersas na mare.
+    - Geometria marcante com laminas de 0.08m a 0.14m para contornos nitidos de pixel art a distancia.
+    - Pigmentacao aquatica viva: verde jade profundo na raiz (#133824), esmeralda vivo no meio (#2e8b57),
+      e verde translucido luminoso nas pontas (#80ea7b).
+    - Alpha de 0.0 na raiz (fixa na areia) ate 1.0 nas pontas para balanco de correnteza no shader.
+    """
+    bm = bmesh.new()
+    
+    aquatic_instances = [
+        # (x, y, tipo, altura, angulo_graus, escala_largura)
+        # 1. Primeiro plano central e aberto (visada direta da camera ortografica)
+        (-0.5, -2.6, 'vallisneria', 0.55, 15.0, 1.2),
+        (0.2, -2.4, 'anubias', 0.34, 80.0, 1.3),
+        (0.8, -2.8, 'elodea', 0.48, -20.0, 1.2),
+        (-1.2, -2.5, 'vallisneria', 0.52, 45.0, 1.1),
+        (-1.8, -2.7, 'anubias', 0.32, -60.0, 1.2),
+        (-2.4, -2.3, 'vallisneria', 0.58, 25.0, 1.3),
+        (-3.1, -2.6, 'elodea', 0.46, 70.0, 1.1),
+        (-0.2, -3.2, 'vallisneria', 0.52, 30.0, 1.2),
+        (1.1, -3.2, 'anubias', 0.33, -45.0, 1.2),
+        (-2.8, -3.1, 'anubias', 0.31, 85.0, 1.1),
+        
+        # 2. Primeiro plano a direita (ao redor dos blocos submersos de ruina)
+        (1.5, -2.3, 'vallisneria', 0.54, 50.0, 1.2),
+        (2.1, -2.6, 'anubias', 0.35, 120.0, 1.3),
+        (2.7, -2.2, 'vallisneria', 0.60, -40.0, 1.3),
+        (3.3, -2.5, 'elodea', 0.45, 30.0, 1.1),
+        (1.9, -1.8, 'anubias', 0.30, 95.0, 1.2),
+        (3.8, -1.8, 'vallisneria', 0.50, 65.0, 1.1),
+        (3.5, -2.9, 'vallisneria', 0.53, 10.0, 1.2),
+        (2.5, -3.2, 'elodea', 0.44, -75.0, 1.1),
+        
+        # 3. Faixa intermediaria frontal (entre as rochas e a base da Ilha)
+        (-0.8, -1.7, 'anubias', 0.32, 75.0, 1.2),
+        (-1.4, -1.2, 'vallisneria', 0.50, -10.0, 1.2),
+        (0.6, -1.5, 'elodea', 0.44, -60.0, 1.1),
+        (1.2, -1.1, 'vallisneria', 0.48, 40.0, 1.1),
+        (0.0, -1.8, 'anubias', 0.28, 140.0, 1.1),
+        
+        # 4. Flancos oeste e leste da Ilha e pilares
+        (-1.6, 0.3, 'elodea', 0.42, 20.0, 1.1),
+        (-1.8, -0.4, 'anubias', 0.33, -30.0, 1.2),
+        (-2.6, -0.7, 'vallisneria', 0.56, 55.0, 1.2),
+        (-2.9, 0.8, 'anubias', 0.34, -45.0, 1.2),
+        (-3.4, -1.2, 'vallisneria', 0.58, 10.0, 1.3),
+        (-4.1, -1.6, 'elodea', 0.45, 85.0, 1.1),
+        (-4.5, -0.5, 'vallisneria', 0.54, 40.0, 1.2),
+        (-3.8, 0.6, 'anubias', 0.32, 115.0, 1.1),
+        (-4.6, 1.4, 'elodea', 0.47, -35.0, 1.2),
+        (-3.3, 2.2, 'vallisneria', 0.51, 60.0, 1.1),
+        (1.6, 0.3, 'anubias', 0.30, 130.0, 1.2),
+        (2.4, 0.7, 'vallisneria', 0.52, 70.0, 1.2),
+        (2.9, -0.4, 'anubias', 0.32, 15.0, 1.1),
+        (3.5, -0.8, 'elodea', 0.44, -45.0, 1.1),
+        (4.3, -0.3, 'vallisneria', 0.55, -20.0, 1.2),
+        (3.9, 1.1, 'anubias', 0.33, 90.0, 1.2),
+        (4.4, -1.3, 'elodea', 0.45, 50.0, 1.1),
+        (3.4, 2.1, 'vallisneria', 0.50, -65.0, 1.1),
+        
+        # 5. Fundos e canais atras da Ilha Central
+        (-0.9, 1.8, 'elodea', 0.46, -80.0, 1.1),
+        (0.0, 2.0, 'anubias', 0.35, 100.0, 1.2),
+        (1.0, 1.9, 'vallisneria', 0.50, 35.0, 1.2),
+        (-1.9, 1.4, 'vallisneria', 0.52, -15.0, 1.2),
+        (2.0, 1.5, 'anubias', 0.32, 60.0, 1.1),
+        (-0.6, 2.8, 'vallisneria', 0.54, 25.0, 1.2),
+        (0.7, 2.9, 'elodea', 0.48, -40.0, 1.1),
+        (1.8, 2.7, 'anubias', 0.34, 125.0, 1.2)
+    ]
+    
+    for (px, py, p_type, p_h, p_rot, p_wscale) in aquatic_instances:
+        base_pos = Vector((px, py, -1.0))
+        rot_rad = math.radians(p_rot)
+        
+        if p_type == 'vallisneria':
+            # Fitas largas e ondulantes (6 laminas por tufo)
+            num_blades = 6
+            for b_idx in range(num_blades):
+                b_ang = rot_rad + b_idx * (math.pi * 2.0 / num_blades) + 0.12 * b_idx
+                cur_h = p_h * (0.80 + 0.35 * ((b_idx % 4) / 3.0))
+                cos_a = math.cos(b_ang)
+                sin_a = math.sin(b_ang)
+                perp_x = -sin_a
+                perp_y = cos_a
+                
+                w0 = 0.080 * p_wscale
+                w1 = 0.070 * p_wscale
+                w2 = 0.045 * p_wscale
+                
+                curl1 = Vector((cos_a * 0.06 + 0.03, sin_a * 0.06 + 0.03, cur_h * 0.35))
+                curl2 = Vector((cos_a * 0.14 + 0.08, sin_a * 0.14 + 0.08, cur_h * 0.70))
+                tip_p = base_pos + Vector((cos_a * 0.22 + 0.12, sin_a * 0.22 + 0.12, cur_h))
+                
+                p0_l = base_pos + Vector((-perp_x * w0, -perp_y * w0, 0.0))
+                p0_r = base_pos + Vector((perp_x * w0, perp_y * w0, 0.0))
+                p1_l = base_pos + curl1 + Vector((-perp_x * w1, -perp_y * w1, 0.0))
+                p1_r = base_pos + curl1 + Vector((perp_x * w1, perp_y * w1, 0.0))
+                p2_l = base_pos + curl2 + Vector((-perp_x * w2, -perp_y * w2, 0.0))
+                p2_r = base_pos + curl2 + Vector((perp_x * w2, perp_y * w2, 0.0))
+                
+                v0_l = bm.verts.new(p0_l)
+                v0_r = bm.verts.new(p0_r)
+                v1_l = bm.verts.new(p1_l)
+                v1_r = bm.verts.new(p1_r)
+                v2_l = bm.verts.new(p2_l)
+                v2_r = bm.verts.new(p2_r)
+                v_tip = bm.verts.new(tip_p)
+                
+                bm.faces.new([v0_l, v0_r, v1_r, v1_l])
+                bm.faces.new([v1_l, v1_r, v2_r, v2_l])
+                bm.faces.new([v2_l, v2_r, v_tip])
+                
+        elif p_type == 'anubias':
+            # Macrofitas de fundo em roseta ampla (8 folhas largas)
+            num_leaves = 8
+            for l_idx in range(num_leaves):
+                l_ang = rot_rad + l_idx * (math.pi * 2.0 / num_leaves)
+                cur_r = 0.20 * p_wscale * (0.8 + 0.4 * (l_idx % 2))
+                leaf_h = p_h * 0.85
+                
+                cos_l = math.cos(l_ang)
+                sin_l = math.sin(l_ang)
+                leaf_w = 0.075 * p_wscale
+                perp_lx = -sin_l * leaf_w
+                perp_ly = cos_l * leaf_w
+                
+                p_root = base_pos
+                p_mid = base_pos + Vector((cos_l * cur_r * 0.55, sin_l * cur_r * 0.55, leaf_h * 0.50))
+                p_left = p_mid + Vector((perp_lx, perp_ly, 0.02))
+                p_right = p_mid + Vector((-perp_lx, -perp_ly, 0.02))
+                p_tip = base_pos + Vector((cos_l * cur_r, sin_l * cur_r, leaf_h))
+                
+                v_root = bm.verts.new(p_root)
+                v_left = bm.verts.new(p_left)
+                v_right = bm.verts.new(p_right)
+                v_tip = bm.verts.new(p_tip)
+                
+                bm.faces.new([v_root, v_right, v_left])
+                bm.faces.new([v_left, v_right, v_tip])
+                
+        elif p_type == 'elodea':
+            # Hastes verticais ramificadas (3 hastes por cluster com verticilos de 4 folhas)
+            num_stalks = 3
+            for s_idx in range(num_stalks):
+                s_ang = rot_rad + s_idx * (math.pi * 2.0 / 3.0)
+                s_offset = Vector((math.cos(s_ang) * 0.09, math.sin(s_ang) * 0.09, 0.0))
+                s_root = base_pos + s_offset
+                stalk_h = p_h * (0.85 + 0.25 * s_idx)
+                st_w = 0.025 * p_wscale
+                
+                v_b0 = bm.verts.new(s_root + Vector((-st_w, -st_w, 0.0)))
+                v_b1 = bm.verts.new(s_root + Vector((st_w, -st_w, 0.0)))
+                v_b2 = bm.verts.new(s_root + Vector((0.0, st_w * 1.3, 0.0)))
+                
+                v_t0 = bm.verts.new(s_root + Vector((-st_w * 0.7, -st_w * 0.7, stalk_h)))
+                v_t1 = bm.verts.new(s_root + Vector((st_w * 0.7, -st_w * 0.7, stalk_h)))
+                v_t2 = bm.verts.new(s_root + Vector((0.0, st_w, stalk_h)))
+                
+                bm.faces.new([v_b0, v_b1, v_t1, v_t0])
+                bm.faces.new([v_b1, v_b2, v_t2, v_t1])
+                bm.faces.new([v_b2, v_b0, v_t0, v_t2])
+                
+                # Verticilos em 3 niveis de altura
+                for tier in [0.35, 0.65, 0.92]:
+                    tier_z = stalk_h * tier
+                    tier_center = s_root + Vector((0.0, 0.0, tier_z))
+                    for w_idx in range(4):
+                        w_ang = rot_rad + s_idx * 1.0 + tier * 2.5 + w_idx * (math.pi * 0.5)
+                        cw = math.cos(w_ang)
+                        sw = math.sin(w_ang)
+                        leaf_len = 0.12 * p_wscale
+                        leaf_half_w = 0.035 * p_wscale
+                        
+                        vl_b = bm.verts.new(tier_center)
+                        vl_1 = bm.verts.new(tier_center + Vector((-sw * leaf_half_w, cw * leaf_half_w, 0.015)))
+                        vl_2 = bm.verts.new(tier_center + Vector((sw * leaf_half_w, -cw * leaf_half_w, 0.015)))
+                        vl_tip = bm.verts.new(tier_center + Vector((cw * leaf_len, sw * leaf_len, 0.05)))
+                        
+                        bm.faces.new([vl_b, vl_2, vl_tip, vl_1])
+                        
+    mesh = bpy.data.meshes.new("Aquatic_Plants")
+    bm.to_mesh(mesh)
+    bm.free()
+    
+    obj = bpy.data.objects.new("Aquatic_Plants", mesh)
+    bpy.context.collection.objects.link(obj)
+    set_flat_shading(obj)
+    
+    attr = mesh.color_attributes.new(name="AlbedoCol", type='FLOAT_COLOR', domain='CORNER')
+    mesh.color_attributes.active_color_name = "AlbedoCol"
+    
+    col_root = Vector(hex_to_rgb("#133824")[:3])
+    col_mid = Vector(hex_to_rgb("#2e8b57")[:3])
+    col_tip = Vector(hex_to_rgb("#80ea7b")[:3])
+    
+    for poly in mesh.polygons:
+        poly.use_smooth = False
+        for loop_idx in poly.loop_indices:
+            v_idx = mesh.loops[loop_idx].vertex_index
+            z = mesh.vertices[v_idx].co.z
+            h_factor = max(0.0, min(1.0, (z - (-1.0)) / 0.62))
+            
+            if h_factor < 0.40:
+                rgb = col_root.lerp(col_mid, h_factor / 0.40)
+            else:
+                rgb = col_mid.lerp(col_tip, (h_factor - 0.40) / 0.60)
+                
+            attr.data[loop_idx].color = (rgb.x, rgb.y, rgb.z, h_factor)
+            
+    return obj
+
 def main():
     print("Iniciando geração da cena lago_ruinas.glb com leito de areia em Z = -1.0m...")
     clear_scene()
@@ -656,6 +871,7 @@ def main():
     
     # 6. Tufos de Vegetação
     grass_tufts = create_grass_tufts()
+    aquatic_plants = create_aquatic_riverbed_plants()
     
     # Exportar GLB para cenarios_hd_pixelart_3d e eden-project
     target_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

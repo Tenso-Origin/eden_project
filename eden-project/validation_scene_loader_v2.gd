@@ -6,7 +6,7 @@ extends Node3D
 
 @export_group("Simulação de Maré")
 ## Habilita a simulação contínua e suave da maré
-@export var tide_enabled: bool = true
+@export var tide_enabled: bool = false
 ## Nível mínimo da maré (maré baixa) no eixo Y (-0.8m)
 @export var tide_min_y: float = -0.8
 ## Nível máximo da maré (maré alta) no eixo Y (-0.2m)
@@ -14,7 +14,7 @@ extends Node3D
 ## Velocidade da transição da maré
 @export var tide_speed: float = 0.25
 ## Altura manual da água quando a maré automática estiver desativada
-@export var manual_water_level: float = -0.5
+@export var manual_water_level: float = 0.9
 
 const SHADER_SURFACE = preload("res://pixel_surface.gdshader")
 const SHADER_FOLIAGE = preload("res://pixel_foliage.gdshader")
@@ -60,30 +60,42 @@ func setup_materials(root: Node) -> void:
 		if child is MeshInstance3D:
 			var mesh_name: String = child.name
 			
-			if mesh_name.begins_with("Tree_Canopy") or mesh_name.begins_with("Grass_Tuft"):
+			if mesh_name.begins_with("Tree_Canopy") or mesh_name.begins_with("Grass_Tuft") or mesh_name.begins_with("Aquatic_Plant"):
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_FOLIAGE
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.12, 0.10, 0.24, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
 				mat.set_shader_parameter("dither_spread", 0.0)
-				mat.set_shader_parameter("wind_strength", 0.35)
-				mat.set_shader_parameter("wind_speed", 2.2)
+				if mesh_name.begins_with("Aquatic_Plant"):
+					mat.set_shader_parameter("wind_strength", 0.38) # Correnteza suave subaquática
+					mat.set_shader_parameter("wind_speed", 1.8)
+				else:
+					mat.set_shader_parameter("wind_strength", 0.35)
+					mat.set_shader_parameter("wind_speed", 2.2)
 				child.material_override = mat
 				
 			elif mesh_name.begins_with("Water_Surface"):
 				water_node = child
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_WATER
-				mat.set_shader_parameter("shallow_color", Color(0.18, 0.68, 0.82, 0.88))
-				mat.set_shader_parameter("deep_color", Color(0.10, 0.42, 0.62, 0.95))
-				mat.set_shader_parameter("depth_fade_distance", 0.75)
+				mat.set_shader_parameter("enable_3way_blend", false)
+				mat.set_shader_parameter("use_voronoi", false)
+				mat.set_shader_parameter("shallow_color", Color(0.18, 0.72, 0.82, 0.40))
+				mat.set_shader_parameter("deep_color", Color(0.08, 0.32, 0.52, 0.70))
+				mat.set_shader_parameter("depth_fade_distance", 1.20)
 				mat.set_shader_parameter("pixel_grid_density", 52.0)
 				mat.set_shader_parameter("wave_speed", 2.0)
 				mat.set_shader_parameter("wave_height", 0.02)
-				mat.set_shader_parameter("shoreline_foam_dist", 0.32)
+				mat.set_shader_parameter("shoreline_foam_dist", 0.30)
 				mat.set_shader_parameter("shoreline_ripple_rings", 3)
 				mat.set_shader_parameter("reflection_strength", 0.35)
+				mat.set_shader_parameter("wind_direction", Vector2(0.7071, 0.7071))
+				mat.set_shader_parameter("wind_speed", 2.0)
+				mat.set_shader_parameter("wind_strength", 1.0)
+				mat.set_shader_parameter("refraction_strength", 4.0)
+				mat.set_shader_parameter("dash_density", 0.55)
+				mat.set_shader_parameter("dash_cycle_speed", 0.55)
 				child.material_override = mat
 				
 			elif mesh_name.begins_with("Ore_Crystals"):

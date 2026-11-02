@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://c8m4riachoflorest01"]
+[gd_scene format=3 uid="uid://bnsswb5ydapq3"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]

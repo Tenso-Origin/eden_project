@@ -6,6 +6,7 @@ extends Node3D
 
 const SHADER_SURFACE = preload("res://pixel_surface.gdshader")
 const SHADER_WATER = preload("res://pixel_water.gdshader")
+const TEX_SERRAPILHEIRA = preload("res://tex_serrapilheira.png")
 
 func _ready() -> void:
 	for child in get_children():
@@ -55,13 +56,22 @@ func setup_materials(root: Node) -> void:
 				child.material_override = mat
 				
 			else:
-				# Todos os solos, piçarra, areia e rochas
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_SURFACE
 				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
 				mat.set_shader_parameter("shadow_tint", Color(0.15, 0.12, 0.28, 1.0))
 				mat.set_shader_parameter("light_bands", 3)
 				mat.set_shader_parameter("dither_spread", 0.0)
+				
+				if m_name.begins_with("Soil_Organic_"):
+					# Aplica o tapete denso de folhas sobrepostas da serrapilheira
+					mat.set_shader_parameter("use_top_texture", true)
+					mat.set_shader_parameter("top_albedo_texture", TEX_SERRAPILHEIRA)
+					mat.set_shader_parameter("top_texture_scale", 0.35)
+				else:
+					# Latossolo, Areia Branca, Matacão e Leitos usam suas cores puras
+					mat.set_shader_parameter("use_top_texture", false)
+					
 				child.material_override = mat
 
 		if child.get_child_count() > 0:

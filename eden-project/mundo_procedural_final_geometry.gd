@@ -214,7 +214,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 			data.waterfall_base_y = fall_bot
 			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00 if is_casc else 0.08
+			data.turbulence = 0.10 if is_casc else 0.08
 			data.water_blend = 0.95
 			return data
 
@@ -247,7 +247,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 			data.waterfall_base_y = fall_bot
 			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00 if is_casc else 0.08
+			data.turbulence = 0.10 if is_casc else 0.08
 			data.water_blend = 0.70
 			return data
 
@@ -275,7 +275,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 			data.waterfall_base_y = fall_bot
 			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00 if is_casc else 0.08
+			data.turbulence = 0.10 if is_casc else 0.08
 			data.water_blend = 0.35
 			return data
 

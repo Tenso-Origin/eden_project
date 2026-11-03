@@ -44,7 +44,7 @@ script = ExtResource("1_main")
 [node name="SubViewport" type="SubViewport" parent="."]
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
-size = Vector2i(242, 137)
+size = Vector2i(1140, 642)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewport"]
@@ -71,11 +71,11 @@ move_speed = 6.0
 [node name="Camera3D" type="Camera3D" parent="SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("display_item")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 15)
 projection = 1
-size = 2.0
+size = 10.0
 current = true
 script = ExtResource("3_camera")
 display_item = NodePath("../../../../TextureDisplay")
-target_resolution = Vector2i(240, 135)
+target_resolution = Vector2i(1138, 640)
 distance_from_pivot = 20.0
 
 [node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewport/World3D/CameraPivot/Camera3D"]

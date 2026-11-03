@@ -12,7 +12,7 @@ func _init():
 	var cam = root_scene.find_child("Camera3D", true, false) as Camera3D
 	var initial_rot = pivot.rotation if pivot else Vector3.ZERO
 	var initial_pos = pivot.global_position if pivot else Vector3.ZERO
-	var initial_size = cam.size if cam else 9.5
+	var initial_size = cam.size if cam else 10.0
 	
 	var save_shot = func(path: String):
 		var img = svp.get_texture().get_image()
@@ -20,7 +20,7 @@ func _init():
 			img.save_png(path)
 			print("Salvo: ", path)
 			
-	# 1. Visão Geral Panorâmica do Kit (size = 9.5)
+	# 1. Visão Geral Panorâmica do Kit (size = 10.0)
 	save_shot.call("res://screenshot_kit_bioma_floresta.png")
 	
 	# 2. Visão Rotacionada 45°
@@ -40,7 +40,7 @@ func _init():
 	# 3. Close-up Águas Tropicais (X=0, Z=0)
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 0.5, 0.0)
-		cam.size = 3.6
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_kit_aguas.png")
@@ -48,7 +48,7 @@ func _init():
 	# 4. Close-up Solo Orgânico & Rampas (X=2.0, Z=-2.2)
 	if pivot and cam:
 		pivot.global_position = Vector3(2.0, 0.6, -2.2)
-		cam.size = 5.2
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_kit_solo_organico.png")
@@ -56,7 +56,7 @@ func _init():
 	# 5. Close-up Subsolo Laterita & Areia Branca (X=5.0, Z=-0.7)
 	if pivot and cam:
 		pivot.global_position = Vector3(5.0, 0.6, -0.7)
-		cam.size = 4.8
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_kit_subsolo_e_areia.png")
@@ -64,7 +64,7 @@ func _init():
 	# 6. Close-up Matacão de Granito (X=8.5, Z=-1.5)
 	if pivot and cam:
 		pivot.global_position = Vector3(8.5, 1.2, -1.5)
-		cam.size = 4.6
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_kit_matacao.png")

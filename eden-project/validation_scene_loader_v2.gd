@@ -20,6 +20,25 @@ const SHADER_SURFACE = preload("res://pixel_surface.gdshader")
 const SHADER_FOLIAGE = preload("res://pixel_foliage.gdshader")
 const SHADER_WATER = preload("res://pixel_water.gdshader")
 const SHADER_METAL = preload("res://pixel_metal_mirror.gdshader")
+const SHADER_FLEXIBLE_TOON = preload("res://addons/flexible_toon_shader/flexible_toon.gdshader")
+
+@export_group("Shader Toon de Cenário")
+## Habilita o Flexible Toon Shader nas superfícies sólidas do cenário
+@export var use_flexible_toon: bool = true
+## Quantidade de cortes / bandas de cel shading (1 a 8)
+@export_range(1, 8) var toon_cuts: int = 3
+## Envoltória / Wrap de iluminação (-2.0 a 2.0)
+@export_range(-2.0, 2.0) var toon_wrap: float = 0.0
+## Rigidez da transição de sombra (1.0 a 8.0)
+@export_range(1.0, 8.0) var toon_steepness: float = 2.0
+## Habilita realce de borda (Rim Lighting)
+@export var toon_use_rim: bool = true
+@export_range(0.0, 16.0) var toon_rim_width: float = 6.0
+@export var toon_rim_color: Color = Color(0.9, 0.95, 1.0, 0.4)
+## Habilita brilho especular toon
+@export var toon_use_specular: bool = true
+@export_range(0.0, 1.0) var toon_specular_strength: float = 0.4
+@export_range(0.0, 32.0) var toon_specular_shininess: float = 16.0
 
 var water_node: MeshInstance3D = null
 var tide_time: float = 0.0
@@ -84,7 +103,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("shallow_color", Color(0.18, 0.72, 0.82, 0.40))
 				mat.set_shader_parameter("deep_color", Color(0.08, 0.32, 0.52, 0.70))
 				mat.set_shader_parameter("depth_fade_distance", 1.20)
-				mat.set_shader_parameter("pixel_grid_density", 52.0)
+				mat.set_shader_parameter("pixel_grid_density", 64.0)
 				mat.set_shader_parameter("wave_speed", 2.0)
 				mat.set_shader_parameter("wave_height", 0.02)
 				mat.set_shader_parameter("shoreline_foam_dist", 0.30)
@@ -110,11 +129,26 @@ func setup_materials(root: Node) -> void:
 				
 			elif mesh_name.begins_with("Soil") or mesh_name.begins_with("Tree_Trunk") or mesh_name.begins_with("Ruin") or mesh_name.begins_with("Rock") or mesh_name.begins_with("Riverbed"):
 				var mat := ShaderMaterial.new()
-				mat.shader = SHADER_SURFACE
-				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
-				mat.set_shader_parameter("shadow_tint", Color(0.15, 0.12, 0.28, 1.0))
-				mat.set_shader_parameter("light_bands", 3)
-				mat.set_shader_parameter("dither_spread", 0.0)
+				if use_flexible_toon:
+					mat.shader = SHADER_FLEXIBLE_TOON
+					mat.set_shader_parameter("albedo", Color(1.0, 1.0, 1.0, 1.0))
+					mat.set_shader_parameter("clamp_diffuse_to_max", true)
+					mat.set_shader_parameter("cuts", toon_cuts)
+					mat.set_shader_parameter("wrap", toon_wrap)
+					mat.set_shader_parameter("steepness", toon_steepness)
+					mat.set_shader_parameter("use_attenuation", true)
+					mat.set_shader_parameter("use_specular", toon_use_specular)
+					mat.set_shader_parameter("specular_strength", toon_specular_strength)
+					mat.set_shader_parameter("specular_shininess", toon_specular_shininess)
+					mat.set_shader_parameter("use_rim", toon_use_rim)
+					mat.set_shader_parameter("rim_width", toon_rim_width)
+					mat.set_shader_parameter("rim_color", toon_rim_color)
+				else:
+					mat.shader = SHADER_SURFACE
+					mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
+					mat.set_shader_parameter("shadow_tint", Color(0.15, 0.12, 0.28, 1.0))
+					mat.set_shader_parameter("light_bands", 3)
+					mat.set_shader_parameter("dither_spread", 0.0)
 				child.material_override = mat
 
 		if child.get_child_count() > 0:

@@ -36,7 +36,7 @@ func _init():
 	# Mostra os 3 braços ao Norte, a confluência central e o rio principal ao Sul
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.2, 0.0)
-		cam.size = 18.0
+		cam.size = 20.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_encontro_3_aguas_geral.png")
@@ -45,7 +45,7 @@ func _init():
 	# Enquadra o ponto exato onde Turquesa, Barrenta e Preta se encontram
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.0, -2.0)
-		cam.size = 9.5
+		cam.size = 10.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_encontro_3_aguas_confluencia.png")
@@ -62,7 +62,7 @@ func _init():
 	# 4. Captura 4: Close-up do Flanco Oeste (Água Turquesa Cristalina e Margem de Calcário)
 	if pivot and cam:
 		pivot.global_position = Vector3(-3.5, 1.0, 1.0)
-		cam.size = 7.5
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_encontro_3_aguas_turquesa.png")

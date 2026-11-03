@@ -29,7 +29,7 @@ uniform vec4 igarape_shallow : source_color = vec4(0.38, 0.24, 0.11, 0.60);
 uniform vec4 igarape_deep : source_color = vec4(0.11, 0.06, 0.04, 0.96);
 
 group_uniforms WaterfallParams;
-uniform float pixel_grid_density : hint_range(8.0, 128.0) = 52.0; // Texels por metro
+uniform float pixel_grid_density : hint_range(8.0, 128.0) = 64.0; // Texels por metro
 uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float laminar_length : hint_range(0.5, 5.0) = 2.0; // Lâmina de 2 metros antes da espuma
 uniform vec3 foam_color : source_color = vec3(1.0, 1.0, 1.0);

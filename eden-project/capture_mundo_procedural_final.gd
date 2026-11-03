@@ -41,7 +41,7 @@ func _init():
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 1/5: Platô Norte 16m & Lago Chá-Mate ---")
 	pivot.global_position = Vector3(0.0, 16.0, -47.0)
-	cam.size = 32.0
+	cam.size = 40.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_1_norte_plato_cha_mate.png", "Platô 16m com Floresta e Lago Chá-Mate")
@@ -51,7 +51,7 @@ func _init():
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 2/5: Desfiladeiro com Cascatas e Lagos em Vales Altos ---")
 	pivot.global_position = Vector3(0.0, 11.0, -18.0)
-	cam.size = 32.0
+	cam.size = 40.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_2_desfiladeiro_cascatas_vales_altos.png", "Desfiladeiro, Cascatas e Lagos em Vales Altos")
@@ -61,7 +61,7 @@ func _init():
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 3/5: Campina Grande, Grande Lago Águas Claras & Areia Quartzo ---")
 	pivot.global_position = Vector3(0.0, 1.5, 41.0)
-	cam.size = 36.0
+	cam.size = 40.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_3_sul_campina_grande_lago_areia_quartzo.png", "Campina Grande, Lago Águas Claras e Praias de Areia Quartzo")
@@ -71,7 +71,7 @@ func _init():
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 4/5: Visão Panorâmica Global (64x128m, 32 Chunks) ---")
 	pivot.global_position = Vector3(0.0, 8.5, 0.0)
-	cam.size = 92.0
+	cam.size = 40.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_4_visao_panoramica_global_64x128m.png", "Visão Panorâmica Global de Todo o Mundo (64x128m)")
@@ -81,7 +81,7 @@ func _init():
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 5/5: Close-up da Grande Cascata e Transição Hidrológica ---")
 	pivot.global_position = Vector3(1.2, 9.5, -15.0)
-	cam.size = 13.0
+	cam.size = 10.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_5_closeup_cascata_hidrologia.png", "Close-up da Cascata, Espuma Branca e Refração do Leito")
@@ -99,7 +99,7 @@ func _init():
 
 	# Posiciona câmera em vista geral panorâmica com máxima carga de renderização
 	pivot.global_position = Vector3(0.0, 8.5, 0.0)
-	cam.size = 92.0
+	cam.size = 40.0
 
 	for i in range(sample_frames):
 		var t_start = Time.get_ticks_usec()

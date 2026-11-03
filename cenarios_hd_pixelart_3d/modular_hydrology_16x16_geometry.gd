@@ -58,20 +58,31 @@ func generate_scene() -> void:
 		water_instance.mesh = water_mesh
 
 		var mat_water_surf = ShaderMaterial.new()
-		mat_water_surf.shader = SHADER_WATER_SURFACE
-		mat_water_surf.set_shader_parameter("pixel_grid_density", 52.0)
-		mat_water_surf.set_shader_parameter("wave_speed", 1.8)
-		mat_water_surf.set_shader_parameter("wave_height", 0.02)
-		mat_water_surf.set_shader_parameter("reflection_strength", 0.42)
-		mat_water_surf.set_shader_parameter("shallow_color", Color(0.18, 0.82, 0.78, 0.70))
-		mat_water_surf.set_shader_parameter("deep_color", Color(0.05, 0.38, 0.48, 0.90))
-		mat_water_surf.set_shader_parameter("depth_fade_distance", 1.10)
-		mat_water_surf.set_shader_parameter("shoreline_foam_dist", 0.28)
-		mat_water_surf.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+		mat_water_surf.shader = SHADER_WATER
+		mat_water_surf.set_shader_parameter("enable_3way_blend", false)
+		mat_water_surf.set_shader_parameter("use_voronoi", false)
+		mat_water_surf.set_shader_parameter("shallow_color", Color(0.18, 0.72, 0.82, 0.40))
+		mat_water_surf.set_shader_parameter("deep_color", Color(0.08, 0.32, 0.52, 0.70))
+		mat_water_surf.set_shader_parameter("depth_fade_distance", 1.20)
+		mat_water_surf.set_shader_parameter("pixel_grid_density", 64.0)
+		mat_water_surf.set_shader_parameter("wave_speed", 2.0)
+		mat_water_surf.set_shader_parameter("wave_height", 0.015) # Leve redução para evitar que o topo da onda descole da rampa
+		mat_water_surf.set_shader_parameter("shoreline_foam_dist", 0.30)
+		mat_water_surf.set_shader_parameter("shoreline_ripple_rings", 3)
+		mat_water_surf.set_shader_parameter("contact_foam_threshold", 0.06)
+		mat_water_surf.set_shader_parameter("reflection_strength", 0.35)
+		mat_water_surf.set_shader_parameter("reflection_distortion_px", 1.8)
+		mat_water_surf.set_shader_parameter("wind_direction", Vector2(0.7071, 0.7071))
+		mat_water_surf.set_shader_parameter("wind_speed", 2.0)
+		mat_water_surf.set_shader_parameter("wind_strength", 1.0)
+		mat_water_surf.set_shader_parameter("refraction_strength", 4.0)
+		mat_water_surf.set_shader_parameter("dash_density", 0.55)
+		mat_water_surf.set_shader_parameter("dash_cycle_speed", 0.55)
+		mat_water_surf.set_shader_parameter("foam_color", Color(1.0, 1.0, 1.0))
 
 		var mat_fall = ShaderMaterial.new()
 		mat_fall.shader = SHADER_WATERFALL
-		mat_fall.set_shader_parameter("pixel_grid_density", 52.0)
+		mat_fall.set_shader_parameter("pixel_grid_density", 64.0)
 		mat_fall.set_shader_parameter("wave_speed", 1.8)
 		mat_fall.set_shader_parameter("shallow_color", Color(0.18, 0.82, 0.78, 0.70))
 		mat_fall.set_shader_parameter("deep_color", Color(0.05, 0.38, 0.48, 0.90))
@@ -85,4 +96,4 @@ func generate_scene() -> void:
 		water_instance.position = Vector3(-8.0, 0.0, -8.0)
 		add_child(water_instance)
 
-	print("Cena de teste de Hidrologia 16x16m gerada com sucesso!")
+	print("Cena de teste de Hidrologia 16x16m gerada com sucesso (com correção de borda de rampa)!")

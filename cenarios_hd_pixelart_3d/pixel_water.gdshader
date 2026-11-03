@@ -33,7 +33,7 @@ uniform float igarape_fade = 0.55;
 
 group_uniforms RipplesAndWaves;
 uniform bool use_voronoi = false;
-uniform float pixel_grid_density : hint_range(8.0, 128.0) = 52.0; // Texels por metro
+uniform float pixel_grid_density : hint_range(8.0, 128.0) = 64.0; // Texels por metro
 uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float wave_height : hint_range(0.0, 0.1) = 0.02;
 uniform float voronoi_frequency : hint_range(0.2, 5.0) = 1.35;

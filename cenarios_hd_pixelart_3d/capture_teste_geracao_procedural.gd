@@ -19,27 +19,27 @@ func _init():
 			img.save_png(path)
 			print("Salvo com sucesso: ", path)
 			
-	# 1. Visão Geral Panorâmica (size = 36.0, enquadra Campina -> Transição -> Floresta)
+	# 1. Visão Geral Panorâmica (size = 40.0, enquadra Campina -> Transição -> Floresta)
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.5, 0.0)
-		cam.size = 36.0
+		cam.size = 40.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_terreno_procedural_geral.png")
 	
-	# 2. Close-up da Região da Campina com Lago de Águas Claras (X = -26.0, Z = 0.0, size = 16.0)
+	# 2. Close-up da Região da Campina com Lago de Águas Claras (X = -26.0, Z = 0.0, size = 20.0)
 	if pivot and cam:
 		pivot.global_position = Vector3(-26.0, 0.8, 0.0)
-		cam.size = 16.0
+		cam.size = 20.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_terreno_procedural_campina.png")
 	
-	# 3. Close-up da Floresta Profunda (X = 22.0, Z = 2.0, size = 18.0)
+	# 3. Close-up da Floresta Profunda (X = 22.0, Z = 2.0, size = 20.0)
 	# Mostra o rio de água preta de igarapé, montes acidentados, barrancos de laterita e matacões
 	if pivot and cam:
 		pivot.global_position = Vector3(22.0, 2.0, 2.0)
-		cam.size = 18.0
+		cam.size = 20.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_terreno_procedural_floresta.png")

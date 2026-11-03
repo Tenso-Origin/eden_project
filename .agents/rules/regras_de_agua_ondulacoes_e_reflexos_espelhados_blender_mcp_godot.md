@@ -150,7 +150,7 @@ uniform vec4 deep_color : source_color = vec4(0.06, 0.22, 0.44, 0.92);
 uniform float depth_fade_distance : hint_range(0.1, 5.0) = 0.75;
 
 group_uniforms RipplesAndWaves;
-uniform float pixel_grid_density : hint_range(8.0, 128.0) = 52.0; // Texels por metro
+uniform float pixel_grid_density : hint_range(8.0, 128.0) = 64.0; // Texels por metro
 uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float wave_height : hint_range(0.0, 0.1) = 0.02;
 uniform float shoreline_foam_dist : hint_range(0.05, 1.0) = 0.32;

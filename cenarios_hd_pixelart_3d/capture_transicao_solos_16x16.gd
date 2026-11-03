@@ -36,7 +36,7 @@ func _init():
 	# Exibe o mapa completo: terraço de planos a NO, platô alto e falésia a NE, e rampas ao Sul
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.2, 0.0)
-		cam.size = 18.0
+		cam.size = 20.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_transicao_solos_geral.png")
@@ -45,7 +45,7 @@ func _init():
 	# Foco nas transições em plano: Areia Branca -> Terra Preta -> Serrapilheira -> Latossolo Vermelho -> Granito
 	if pivot and cam:
 		pivot.global_position = Vector3(-3.5, 1.0, -3.5)
-		cam.size = 9.0
+		cam.size = 10.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_transicao_solos_planos.png")
@@ -54,7 +54,7 @@ func _init():
 	# Foco nas 4 pistas de rampas ao sul e seus patamares intermediários
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.2, 3.8)
-		cam.size = 11.0
+		cam.size = 10.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_transicao_solos_rampas.png")
@@ -63,7 +63,7 @@ func _init():
 	# Foco no grande paredão vertical revelando Terra Preta, Latossolo com Piçarra e Granito
 	if pivot and cam:
 		pivot.global_position = Vector3(3.5, 1.5, 0.5)
-		cam.size = 8.5
+		cam.size = 10.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_transicao_solos_cortes_verticais.png")
@@ -72,7 +72,7 @@ func _init():
 	# Enquadra o tapete de folhas caídas com resolução rica e transição suave
 	if pivot and cam:
 		pivot.global_position = Vector3(-2.0, 1.1, -3.0)
-		cam.size = 5.5
+		cam.size = 5.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_transicao_solos_serrapilheira.png")

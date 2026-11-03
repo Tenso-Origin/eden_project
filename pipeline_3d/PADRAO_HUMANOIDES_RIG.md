@@ -6,8 +6,8 @@ Este documento registra a matriz biométrica e proporcional canônica definida n
 
 ## 1. Unidade de Medida e Resolução (Head Units & Texels)
 - **1 Head Unit (1.0H)**: 1.0 metro no espaço do Blender.
-- **Densidade de Texels**: 24 a 32 pixels de textura por Head Unit na textura (atlas).
-- **Adulto Canônico**: 5 Cabeças de altura total ($5.0H \approx 120$ texels verticais aparentes).
+- **Densidade de Texels**: 64 pixels/texels por Head Unit / metro na textura (atlas), garantindo paridade 1:1 absoluta com os blocos de 1x1x1m.
+- **Adulto Canônico**: 5 Cabeças de altura total ($5.0H = 320$ texels verticais aparentes).
 
 ---
 

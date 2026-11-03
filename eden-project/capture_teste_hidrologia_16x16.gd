@@ -36,7 +36,7 @@ func _init():
 	# Enquadra o Lago Elevado ao Norte (-Z, Y=3.5m), a Cachoeira Vertical e a Rampa descendo ao Sul (+Z) até Y=0.5m
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 1.8, 0.0)
-		cam.size = 18.0
+		cam.size = 20.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_hidrologia_16x16_geral.png")
@@ -44,7 +44,7 @@ func _init():
 	# 2. Captura 2: Close-up Focado na Cachoeira e Lago Elevado ao Norte (-Z)
 	if pivot and cam:
 		pivot.global_position = Vector3(0.0, 2.8, -3.5)
-		cam.size = 9.0
+		cam.size = 10.0
 	for i in range(25):
 		await process_frame
 	save_shot.call("res://screenshot_hidrologia_16x16_cachoeira.png")

@@ -5,7 +5,7 @@ extends Camera3D
 ## e compensa o erro sub-pixel enviando o offset fracionário para o shader 2D de upscale.
 
 @export var display_item: CanvasItem
-@export var target_resolution: Vector2i = Vector2i(240, 135)
+@export var target_resolution: Vector2i = Vector2i(1138, 640)
 @export var distance_from_pivot: float = 20.0
 
 var _texel_size: float = 0.0

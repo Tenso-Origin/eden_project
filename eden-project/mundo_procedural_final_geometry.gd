@@ -88,16 +88,24 @@ func init_materials() -> void:
 	mat_surface.set_shader_parameter("top_texture_scale", 0.35)
 
 	mat_water_surface = ShaderMaterial.new()
-	mat_water_surface.shader = SHADER_WATER_SURFACE
+	mat_water_surface.shader = SHADER_WATER
 	mat_water_surface.set_shader_parameter("enable_3way_blend", true)
-	mat_water_surface.set_shader_parameter("pixel_grid_density", 52.0)
-	mat_water_surface.set_shader_parameter("wave_speed", 1.8)
+	mat_water_surface.set_shader_parameter("use_voronoi", false)
+	mat_water_surface.set_shader_parameter("pixel_grid_density", 64.0)
+	mat_water_surface.set_shader_parameter("wave_speed", 2.0)
 	mat_water_surface.set_shader_parameter("wave_height", 0.02)
-	mat_water_surface.set_shader_parameter("wave_crest_foam_threshold", 0.94)
-	mat_water_surface.set_shader_parameter("reflection_strength", 0.45)
 	mat_water_surface.set_shader_parameter("shoreline_foam_dist", 0.30)
 	mat_water_surface.set_shader_parameter("shoreline_ripple_rings", 3)
-	mat_water_surface.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+	mat_water_surface.set_shader_parameter("contact_foam_threshold", 0.06)
+	mat_water_surface.set_shader_parameter("reflection_strength", 0.35)
+	mat_water_surface.set_shader_parameter("reflection_distortion_px", 1.8)
+	mat_water_surface.set_shader_parameter("wind_direction", Vector2(0.7071, 0.7071))
+	mat_water_surface.set_shader_parameter("wind_speed", 2.0)
+	mat_water_surface.set_shader_parameter("wind_strength", 1.0)
+	mat_water_surface.set_shader_parameter("refraction_strength", 4.0)
+	mat_water_surface.set_shader_parameter("dash_density", 0.55)
+	mat_water_surface.set_shader_parameter("dash_cycle_speed", 0.55)
+	mat_water_surface.set_shader_parameter("foam_color", Color(1.0, 1.0, 1.0))
 
 	# Cores oficiais calibradas: Turquesa no Sul, Igarapé/Chá-Mate no Norte
 	mat_water_surface.set_shader_parameter("turquesa_shallow", Color(0.18, 0.82, 0.78, 0.50))
@@ -113,7 +121,7 @@ func init_materials() -> void:
 	mat_waterfall = ShaderMaterial.new()
 	mat_waterfall.shader = SHADER_WATERFALL
 	mat_waterfall.set_shader_parameter("enable_3way_blend", true)
-	mat_waterfall.set_shader_parameter("pixel_grid_density", 52.0)
+	mat_waterfall.set_shader_parameter("pixel_grid_density", 64.0)
 	mat_waterfall.set_shader_parameter("wave_speed", 1.8)
 	mat_waterfall.set_shader_parameter("laminar_length", 2.0)
 	mat_waterfall.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))

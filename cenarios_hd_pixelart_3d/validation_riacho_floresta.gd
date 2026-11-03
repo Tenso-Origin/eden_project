@@ -32,20 +32,26 @@ func setup_materials(root: Node) -> void:
 				water_node = child
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_WATER
-				mat.set_shader_parameter("pixel_grid_density", 52.0)
-				mat.set_shader_parameter("wave_speed", 1.8)
+				mat.set_shader_parameter("enable_3way_blend", false)
+				mat.set_shader_parameter("use_voronoi", false)
+				mat.set_shader_parameter("shallow_color", Color(0.18, 0.72, 0.82, 0.40))
+				mat.set_shader_parameter("deep_color", Color(0.08, 0.32, 0.52, 0.70))
+				mat.set_shader_parameter("depth_fade_distance", 1.20)
+				mat.set_shader_parameter("pixel_grid_density", 64.0)
+				mat.set_shader_parameter("wave_speed", 2.0)
 				mat.set_shader_parameter("wave_height", 0.02)
-				mat.set_shader_parameter("reflection_strength", 0.42)
-				mat.set_shader_parameter("reflection_distortion_px", 2.0)
-				
-				# Água de Igarapé (Tom Chá-Mate / Ácidos Húmicos)
-				mat.set_shader_parameter("shallow_color", Color(0.38, 0.24, 0.11, 0.75))
-				mat.set_shader_parameter("deep_color", Color(0.11, 0.06, 0.04, 0.96))
-				mat.set_shader_parameter("depth_fade_distance", 0.55)
-				mat.set_shader_parameter("shoreline_foam_dist", 0.22)
+				mat.set_shader_parameter("shoreline_foam_dist", 0.30)
+				mat.set_shader_parameter("shoreline_ripple_rings", 3)
+				mat.set_shader_parameter("contact_foam_threshold", 0.06)
+				mat.set_shader_parameter("reflection_strength", 0.35)
+				mat.set_shader_parameter("reflection_distortion_px", 1.8)
+				mat.set_shader_parameter("wind_direction", Vector2(0.7071, 0.7071))
+				mat.set_shader_parameter("wind_speed", 2.0)
+				mat.set_shader_parameter("wind_strength", 1.0)
+				mat.set_shader_parameter("refraction_strength", 4.0)
+				mat.set_shader_parameter("dash_density", 0.55)
+				mat.set_shader_parameter("dash_cycle_speed", 0.55)
 				mat.set_shader_parameter("foam_color", Color(1.0, 1.0, 1.0))
-				mat.set_shader_parameter("wave_crest_foam_threshold", 0.88)
-				
 				child.material_override = mat
 				
 			else:

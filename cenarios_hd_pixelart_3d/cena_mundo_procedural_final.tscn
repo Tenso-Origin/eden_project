@@ -44,7 +44,7 @@ script = ExtResource("1_main")
 [node name="SubViewport" type="SubViewport" parent="."]
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
-size = Vector2i(642, 362)
+size = Vector2i(1140, 642)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewport"]
@@ -71,18 +71,18 @@ transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.43
 script = ExtResource("2_pivot")
 move_speed = 15.0
 default_pos = Vector3(0, 8.0, 0)
-default_size = 48.0
+default_size = 40.0
 min_zoom_size = 5.0
-max_zoom_size = 140.0
+max_zoom_size = 40.0
 
 [node name="Camera3D" type="Camera3D" parent="SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("display_item")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 120)
 projection = 1
-size = 48.0
+size = 40.0
 current = true
 script = ExtResource("3_camera")
 display_item = NodePath("../../../../TextureDisplay")
-target_resolution = Vector2i(640, 360)
+target_resolution = Vector2i(1138, 640)
 distance_from_pivot = 120.0
 
 [node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewport/World3D/CameraPivot/Camera3D"]

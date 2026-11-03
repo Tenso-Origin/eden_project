@@ -11,10 +11,10 @@ from mathutils import Vector
 # para a raça Humana e serve como matriz base para todas as demais raças humanóides.
 #
 # Proporções fundamentais:
-#   ADULT (5H  / 120 texels verticais): Guerreiro / Adulto padrão
-#   YOUTH (4H  / 96 texels verticais): Jovem
-#   CHILD (3H  / 72 texels verticais): Criança
-#   BABY  (2H  / 48 texels verticais): Bebê
+#   ADULT (5H  / 320 texels verticais): Guerreiro / Adulto padrão
+#   YOUTH (4H  / 256 texels verticais): Jovem
+#   CHILD (3H  / 192 texels verticais): Criança
+#   BABY  (2H  / 128 texels verticais): Bebê
 # ==============================================================================
 
 AGE_CATEGORY    = "ADULT"  # "ADULT" (5H), "YOUTH" (4H), "CHILD" (3H), "BABY" (2H)

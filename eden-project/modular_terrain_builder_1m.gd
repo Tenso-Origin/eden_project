@@ -258,6 +258,7 @@ func build_terrain_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMes
 
 const WATER_LIP_ELEV: float = 0.03   # Lip Overflow (+0.03m de elevação)
 const WATER_LIP_BEVEL: float = 0.12  # Chanfro bevel de 0.12m a 45 graus
+const WATER_GROUND_SEAM_OVERLAP: float = 0.03 # Transpasse hermético de 3cm contra descolamento de ondas
 
 func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 	var st_surf = SurfaceTool.new()
@@ -354,8 +355,8 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 			var y_w0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz0)
 			var y_w1 = evaluate_snapped_height(origin_x + lx0, origin_z + lz1)
 			var w_w = evaluate_water_cell(cx - 1, cz)
-			var bot_w0 = max(w_w.water_corners[1], y_w0) if w_w.has_water else min(y_w0, wy00)
-			var bot_w1 = max(w_w.water_corners[3], y_w1) if w_w.has_water else min(y_w1, wy01)
+			var bot_w0 = max(w_w.water_corners[1], y_w0) if w_w.has_water else min(y_w0 - WATER_GROUND_SEAM_OVERLAP, wy00)
+			var bot_w1 = max(w_w.water_corners[3], y_w1) if w_w.has_water else min(y_w1 - WATER_GROUND_SEAM_OVERLAP, wy01)
 			if wy00 > bot_w0 + 0.005 or wy01 > bot_w1 + 0.005:
 				_add_water_wall_quad(st_surf,
 					Vector3(lx0, wy00, lz0), Vector3(lx0, wy01, lz1),
@@ -366,8 +367,8 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 			var y_e0 = evaluate_snapped_height(origin_x + lx1, origin_z + lz0)
 			var y_e1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz1)
 			var w_e = evaluate_water_cell(cx + 1, cz)
-			var bot_e0 = max(w_e.water_corners[0], y_e0) if w_e.has_water else min(y_e0, wy10)
-			var bot_e1 = max(w_e.water_corners[2], y_e1) if w_e.has_water else min(y_e1, wy11)
+			var bot_e0 = max(w_e.water_corners[0], y_e0) if w_e.has_water else min(y_e0 - WATER_GROUND_SEAM_OVERLAP, wy10)
+			var bot_e1 = max(w_e.water_corners[2], y_e1) if w_e.has_water else min(y_e1 - WATER_GROUND_SEAM_OVERLAP, wy11)
 			if wy10 > bot_e0 + 0.005 or wy11 > bot_e1 + 0.005:
 				_add_water_wall_quad(st_surf,
 					Vector3(lx1, wy10, lz0), Vector3(lx1, wy11, lz1),
@@ -378,8 +379,8 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 			var y_n0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz0)
 			var y_n1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz0)
 			var w_n = evaluate_water_cell(cx, cz - 1)
-			var bot_n0 = max(w_n.water_corners[2], y_n0) if w_n.has_water else min(y_n0, wy00)
-			var bot_n1 = max(w_n.water_corners[3], y_n1) if w_n.has_water else min(y_n1, wy10)
+			var bot_n0 = max(w_n.water_corners[2], y_n0) if w_n.has_water else min(y_n0 - WATER_GROUND_SEAM_OVERLAP, wy00)
+			var bot_n1 = max(w_n.water_corners[3], y_n1) if w_n.has_water else min(y_n1 - WATER_GROUND_SEAM_OVERLAP, wy10)
 			if wy00 > bot_n0 + 0.005 or wy10 > bot_n1 + 0.005:
 				_add_water_wall_quad(st_surf,
 					Vector3(lx0, wy00, lz0), Vector3(lx1, wy10, lz0),
@@ -391,8 +392,8 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 				var y_s0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz1)
 				var y_s1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz1)
 				var w_s = evaluate_water_cell(cx, cz + 1)
-				var bot_s0 = max(w_s.water_corners[0], y_s0) if w_s.has_water else min(y_s0, wy01)
-				var bot_s1 = max(w_s.water_corners[1], y_s1) if w_s.has_water else min(y_s1, wy11)
+				var bot_s0 = max(w_s.water_corners[0], y_s0) if w_s.has_water else min(y_s0 - WATER_GROUND_SEAM_OVERLAP, wy01)
+				var bot_s1 = max(w_s.water_corners[1], y_s1) if w_s.has_water else min(y_s1 - WATER_GROUND_SEAM_OVERLAP, wy11)
 				if wy01 > bot_s0 + 0.005 or wy11 > bot_s1 + 0.005:
 					_add_water_wall_quad(st_surf,
 						Vector3(lx0, wy01, lz1), Vector3(lx1, wy11, lz1),
@@ -408,48 +409,44 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 
 	return mesh
 
-## Helper para adicionar quad de parede lateral de água (fechamento de Y_água até Y_solo)
-func _add_water_wall_quad(st: SurfaceTool, top0: Vector3, top1: Vector3, bot0: Vector3, bot1: Vector3, norm: Vector3, col: Color, fall_top: float) -> void:
-	if top0.is_equal_approx(bot0) and top1.is_equal_approx(bot1):
+## Helper para adicionar triângulo de parede lateral de água com garantia de normal externa
+func _add_water_wall_triangle(st: SurfaceTool, va: Vector3, vb: Vector3, vc: Vector3, norm: Vector3, col: Color, fall_top: float) -> void:
+	if va.is_equal_approx(vb) or vb.is_equal_approx(vc) or va.is_equal_approx(vc):
 		return
 
-	var n1 = (bot1 - bot0).cross(top0 - bot0).normalized()
-	var flip = (n1.dot(norm) < 0.0)
+	var tri_n = (vb - va).cross(vc - va).normalized()
+	if tri_n.dot(norm) < 0.0:
+		var temp = vb
+		vb = vc
+		vc = temp
 
-	var v0 = bot0
-	var v1 = bot1 if not flip else top0
-	var v2 = top1
-	var v3 = top0 if not flip else bot1
+	for v in [va, vb, vc]:
+		st.set_normal(norm)
+		st.set_color(col)
+		st.set_uv(Vector2(v.x + v.z, fall_top))
+		st.add_vertex(v)
 
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v0.x + v0.z, fall_top))
-	st.add_vertex(v0)
+## Helper robusto para adicionar quad de parede lateral de água ou cunha de fechamento triangular
+func _add_water_wall_quad(st: SurfaceTool, top0: Vector3, top1: Vector3, bot0: Vector3, bot1: Vector3, norm: Vector3, col: Color, fall_top: float) -> void:
+	var top0_eq_bot0 = top0.is_equal_approx(bot0)
+	var top1_eq_bot1 = top1.is_equal_approx(bot1)
 
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v1.x + v1.z, fall_top))
-	st.add_vertex(v1)
+	if top0_eq_bot0 and top1_eq_bot1:
+		return
 
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v2.x + v2.z, fall_top))
-	st.add_vertex(v2)
+	# 1. Cunha de fechamento triangular (Ponta no vértice 0, base no vértice 1)
+	if top0_eq_bot0:
+		_add_water_wall_triangle(st, top0, top1, bot1, norm, col, fall_top)
+		return
 
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v0.x + v0.z, fall_top))
-	st.add_vertex(v0)
+	# 2. Cunha de fechamento triangular (Base no vértice 0, ponta no vértice 1)
+	if top1_eq_bot1:
+		_add_water_wall_triangle(st, top0, top1, bot0, norm, col, fall_top)
+		return
 
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v2.x + v2.z, fall_top))
-	st.add_vertex(v2)
-
-	st.set_normal(norm)
-	st.set_color(col)
-	st.set_uv(Vector2(v3.x + v3.z, fall_top))
-	st.add_vertex(v3)
+	# 3. Quad retangular completo (2 triângulos não degenerados)
+	_add_water_wall_triangle(st, bot0, top0, top1, norm, col, fall_top)
+	_add_water_wall_triangle(st, bot0, top1, bot1, norm, col, fall_top)
 
 ## Helper para adicionar quad de água superior com normais calculadas
 func _add_water_top_quad(st: SurfaceTool, v00: Vector3, v10: Vector3, v01: Vector3, v11: Vector3, col: Color, fall_top: float) -> void:

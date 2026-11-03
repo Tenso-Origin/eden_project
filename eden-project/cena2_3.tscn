@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://c7m9x4k3cena23"]
+[gd_scene load_steps=13 format=3 uid="uid://c7m9x4k3cena23"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://pixel_camera.gd" id="3_camera"]
 [ext_resource type="Shader" path="res://pixel_outline.gdshader" id="4_outline"]
 [ext_resource type="Script" path="res://validation_scene_loader_v2.gd" id="5_loader_v2"]
+[ext_resource type="Script" path="res://day_night_cycle_controller.gd" id="6_daynight"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_upscale"]
 shader = ExtResource("1_upscale")
@@ -44,7 +45,7 @@ script = ExtResource("1_main")
 [node name="SubViewport" type="SubViewport" parent="."]
 handle_input_locally = false
 snap_2d_transforms_to_pixel = true
-size = Vector2i(642, 362)
+size = Vector2i(1140, 642)
 render_target_update_mode = 4
 
 [node name="World3D" type="Node3D" parent="SubViewport"]
@@ -61,6 +62,16 @@ shadow_blur = 0.0
 directional_shadow_mode = 0
 directional_shadow_fade_start = 1.0
 
+[node name="DayNightCycle" type="Node3D" parent="SubViewport/World3D" node_paths=PackedStringArray("sun_light", "world_environment")]
+script = ExtResource("6_daynight")
+sun_light = NodePath("../DirectionalLight3D")
+world_environment = NodePath("../WorldEnvironment")
+current_hour = 12.0
+day_of_year = 80
+day_duration_seconds = 120.0
+time_scale = 1.0
+auto_advance = true
+
 [node name="MapGeometry" type="Node3D" parent="SubViewport/World3D"]
 script = ExtResource("5_loader_v2")
 glb_path = "res://lago_ruinas.glb"
@@ -75,18 +86,18 @@ transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.43
 script = ExtResource("2_pivot")
 move_speed = 6.0
 default_pos = Vector3(0, 0.35, 0)
-default_size = 7.2
-min_zoom_size = 1.5
-max_zoom_size = 16.0
+default_size = 10.0
+min_zoom_size = 5.0
+max_zoom_size = 40.0
 
 [node name="Camera3D" type="Camera3D" parent="SubViewport/World3D/CameraPivot" node_paths=PackedStringArray("display_item")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 25)
 projection = 1
-size = 7.2
+size = 10.0
 current = true
 script = ExtResource("3_camera")
 display_item = NodePath("../../../../TextureDisplay")
-target_resolution = Vector2i(640, 360)
+target_resolution = Vector2i(1138, 640)
 distance_from_pivot = 25.0
 
 [node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewport/World3D/CameraPivot/Camera3D"]

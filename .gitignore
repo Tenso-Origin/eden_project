@@ -42,3 +42,9 @@ pipeline_3d/*.webp
 cenarios_hd_pixelart_3d/.godot/
 
 
+
+## Logs, Scratch & Temporary Files
+*.log
+logs/
+scratch/
+*.vsix

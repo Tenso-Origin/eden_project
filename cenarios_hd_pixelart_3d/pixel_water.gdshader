@@ -65,6 +65,7 @@ varying vec3 v_world_normal;
 varying vec4 v_flow_data;
 varying vec2 v_uv2;
 varying float v_fall_top;
+varying float v_water_plane_y;
 
 vec2 hash2(vec2 p) {
 	return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
@@ -116,7 +117,8 @@ float compute_screen_horizontal_dashes(
 	float w_strength,
 	float density,
 	float max_width_px,
-	float cycle_speed
+	float cycle_speed,
+	float water_plane_y
 ) {
 	vec2 curr_px = screen_uv * viewport_size;
 	float cell_size = 0.85;
@@ -130,9 +132,10 @@ float compute_screen_horizontal_dashes(
 
 			if (rnd.x < (1.0 - density)) continue;
 
+			// Posição 3D estática no plano d'água: sem oscilar verticalmente com as ondas
 			vec3 dash_pos_world = vec3(
 				(cell.x + rnd.x * 0.7 + 0.15) * cell_size,
-				world_pos.y,
+				water_plane_y,
 				(cell.y + rnd.y * 0.7 + 0.15) * cell_size
 			);
 
@@ -141,17 +144,19 @@ float compute_screen_horizontal_dashes(
 			vec2 suv = (clip.xy / clip.w) * 0.5 + 0.5;
 			vec2 spx = suv * viewport_size;
 
-			vec2 diff = abs(curr_px - spx);
-			if (diff.y > 0.80) continue;
+			// Trava absoluta e estável na linha de pixel da tela (garante espessura estrita de 1 linha sem saltar de scanline)
+			if (floor(curr_px.y) != floor(spx.y)) continue;
 
-			float wave_phase = dot(dash_pos_world.xz, w_dir) * 2.6 - time * w_speed * cycle_speed + rnd.y * 6.2831;
+			// Ciclo suave desacelerado com swell orgânico (evita surgimento e desaparecimento bruscos)
+			float wave_phase = dot(dash_pos_world.xz, w_dir) * 1.8 - time * w_speed * (cycle_speed * 0.45) + rnd.y * 6.2831;
 			float wave_val = sin(wave_phase);
-			float swell = smoothstep(-0.35, 0.85, wave_val) * w_strength;
+			float swell = smoothstep(-0.40, 0.70, wave_val) * w_strength;
 			if (swell <= 0.005) continue;
 
 			float current_half_width = (max_width_px * 0.5 * swell) * (0.65 + 0.35 * rnd.y);
-			if (diff.x <= current_half_width) {
-				float edge = clamp((current_half_width - diff.x) * 1.4, 0.0, 1.0);
+			float diff_x = abs(curr_px.x - spx.x);
+			if (diff_x <= current_half_width) {
+				float edge = clamp((current_half_width - diff_x) * 1.4, 0.0, 1.0);
 				dash_out = max(dash_out, edge * swell);
 			}
 		}
@@ -165,6 +170,7 @@ void vertex() {
 	v_fall_top = UV.y;
 	v_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	vec3 w_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_water_plane_y = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).y;
 
 	if (v_fall_top <= 0.001) {
 		v_fall_top = w_pos.y;
@@ -258,7 +264,6 @@ void fragment() {
 			ALPHA = 1.0;
 		}
 	} else {
-		// Superfície d'água e película lateral
 		vec2 texel_size = 1.0 / VIEWPORT_SIZE;
 		vec2 flow_dir = (v_flow_data.rg * 2.0 - 1.0);
 		vec2 world_xz_snapped = floor(v_world_pos.xz * pixel_grid_density) / pixel_grid_density;
@@ -351,71 +356,9 @@ void fragment() {
 			bg_uv = SCREEN_UV;
 		}
 
+		// Fundo nítido com pura difração óptica (sem desfoque/leitosidade)
 		vec3 refracted_bg = texture(screen_texture, bg_uv).rgb;
-
-		vec2 blur_r1 = texel_size * 2.2;
-		vec2 blur_r2 = texel_size * 4.2;
-		vec3 b_u = texture(screen_texture, bg_uv + vec2(0.0, blur_r1.y)).rgb;
-		vec3 b_d = texture(screen_texture, bg_uv - vec2(0.0, blur_r1.y)).rgb;
-		vec3 b_l = texture(screen_texture, bg_uv - vec2(blur_r1.x, 0.0)).rgb;
-		vec3 b_r = texture(screen_texture, bg_uv + vec2(blur_r1.x, 0.0)).rgb;
-		vec3 b_ul = texture(screen_texture, bg_uv + vec2(-blur_r2.x, blur_r2.y)).rgb;
-		vec3 b_ur = texture(screen_texture, bg_uv + vec2(blur_r2.x, blur_r2.y)).rgb;
-		vec3 b_dl = texture(screen_texture, bg_uv - vec2(blur_r2.x, blur_r2.y)).rgb;
-		vec3 b_dr = texture(screen_texture, bg_uv + vec2(blur_r2.x, -blur_r2.y)).rgb;
-		vec3 blurred_bg = (refracted_bg * 0.18 + (b_u + b_d + b_l + b_r) * 0.13 + (b_ul + b_ur + b_dl + b_dr) * 0.075);
-
-		float shoreline_turbid = 0.0;
-		float contact_foam = 0.0;
-		if (water_depth < shoreline_foam_dist && water_depth >= 0.0) {
-			float norm_shore = water_depth / shoreline_foam_dist;
-			float wave_perturb = sin(world_xz_snapped.x * 12.0 + world_xz_snapped.y * 12.0) * 0.08;
-			float rings = sin((norm_shore + wave_perturb) * float(shoreline_ripple_rings) * 6.2831 - TIME * (wave_speed * 2.5));
-			float ring_step = step(0.40 + norm_shore * 0.4, rings);
-			float edge_solid = smoothstep(0.18, 0.02, norm_shore) * 0.50;
-			shoreline_turbid = clamp(ring_step + edge_solid, 0.0, 1.0);
-			float contact_line = step(water_depth, contact_foam_threshold);
-			contact_foam = max(contact_line, ring_step * step(norm_shore, 0.35));
-		}
-
-		float wave_curr = 0.0;
-		float v_wave = 0.0;
-		float caustic_band = 0.0;
-		float crest_rise = 0.0;
-		float crest_voronoi_rise = 0.0;
-
-		if (use_voronoi) {
-			wave_curr = sin(world_xz_snapped.x * 6.0 + TIME * wave_speed) * cos(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8);
-			v_wave = voronoi_wave(animated_xz * voronoi_frequency, TIME);
-			caustic_band = step(0.72, v_wave);
-			crest_rise = smoothstep(0.40, 0.93, wave_curr);
-			crest_voronoi_rise = smoothstep(0.55, 0.85, v_wave);
-		} else {
-			wave_curr = wind_wave_long;
-			v_wave = clamp(wind_wave_long * 0.5 + 0.5, 0.0, 1.0);
-			caustic_band = step(0.78, wind_wave_long) * 0.35;
-			crest_rise = smoothstep(0.45, 0.95, wave_curr);
-			crest_voronoi_rise = smoothstep(0.50, 0.90, v_wave);
-		}
-
-		float high_crest_turbid = crest_rise * (0.35 + 0.45 * crest_voronoi_rise);
-		float crest_turbid = clamp(high_crest_turbid * 0.70 + caustic_band * 0.25, 0.0, 1.0);
-
-		float crest_foam = 0.0;
-		if (use_voronoi) {
-			crest_foam = step(wave_crest_foam_threshold, wave_curr) * step(wave_crest_voronoi_threshold, v_wave);
-		} else {
-			crest_foam = step(wave_crest_foam_threshold, wind_wave_long);
-		}
-
-		float turb = v_flow_data.b;
-		if (turb > 0.35) {
-			float turb_foam = step(1.02 - turb * 0.52, v_wave) * smoothstep(0.35, 0.85, turb);
-			crest_foam = max(crest_foam, turb_foam);
-		}
-
-		float turbid_factor = clamp(shoreline_turbid * 0.50 + crest_turbid * 0.40 + turb * 0.50, 0.0, 1.0);
-		vec3 seabed_refracted = mix(refracted_bg, blurred_bg, turbid_factor);
+		vec3 seabed_refracted = refracted_bg;
 
 		vec3 reflected_scene = vec3(0.0);
 		float reflection_weight = 0.0;
@@ -435,13 +378,13 @@ void fragment() {
 					cos(world_xz_snapped.x * 6.0 + TIME * wave_speed) * cos(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8),
 					-sin(world_xz_snapped.x * 6.0 + TIME * wave_speed) * sin(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8)
 				);
-				voronoi_ripple = (v_wave - 0.5) * 2.0;
+				voronoi_ripple = (sin(animated_xz.x * 6.0) - 0.5) * 2.0;
 			} else {
 				wave_slope = w_dir * (wind_wave_long * 1.4) + w_perp * (h2 * 0.45);
-				voronoi_ripple = (v_wave - 0.5) * 1.2;
+				voronoi_ripple = (wind_wave_long * 0.5) * 1.2;
 			}
 
-			vec2 surface_wave_offset = (screen_perp * (wave_slope.x * 1.5 + voronoi_ripple * 0.8) + screen_up_per_meter * (wave_slope.y * 1.8 + wave_curr * 0.7)) * (reflection_distortion_px * texel_size.y * 14.0);
+			vec2 surface_wave_offset = (screen_perp * (wave_slope.x * 1.5 + voronoi_ripple * 0.8) + screen_up_per_meter * (wave_slope.y * 1.8 + wind_wave_long * 0.7)) * (reflection_distortion_px * texel_size.y * 14.0);
 			vec2 pixel_wave_distortion = round(surface_wave_offset / texel_size) * texel_size;
 
 			for (int step_idx = 1; step_idx <= 24; step_idx++) {
@@ -462,7 +405,7 @@ void fragment() {
 				if (h_refl > obj_h * 2.2 + 0.15) continue;
 
 				float max_tol = max(0.045, obj_h * 0.35);
-				float wave_h_mod = wave_curr * wave_height * 2.5;
+				float wave_h_mod = wind_wave_long * wave_height * 2.5;
 				float expected_h = h_refl * 0.5 + wave_h_mod;
 
 				if (abs(obj_h - expected_h) < max_tol && sample_view.z < VERTEX.z + 0.25) {
@@ -475,14 +418,12 @@ void fragment() {
 			}
 		}
 
+		// Mistura de cor uniforme e estável (sem mudar tom ao longo das ondas)
 		vec4 base_water = mix(cur_shallow, cur_deep, stepped_depth);
 		float shallow_fade = clamp(water_depth / (cur_fade * 0.65), 0.15, 1.0);
 		float effective_alpha = mix(cur_shallow.a * shallow_fade, cur_deep.a, stepped_depth);
 
-		vec3 water_tint = mix(base_water.rgb, cur_shallow.rgb * 1.05, high_crest_turbid * 0.06);
-		vec3 underwater_floor = mix(seabed_refracted, water_tint, effective_alpha);
-
-		underwater_floor = mix(underwater_floor, cur_shallow.rgb * 1.25, caustic_band * 0.18);
+		vec3 underwater_floor = mix(seabed_refracted, base_water.rgb, effective_alpha);
 
 		vec3 surface_composite = underwater_floor;
 		if (reflection_weight > 0.0) {
@@ -502,16 +443,12 @@ void fragment() {
 				wind_strength,
 				dash_density,
 				dash_max_width_px,
-				dash_cycle_speed
+				dash_cycle_speed,
+				v_water_plane_y
 			);
 			if (white_dash > 0.0) {
 				surface_composite = mix(surface_composite, vec3(1.0, 1.0, 1.0), white_dash * 0.95);
 			}
-		}
-
-		float total_surface_foam = max(crest_foam, contact_foam);
-		if (total_surface_foam > 0.0) {
-			surface_composite = mix(surface_composite, foam_color, clamp(total_surface_foam * 0.90, 0.0, 1.0));
 		}
 
 		ALBEDO = surface_composite;

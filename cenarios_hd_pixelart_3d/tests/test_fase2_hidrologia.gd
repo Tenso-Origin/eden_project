@@ -23,8 +23,12 @@ func _init():
 		return
 
 	var t_verts = terrain_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
-	var w_verts = water_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array
-	var w_colors = water_mesh.surface_get_arrays(0)[Mesh.ARRAY_COLOR] as PackedColorArray
+	var w_verts: Array = []
+	var w_colors: Array = []
+	for s in range(water_mesh.get_surface_count()):
+		var arr = water_mesh.surface_get_arrays(s)
+		w_verts.append_array(arr[Mesh.ARRAY_VERTEX])
+		w_colors.append_array(arr[Mesh.ARRAY_COLOR])
 
 	print("Terreno: ", t_verts.size() / 3, " triangulos gerados.")
 	print("Agua Multi-Nivel: ", w_verts.size() / 3, " triangulos gerados.")

@@ -7,6 +7,8 @@ class_name ModularHydrology16x16Geometry
 ## Grade 1x1x1m, Snapping Vertical 0.25m, Shaders pixel_water / pixel_surface
 
 const SHADER_SURFACE = preload("res://pixel_surface.gdshader")
+const SHADER_WATER_SURFACE = preload("res://pixel_water_surface.gdshader")
+const SHADER_WATERFALL = preload("res://pixel_waterfall.gdshader")
 const SHADER_WATER = preload("res://pixel_water.gdshader")
 const ModularTerrainBuilder1mClass = preload("res://modular_terrain_builder_1m.gd")
 
@@ -55,18 +57,29 @@ func generate_scene() -> void:
 		water_instance.name = "WaterMesh16x16"
 		water_instance.mesh = water_mesh
 
-		var mat_water = ShaderMaterial.new()
-		mat_water.shader = SHADER_WATER
-		mat_water.set_shader_parameter("pixel_grid_density", 52.0)
-		mat_water.set_shader_parameter("wave_speed", 1.8)
-		mat_water.set_shader_parameter("wave_height", 0.02)
-		mat_water.set_shader_parameter("reflection_strength", 0.42)
-		mat_water.set_shader_parameter("shallow_color", Color(0.18, 0.82, 0.78, 0.70))
-		mat_water.set_shader_parameter("deep_color", Color(0.05, 0.38, 0.48, 0.90))
-		mat_water.set_shader_parameter("depth_fade_distance", 1.10)
-		mat_water.set_shader_parameter("shoreline_foam_dist", 0.28)
-		mat_water.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
-		water_instance.material_override = mat_water
+		var mat_water_surf = ShaderMaterial.new()
+		mat_water_surf.shader = SHADER_WATER_SURFACE
+		mat_water_surf.set_shader_parameter("pixel_grid_density", 52.0)
+		mat_water_surf.set_shader_parameter("wave_speed", 1.8)
+		mat_water_surf.set_shader_parameter("wave_height", 0.02)
+		mat_water_surf.set_shader_parameter("reflection_strength", 0.42)
+		mat_water_surf.set_shader_parameter("shallow_color", Color(0.18, 0.82, 0.78, 0.70))
+		mat_water_surf.set_shader_parameter("deep_color", Color(0.05, 0.38, 0.48, 0.90))
+		mat_water_surf.set_shader_parameter("depth_fade_distance", 1.10)
+		mat_water_surf.set_shader_parameter("shoreline_foam_dist", 0.28)
+		mat_water_surf.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+
+		var mat_fall = ShaderMaterial.new()
+		mat_fall.shader = SHADER_WATERFALL
+		mat_fall.set_shader_parameter("pixel_grid_density", 52.0)
+		mat_fall.set_shader_parameter("wave_speed", 1.8)
+		mat_fall.set_shader_parameter("shallow_color", Color(0.18, 0.82, 0.78, 0.70))
+		mat_fall.set_shader_parameter("deep_color", Color(0.05, 0.38, 0.48, 0.90))
+		mat_fall.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+
+		water_instance.set_surface_override_material(0, mat_water_surf)
+		if water_mesh.get_surface_count() > 1:
+			water_instance.set_surface_override_material(1, mat_fall)
 
 		# Alinhamento exato com a malha do terreno
 		water_instance.position = Vector3(-8.0, 0.0, -8.0)

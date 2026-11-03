@@ -256,17 +256,19 @@ func build_terrain_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMes
 # 3. CONSTRUÇÃO DA MALHA MODULAR DE ÁGUA MULTI-NÍVEL (Lagos, Rampas e Quedas)
 # =========================================================================
 
-const WATER_BLEED_DIST: float = 1.00 # Overlap Total de 1 Bloco Inteiro (+1.0m em rampas vizinhas)
 const WATER_LIP_ELEV: float = 0.03   # Lip Overflow (+0.03m de elevação)
 const WATER_LIP_BEVEL: float = 0.12  # Chanfro bevel de 0.12m a 45 graus
 
 func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
-	var st = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_surf = SurfaceTool.new()
+	st_surf.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_fall = SurfaceTool.new()
+	st_fall.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	var origin_x = c_coord.x * size_in_meters
 	var origin_z = c_coord.y * size_in_meters
 	var has_any_water = false
+	var has_waterfall = false
 
 	for iz in range(size_in_meters):
 		for ix in range(size_in_meters):
@@ -303,22 +305,16 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 				0.05, # Baixa turbulência para paredes laterais
 				biome
 			)
-			var rel_z = int(fposmod(float(cz), 16.0))
-			var cell_depth = 0.75 if rel_z <= 4 else 0.50
 
 			# -----------------------------------------------------------------
 			# A. SUPERFÍCIE PRINCIPAL DA ÁGUA OU QUEDA COM LIP OVERFLOW
 			# -----------------------------------------------------------------
 			if w_data.is_waterfall:
-				# Overlap Total de 1 Bloco Inteiro (+1.0m) para dentro das rampas laterais
-				var w_w_fall = evaluate_water_cell(cx - 1, cz)
-				var w_e_fall = evaluate_water_cell(cx + 1, cz)
-				var bleed_l = WATER_BLEED_DIST if not w_w_fall.has_water else 0.0
-				var bleed_r = WATER_BLEED_DIST if not w_e_fall.has_water else 0.0
-				var fx0 = lx0 - bleed_l
-				var fx1 = lx1 + bleed_r
+				has_waterfall = true
+				var fx0 = lx0
+				var fx1 = lx1
 
-				# Lip Overflow (+0.03m elevacao e chanfro bevel 0.12m)
+				# Lip Overflow (+0.03m elevação e chanfro bevel 0.12m)
 				var lip_top_y = w_data.water_y + WATER_LIP_ELEV # 3.53m
 				var bev_bot_y = lip_top_y - WATER_LIP_BEVEL      # 3.41m
 				var lz_lip = lz1 - WATER_LIP_BEVEL               # lz1 - 0.12m
@@ -328,117 +324,132 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 				var v10 = Vector3(fx1, wy10, lz0)
 				var v0_lip = Vector3(fx0, lip_top_y, lz_lip)
 				var v1_lip = Vector3(fx1, lip_top_y, lz_lip)
-				_add_water_top_quad(st, v00, v10, v0_lip, v1_lip, flow_col, lip_top_y)
+				_add_water_top_quad(st_surf, v00, v10, v0_lip, v1_lip, flow_col, lip_top_y)
 
 				# 2. Chanfro Bevel de 0.12m a 45 graus (Lip Overflow)
 				var v0_bev_bot = Vector3(fx0, bev_bot_y, lz1)
 				var v1_bev_bot = Vector3(fx1, bev_bot_y, lz1)
 				var bevel_col = Color(0.5, 1.0, 0.10, biome)
 				var bevel_norm = Vector3(0.0, 0.707107, 0.707107)
-				_add_quad_facing(st, v0_bev_bot, v1_bev_bot, v1_lip, v0_lip, bevel_norm, bevel_col, lip_top_y)
+				_add_quad_facing(st_surf, v0_bev_bot, v1_bev_bot, v1_lip, v0_lip, bevel_norm, bevel_col, lip_top_y)
 
 				# 3. Queda d'Água Vertical / Cachoeira ao Sul (Water_Fall_Vertical)
-				# Cortina frontal estendida +1.0m para dentro das rampas laterais
 				var fall_bot_y = w_data.waterfall_base_y
 				var fv_bot_0 = Vector3(fx0, fall_bot_y, lz1)
 				var fv_bot_1 = Vector3(fx1, fall_bot_y, lz1)
 				var fall_col = Color(0.5, 1.0, 1.0, biome) # Turbulência 1.0 ativa cascata vertical
-				_add_quad_facing(st, fv_bot_0, fv_bot_1, v1_bev_bot, v0_bev_bot, Vector3.BACK, fall_col, lip_top_y)
+				_add_quad_facing(st_fall, fv_bot_0, fv_bot_1, v1_bev_bot, v0_bev_bot, Vector3.BACK, fall_col, lip_top_y)
 			else:
 				# Superfície Superior Padrão (Plana ou Rampa inclinada ao Sul)
 				var wv00 = Vector3(lx0, wy00, lz0)
 				var wv10 = Vector3(lx1, wy10, lz0)
 				var wv01 = Vector3(lx0, wy01, lz1)
 				var wv11 = Vector3(lx1, wy11, lz1)
-				_add_water_top_quad(st, wv00, wv10, wv01, wv11, flow_col, wy00)
+				_add_water_top_quad(st_surf, wv00, wv10, wv01, wv11, flow_col, wy00)
 
 			# -----------------------------------------------------------------
-			# B. WATER VOLUME BLEED (+1.0m em rampas vizinhas) E CONTATO Z-BUFFER
+			# B. PELÍCULA LATERAL DE Y_ÁGUA ATÉ Y_SOLO (Conformada ao Relevo)
 			# -----------------------------------------------------------------
-			# 1. Margem Oeste (cx - 1):
+			# 1. Margem Oeste (-X, em lx0):
+			var y_w0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz0)
+			var y_w1 = evaluate_snapped_height(origin_x + lx0, origin_z + lz1)
 			var w_w = evaluate_water_cell(cx - 1, cz)
-			if not w_w.has_water:
-				var bx0 = lx0 - WATER_BLEED_DIST
-				var bx1 = lx0
-				var bv00 = Vector3(bx0, wy00, lz0)
-				var bv10 = Vector3(bx1, wy00, lz0)
-				var bv01 = Vector3(bx0, wy01, lz1)
-				var bv11 = Vector3(bx1, wy01, lz1)
-				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy00)
+			var bot_w0 = max(w_w.water_corners[1], y_w0) if w_w.has_water else min(y_w0, wy00)
+			var bot_w1 = max(w_w.water_corners[3], y_w1) if w_w.has_water else min(y_w1, wy01)
+			if wy00 > bot_w0 + 0.005 or wy01 > bot_w1 + 0.005:
+				_add_water_wall_quad(st_surf,
+					Vector3(lx0, wy00, lz0), Vector3(lx0, wy01, lz1),
+					Vector3(lx0, bot_w0, lz0), Vector3(lx0, bot_w1, lz1),
+					Vector3.LEFT, side_col, wy00)
 
-			# 2. Margem Leste (cx + 1):
+			# 2. Margem Leste (+X, em lx1):
+			var y_e0 = evaluate_snapped_height(origin_x + lx1, origin_z + lz0)
+			var y_e1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz1)
 			var w_e = evaluate_water_cell(cx + 1, cz)
-			if not w_e.has_water:
-				var bx0 = lx1
-				var bx1 = lx1 + WATER_BLEED_DIST
-				var bv00 = Vector3(bx0, wy10, lz0)
-				var bv10 = Vector3(bx1, wy10, lz0)
-				var bv01 = Vector3(bx0, wy11, lz1)
-				var bv11 = Vector3(bx1, wy11, lz1)
-				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy10)
+			var bot_e0 = max(w_e.water_corners[0], y_e0) if w_e.has_water else min(y_e0, wy10)
+			var bot_e1 = max(w_e.water_corners[2], y_e1) if w_e.has_water else min(y_e1, wy11)
+			if wy10 > bot_e0 + 0.005 or wy11 > bot_e1 + 0.005:
+				_add_water_wall_quad(st_surf,
+					Vector3(lx1, wy10, lz0), Vector3(lx1, wy11, lz1),
+					Vector3(lx1, bot_e0, lz0), Vector3(lx1, bot_e1, lz1),
+					Vector3.RIGHT, side_col, wy10)
 
-			# 3. Margem Norte (cz - 1):
+			# 3. Margem Norte (-Z, em lz0):
+			var y_n0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz0)
+			var y_n1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz0)
 			var w_n = evaluate_water_cell(cx, cz - 1)
-			if not w_n.has_water:
-				var bz0 = lz0 - WATER_BLEED_DIST
-				var bz1 = lz0
-				var bv00 = Vector3(lx0, wy00, bz0)
-				var bv10 = Vector3(lx1, wy10, bz0)
-				var bv01 = Vector3(lx0, wy00, bz1)
-				var bv11 = Vector3(lx1, wy10, bz1)
-				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy00)
+			var bot_n0 = max(w_n.water_corners[2], y_n0) if w_n.has_water else min(y_n0, wy00)
+			var bot_n1 = max(w_n.water_corners[3], y_n1) if w_n.has_water else min(y_n1, wy10)
+			if wy00 > bot_n0 + 0.005 or wy10 > bot_n1 + 0.005:
+				_add_water_wall_quad(st_surf,
+					Vector3(lx0, wy00, lz0), Vector3(lx1, wy10, lz0),
+					Vector3(lx0, bot_n0, lz0), Vector3(lx1, bot_n1, lz0),
+					Vector3.FORWARD, side_col, wy00)
 
-			# 4. Margem Sul (cz + 1) - apenas se não for cascata
+			# 4. Margem Sul (+Z, em lz1) - apenas se não for cascata frontal:
 			if not w_data.is_waterfall:
+				var y_s0 = evaluate_snapped_height(origin_x + lx0, origin_z + lz1)
+				var y_s1 = evaluate_snapped_height(origin_x + lx1, origin_z + lz1)
 				var w_s = evaluate_water_cell(cx, cz + 1)
-				if not w_s.has_water:
-					var bz0 = lz1
-					var bz1 = lz1 + WATER_BLEED_DIST
-					var bv00 = Vector3(lx0, wy01, bz0)
-					var bv10 = Vector3(lx1, wy11, bz0)
-					var bv01 = Vector3(lx0, wy01, bz1)
-					var bv11 = Vector3(lx1, wy11, bz1)
-					_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy01)
-
-			# 5. Cantos Diagonais do Bleed:
-			if not w_w.has_water and not w_n.has_water:
-				var bx0 = lx0 - WATER_BLEED_DIST
-				var bz0 = lz0 - WATER_BLEED_DIST
-				_add_water_top_quad(st,
-					Vector3(bx0, wy00, bz0), Vector3(lx0, wy00, bz0),
-					Vector3(bx0, wy00, lz0), Vector3(lx0, wy00, lz0),
-					flow_col, wy00)
-
-			if not w_e.has_water and not w_n.has_water:
-				var bx1 = lx1 + WATER_BLEED_DIST
-				var bz0 = lz0 - WATER_BLEED_DIST
-				_add_water_top_quad(st,
-					Vector3(lx1, wy10, bz0), Vector3(bx1, wy10, bz0),
-					Vector3(lx1, wy10, lz0), Vector3(bx1, wy10, lz0),
-					flow_col, wy10)
-
-			if not w_data.is_waterfall:
-				var w_s_diag = evaluate_water_cell(cx, cz + 1)
-				if not w_w.has_water and not w_s_diag.has_water:
-					var bx0 = lx0 - WATER_BLEED_DIST
-					var bz1 = lz1 + WATER_BLEED_DIST
-					_add_water_top_quad(st,
-						Vector3(bx0, wy01, lz1), Vector3(lx0, wy01, lz1),
-						Vector3(bx0, wy01, bz1), Vector3(lx0, wy01, bz1),
-						flow_col, wy01)
-
-				if not w_e.has_water and not w_s_diag.has_water:
-					var bx1 = lx1 + WATER_BLEED_DIST
-					var bz1 = lz1 + WATER_BLEED_DIST
-					_add_water_top_quad(st,
-						Vector3(lx1, wy11, lz1), Vector3(bx1, wy11, lz1),
-						Vector3(lx1, wy11, bz1), Vector3(bx1, wy11, bz1),
-						flow_col, wy11)
+				var bot_s0 = max(w_s.water_corners[0], y_s0) if w_s.has_water else min(y_s0, wy01)
+				var bot_s1 = max(w_s.water_corners[1], y_s1) if w_s.has_water else min(y_s1, wy11)
+				if wy01 > bot_s0 + 0.005 or wy11 > bot_s1 + 0.005:
+					_add_water_wall_quad(st_surf,
+						Vector3(lx0, wy01, lz1), Vector3(lx1, wy11, lz1),
+						Vector3(lx0, bot_s0, lz1), Vector3(lx1, bot_s1, lz1),
+						Vector3.BACK, side_col, wy01)
 
 	if not has_any_water:
 		return null
 
-	return st.commit()
+	var mesh = st_surf.commit()
+	if has_waterfall:
+		mesh = st_fall.commit(mesh)
+
+	return mesh
+
+## Helper para adicionar quad de parede lateral de água (fechamento de Y_água até Y_solo)
+func _add_water_wall_quad(st: SurfaceTool, top0: Vector3, top1: Vector3, bot0: Vector3, bot1: Vector3, norm: Vector3, col: Color, fall_top: float) -> void:
+	if top0.is_equal_approx(bot0) and top1.is_equal_approx(bot1):
+		return
+
+	var n1 = (bot1 - bot0).cross(top0 - bot0).normalized()
+	var flip = (n1.dot(norm) < 0.0)
+
+	var v0 = bot0
+	var v1 = bot1 if not flip else top0
+	var v2 = top1
+	var v3 = top0 if not flip else bot1
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v0.x + v0.z, fall_top))
+	st.add_vertex(v0)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v1.x + v1.z, fall_top))
+	st.add_vertex(v1)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v2.x + v2.z, fall_top))
+	st.add_vertex(v2)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v0.x + v0.z, fall_top))
+	st.add_vertex(v0)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v2.x + v2.z, fall_top))
+	st.add_vertex(v2)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v3.x + v3.z, fall_top))
+	st.add_vertex(v3)
 
 ## Helper para adicionar quad de água superior com normais calculadas
 func _add_water_top_quad(st: SurfaceTool, v00: Vector3, v10: Vector3, v01: Vector3, v11: Vector3, col: Color, fall_top: float) -> void:

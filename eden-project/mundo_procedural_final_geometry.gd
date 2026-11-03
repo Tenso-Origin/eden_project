@@ -10,6 +10,8 @@ class_name MundoProceduralFinalGeometry
 ## Sem árvores (geologia, pedologia e hidrologia puras). Shaders HD Pixel Art 3D integrados.
 
 const SHADER_SURFACE = preload("res://pixel_surface.gdshader")
+const SHADER_WATER_SURFACE = preload("res://pixel_water_surface.gdshader")
+const SHADER_WATERFALL = preload("res://pixel_waterfall.gdshader")
 const SHADER_WATER = preload("res://pixel_water.gdshader")
 const TEX_SERRAPILHEIRA = preload("res://tex_serrapilheira.png")
 
@@ -61,6 +63,8 @@ const COL_GRAN_VEIO    = Color(0.29, 0.28, 0.27) # Veios de quartzo/mica (#4A474
 const COL_GRAN_ESCURO  = Color(0.18, 0.20, 0.22) # Basalto / Saprolito profundo (#2E3338)
 
 var mat_surface: ShaderMaterial
+var mat_water_surface: ShaderMaterial
+var mat_waterfall: ShaderMaterial
 var mat_water: ShaderMaterial
 
 var noise_base: FastNoiseLite
@@ -83,30 +87,44 @@ func init_materials() -> void:
 	mat_surface.set_shader_parameter("top_albedo_texture", TEX_SERRAPILHEIRA)
 	mat_surface.set_shader_parameter("top_texture_scale", 0.35)
 
-	mat_water = ShaderMaterial.new()
-	mat_water.shader = SHADER_WATER
-	mat_water.set_shader_parameter("enable_3way_blend", true)
-	mat_water.set_shader_parameter("pixel_grid_density", 52.0)
-	mat_water.set_shader_parameter("wave_speed", 1.8)
-	mat_water.set_shader_parameter("wave_height", 0.02)
-	mat_water.set_shader_parameter("wave_crest_foam_threshold", 0.94)
-	mat_water.set_shader_parameter("reflection_strength", 0.45)
-	mat_water.set_shader_parameter("shoreline_foam_dist", 0.30)
-	mat_water.set_shader_parameter("shoreline_ripple_rings", 3)
-	mat_water.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+	mat_water_surface = ShaderMaterial.new()
+	mat_water_surface.shader = SHADER_WATER_SURFACE
+	mat_water_surface.set_shader_parameter("enable_3way_blend", true)
+	mat_water_surface.set_shader_parameter("pixel_grid_density", 52.0)
+	mat_water_surface.set_shader_parameter("wave_speed", 1.8)
+	mat_water_surface.set_shader_parameter("wave_height", 0.02)
+	mat_water_surface.set_shader_parameter("wave_crest_foam_threshold", 0.94)
+	mat_water_surface.set_shader_parameter("reflection_strength", 0.45)
+	mat_water_surface.set_shader_parameter("shoreline_foam_dist", 0.30)
+	mat_water_surface.set_shader_parameter("shoreline_ripple_rings", 3)
+	mat_water_surface.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
 
 	# Cores oficiais calibradas: Turquesa no Sul, Igarapé/Chá-Mate no Norte
-	mat_water.set_shader_parameter("turquesa_shallow", Color(0.18, 0.82, 0.78, 0.50))
-	mat_water.set_shader_parameter("turquesa_deep", Color(0.05, 0.38, 0.48, 0.90))
-	mat_water.set_shader_parameter("turquesa_fade", 1.20)
+	mat_water_surface.set_shader_parameter("turquesa_shallow", Color(0.18, 0.82, 0.78, 0.50))
+	mat_water_surface.set_shader_parameter("turquesa_deep", Color(0.05, 0.38, 0.48, 0.90))
+	mat_water_surface.set_shader_parameter("turquesa_fade", 1.20)
+	mat_water_surface.set_shader_parameter("barrenta_shallow", Color(0.62, 0.47, 0.31, 0.85))
+	mat_water_surface.set_shader_parameter("barrenta_deep", Color(0.38, 0.26, 0.16, 0.98))
+	mat_water_surface.set_shader_parameter("barrenta_fade", 0.22)
+	mat_water_surface.set_shader_parameter("igarape_shallow", Color(0.38, 0.24, 0.11, 0.60))
+	mat_water_surface.set_shader_parameter("igarape_deep", Color(0.11, 0.06, 0.04, 0.96))
+	mat_water_surface.set_shader_parameter("igarape_fade", 0.55)
 
-	mat_water.set_shader_parameter("barrenta_shallow", Color(0.62, 0.47, 0.31, 0.85))
-	mat_water.set_shader_parameter("barrenta_deep", Color(0.38, 0.26, 0.16, 0.98))
-	mat_water.set_shader_parameter("barrenta_fade", 0.22)
+	mat_waterfall = ShaderMaterial.new()
+	mat_waterfall.shader = SHADER_WATERFALL
+	mat_waterfall.set_shader_parameter("enable_3way_blend", true)
+	mat_waterfall.set_shader_parameter("pixel_grid_density", 52.0)
+	mat_waterfall.set_shader_parameter("wave_speed", 1.8)
+	mat_waterfall.set_shader_parameter("laminar_length", 2.0)
+	mat_waterfall.set_shader_parameter("foam_color", Color(0.96, 0.98, 1.0))
+	mat_waterfall.set_shader_parameter("turquesa_shallow", Color(0.18, 0.82, 0.78, 0.50))
+	mat_waterfall.set_shader_parameter("turquesa_deep", Color(0.05, 0.38, 0.48, 0.90))
+	mat_waterfall.set_shader_parameter("barrenta_shallow", Color(0.62, 0.47, 0.31, 0.85))
+	mat_waterfall.set_shader_parameter("barrenta_deep", Color(0.38, 0.26, 0.16, 0.98))
+	mat_waterfall.set_shader_parameter("igarape_shallow", Color(0.38, 0.24, 0.11, 0.60))
+	mat_waterfall.set_shader_parameter("igarape_deep", Color(0.11, 0.06, 0.04, 0.96))
 
-	mat_water.set_shader_parameter("igarape_shallow", Color(0.38, 0.24, 0.11, 0.60))
-	mat_water.set_shader_parameter("igarape_deep", Color(0.11, 0.06, 0.04, 0.96))
-	mat_water.set_shader_parameter("igarape_fade", 0.55)
+	mat_water = mat_water_surface
 
 func init_noises() -> void:
 	noise_base = FastNoiseLite.new()
@@ -544,9 +562,12 @@ func build_chunk(cx: int, cz: int) -> void:
 	st_terr.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 	# 3. Constrói a malha de Água (se houver células de água)
-	var st_wat = SurfaceTool.new()
-	st_wat.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_wat_surf = SurfaceTool.new()
+	st_wat_surf.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var st_wat_fall = SurfaceTool.new()
+	st_wat_fall.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var chunk_has_water = false
+	var chunk_has_waterfall = false
 
 	for iz in range(CHUNK_SIZE):
 		for ix in range(CHUNK_SIZE):
@@ -622,7 +643,8 @@ func build_chunk(cx: int, cz: int) -> void:
 			# --- FACES DE ÁGUA MULTI-NÍVEL E CASCATAS ---
 			if w_info.has_water:
 				chunk_has_water = true
-				_build_cell_water(st_wat, w_info, wx0, wx1, wz0, wz1)
+				if _build_cell_water(st_wat_surf, st_wat_fall, w_info, wx0, wx1, wz0, wz1):
+					chunk_has_waterfall = true
 
 	# Finaliza terreno
 	var terr_mesh = st_terr.commit()
@@ -635,12 +657,16 @@ func build_chunk(cx: int, cz: int) -> void:
 
 	# Finaliza água
 	if chunk_has_water:
-		var wat_mesh = st_wat.commit()
+		var wat_mesh = st_wat_surf.commit()
+		if chunk_has_waterfall:
+			wat_mesh = st_wat_fall.commit(wat_mesh)
 		if wat_mesh:
 			var mi_wat = MeshInstance3D.new()
 			mi_wat.name = "WaterMesh"
 			mi_wat.mesh = wat_mesh
-			mi_wat.material_override = mat_water
+			mi_wat.set_surface_override_material(0, mat_water_surface)
+			if chunk_has_waterfall:
+				mi_wat.set_surface_override_material(1, mat_waterfall)
 			chunk_node.add_child(mi_wat)
 
 ## Constrói os paredões verticais (degraus) entre a célula e suas vizinhas
@@ -838,51 +864,51 @@ func _add_stratified_quad_x(st: SurfaceTool, x: float, z0: float, z1: float,
 		st.set_uv(Vector2(z0, cur_bot0))
 		st.add_vertex(v_b0)
 
-## Adiciona um quad vertical de água com atributos para o shader pixel_water.gdshader
+## Adiciona um quad vertical de água com atributos para o shader
 func _add_water_quad(st: SurfaceTool, v_bl: Vector3, v_br: Vector3, v_tr: Vector3, v_tl: Vector3,
 		norm: Vector3, col: Color, uv2_data: Vector2, fall_top: float) -> void:
 
 	# Triângulo 1 (bl -> br -> tr)
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_bl.x, fall_top))
+	st.set_uv(Vector2(v_bl.x + v_bl.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_bl)
 
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_br.x, fall_top))
+	st.set_uv(Vector2(v_br.x + v_br.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_br)
 
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_tr.x, fall_top))
+	st.set_uv(Vector2(v_tr.x + v_tr.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_tr)
 
 	# Triângulo 2 (bl -> tr -> tl)
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_bl.x, fall_top))
+	st.set_uv(Vector2(v_bl.x + v_bl.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_bl)
 
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_tr.x, fall_top))
+	st.set_uv(Vector2(v_tr.x + v_tr.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_tr)
 
 	st.set_normal(norm)
 	st.set_color(col)
-	st.set_uv(Vector2(v_tl.x, fall_top))
+	st.set_uv(Vector2(v_tl.x + v_tl.z, fall_top))
 	st.set_uv2(uv2_data)
 	st.add_vertex(v_tl)
 
 ## Constrói a geometria de água da célula (superfície superior e paredes laterais 90° nas bordas expostas)
-func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
-		wx0: float, wx1: float, wz0: float, wz1: float) -> void:
+func _build_cell_water(st_surf: SurfaceTool, st_fall: SurfaceTool, w_data: Dictionary,
+		wx0: float, wx1: float, wz0: float, wz1: float) -> bool:
 
 	var wy00 = w_data.water_corners[0]
 	var wy10 = w_data.water_corners[1]
@@ -897,9 +923,9 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	var f_dir: Vector2 = w_data.flow_dir
 	var blend_val = w_data.water_blend # 1.0 = Chá-Mate (Norte), 0.0 = Turquesa (Sul)
 
-	# Atributo COLOR para pixel_water.gdshader:
+	# Atributo COLOR para pixel_water_surface.gdshader / pixel_waterfall.gdshader:
 	# R, G: Direção do fluxo normalizada para [0, 1]
-	# B: Turbulência contínua por vértice (amortecimento suave da pluma de cascata)
+	# B: Turbulência contínua por vértice
 	# A: Fator de mistura
 	var t00 = w_data.turbulence
 	var t10 = w_data.turbulence
@@ -929,173 +955,126 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	var w_turquesa = clamp(1.0 - blend_val, 0.0001, 1.0)
 	var uv2_data = Vector2(w_turquesa, 0.0)
 
-	# 1. Superfície Superior da Lâmina d'Água:
+	# 1. Superfície Superior da Lâmina d'Água (Surface 0: pixel_water_surface.gdshader):
 	var wn1 = (wv01 - wv00).cross(wv10 - wv00).normalized()
 	if wn1.y < 0.0: wn1 = -wn1
 
-	st.set_normal(wn1)
-	st.set_color(col00)
-	st.set_uv(Vector2(wx0, wy00))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv00)
+	st_surf.set_normal(wn1)
+	st_surf.set_color(col00)
+	st_surf.set_uv(Vector2(wx0, wy00))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv00)
 
-	st.set_normal(wn1)
-	st.set_color(col10)
-	st.set_uv(Vector2(wx1, wy10))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv10)
+	st_surf.set_normal(wn1)
+	st_surf.set_color(col10)
+	st_surf.set_uv(Vector2(wx1, wy10))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv10)
 
-	st.set_normal(wn1)
-	st.set_color(col01)
-	st.set_uv(Vector2(wx0, wy01))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv01)
+	st_surf.set_normal(wn1)
+	st_surf.set_color(col01)
+	st_surf.set_uv(Vector2(wx0, wy01))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv01)
 
 	var wn2 = (wv01 - wv10).cross(wv11 - wv10).normalized()
 	if wn2.y < 0.0: wn2 = -wn2
 
-	st.set_normal(wn2)
-	st.set_color(col10)
-	st.set_uv(Vector2(wx1, wy10))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv10)
+	st_surf.set_normal(wn2)
+	st_surf.set_color(col10)
+	st_surf.set_uv(Vector2(wx1, wy10))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv10)
 
-	st.set_normal(wn2)
-	st.set_color(col11)
-	st.set_uv(Vector2(wx1, wy11))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv11)
+	st_surf.set_normal(wn2)
+	st_surf.set_color(col11)
+	st_surf.set_uv(Vector2(wx1, wy11))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv11)
 
-	st.set_normal(wn2)
-	st.set_color(col01)
-	st.set_uv(Vector2(wx0, wy01))
-	st.set_uv2(uv2_data)
-	st.add_vertex(wv01)
+	st_surf.set_normal(wn2)
+	st_surf.set_color(col01)
+	st_surf.set_uv(Vector2(wx0, wy01))
+	st_surf.set_uv2(uv2_data)
+	st_surf.add_vertex(wv01)
 
-	# 2. Quedas d'Água Verticais (Cascatas de 90° e Paredes do Volume de Água)
+	# 2. Quedas d'Água Verticais (Cascatas de 90° e Paredes Laterais Fechadas de Água)
 	var cx = int(round(wx0))
 	var cz = int(round(wz0))
-	var depth = 1.50 if cz <= -27 else (0.75 if cz >= 21 else 1.25)
 	var side_col = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, 0.05, blend_val)
+	var has_fall = false
 
-	# A. Queda Frontal e Laterais de Cascata (Turbulência 1.0 e UV.y = fall_top):
+	# A. Queda Frontal de Cascata (Surface 1: pixel_waterfall.gdshader com lâmina 2m e espuma 6Hz):
 	if w_data.is_waterfall and check_waterfall_condition(w_data.water_y, w_data.waterfall_base_y):
+		has_fall = true
 		var fall_top = w_data.water_y
 		var fall_bot = w_data.waterfall_base_y
-		var fall_col = Color(0.5, 1.0, 1.0, blend_val) # Turbulência = 1.0 ativa shader de cascata
+		var fall_col = Color(0.5, 1.0, 1.0, blend_val) # Turbulência = 1.0
 		
-		# Overlap Total de 1 Bloco Inteiro (+1.0m) para dentro das paredes rochosas laterais
-		var w_w = evaluate_water_cell(cx - 1, cz)
-		var w_e = evaluate_water_cell(cx + 1, cz)
-		var bleed_l = 1.0 if not (w_w.has_water and w_w.is_waterfall) else 0.0
-		var bleed_r = 1.0 if not (w_e.has_water and w_e.is_waterfall) else 0.0
-		var fx0 = wx0 - bleed_l
-		var fx1 = wx1 + bleed_r
-
-		# Face Frontal voltada para o Sul (+Z):
-		_add_water_quad(st,
-			Vector3(fx0, fall_bot, wz1),
-			Vector3(fx1, fall_bot, wz1),
-			Vector3(fx1, fall_top, wz1),
-			Vector3(fx0, fall_top, wz1),
+		# Face Frontal voltada para o Sul (+Z), conformada ao relevo sem bleeds:
+		_add_water_quad(st_fall,
+			Vector3(wx0, fall_bot, wz1),
+			Vector3(wx1, fall_bot, wz1),
+			Vector3(wx1, fall_top, wz1),
+			Vector3(wx0, fall_top, wz1),
 			Vector3.BACK, fall_col, uv2_data, fall_top)
 
-	# B. Paredes Laterais 90° nas Bordas Expostas do Volume de Água:
-	# Parede ao Sul (+Z):
+	# B. Película Lateral Fechada de Y_água até Y_solo (Conformada ao Relevo no st_surf):
+	# 1. Margem Sul (+Z, em wz1) - apenas se não for cascata frontal:
 	if not w_data.is_waterfall:
+		var y_s0 = evaluate_snapped_height(wx0, wz1)
+		var y_s1 = evaluate_snapped_height(wx1, wz1)
 		var w_s = evaluate_water_cell(cx, cz + 1)
-		if w_s.has_water:
-			var s_top = w_s.water_corners[0]
-			if wy01 > s_top + 0.01 or wy11 > s_top + 0.01:
-				_add_water_quad(st,
-					Vector3(wx0, s_top, wz1),
-					Vector3(wx1, s_top, wz1),
-					Vector3(wx1, wy11, wz1),
-					Vector3(wx0, wy01, wz1),
-					Vector3.BACK, side_col, uv2_data, max(wy01, wy11))
-		else:
-			var s_h0 = evaluate_snapped_height(wx0, wz1 + SNAP_H)
-			var s_h1 = evaluate_snapped_height(wx1, wz1 + SNAP_H)
-			if wy01 > s_h0 + 0.01 or wy11 > s_h1 + 0.01:
-				var bot0 = max(s_h0, wy01 - depth)
-				var bot1 = max(s_h1, wy11 - depth)
-				_add_water_quad(st,
-					Vector3(wx0, bot0, wz1),
-					Vector3(wx1, bot1, wz1),
-					Vector3(wx1, wy11, wz1),
-					Vector3(wx0, wy01, wz1),
-					Vector3.BACK, side_col, uv2_data, max(wy01, wy11))
+		var bot_s0 = max(w_s.water_corners[0], y_s0) if w_s.has_water else min(y_s0, wy01)
+		var bot_s1 = max(w_s.water_corners[1], y_s1) if w_s.has_water else min(y_s1, wy11)
+		if wy01 > bot_s0 + 0.005 or wy11 > bot_s1 + 0.005:
+			_add_water_quad(st_surf,
+				Vector3(wx0, bot_s0, wz1),
+				Vector3(wx1, bot_s1, wz1),
+				Vector3(wx1, wy11, wz1),
+				Vector3(wx0, wy01, wz1),
+				Vector3.BACK, side_col, uv2_data, max(wy01, wy11))
 
-	# Parede ao Norte (-Z):
+	# 2. Margem Norte (-Z, em wz0):
+	var y_n0 = evaluate_snapped_height(wx0, wz0)
+	var y_n1 = evaluate_snapped_height(wx1, wz0)
 	var w_n = evaluate_water_cell(cx, cz - 1)
-	if w_n.has_water:
-		var n_top = w_n.water_corners[2]
-		if wy00 > n_top + 0.01 or wy10 > n_top + 0.01:
-			_add_water_quad(st,
-				Vector3(wx1, n_top, wz0),
-				Vector3(wx0, n_top, wz0),
-				Vector3(wx0, wy00, wz0),
-				Vector3(wx1, wy10, wz0),
-				Vector3.FORWARD, side_col, uv2_data, max(wy00, wy10))
-	else:
-		var n_h0 = evaluate_snapped_height(wx0, wz0 - SNAP_H)
-		var n_h1 = evaluate_snapped_height(wx1, wz0 - SNAP_H)
-		if wy00 > n_h0 + 0.01 or wy10 > n_h1 + 0.01:
-			var bot0 = max(n_h0, wy00 - depth)
-			var bot1 = max(n_h1, wy10 - depth)
-			_add_water_quad(st,
-				Vector3(wx1, bot1, wz0),
-				Vector3(wx0, bot0, wz0),
-				Vector3(wx0, wy00, wz0),
-				Vector3(wx1, wy10, wz0),
-				Vector3.FORWARD, side_col, uv2_data, max(wy00, wy10))
+	var bot_n0 = max(w_n.water_corners[2], y_n0) if w_n.has_water else min(y_n0, wy00)
+	var bot_n1 = max(w_n.water_corners[3], y_n1) if w_n.has_water else min(y_n1, wy10)
+	if wy00 > bot_n0 + 0.005 or wy10 > bot_n1 + 0.005:
+		_add_water_quad(st_surf,
+			Vector3(wx1, bot_n1, wz0),
+			Vector3(wx0, bot_n0, wz0),
+			Vector3(wx0, wy00, wz0),
+			Vector3(wx1, wy10, wz0),
+			Vector3.FORWARD, side_col, uv2_data, max(wy00, wy10))
 
-	# Parede a Leste (+X):
-	if not w_data.is_waterfall:
-		var w_e2 = evaluate_water_cell(cx + 1, cz)
-		if w_e2.has_water:
-			var e_top = w_e2.water_corners[0]
-			if wy10 > e_top + 0.01 or wy11 > e_top + 0.01:
-				_add_water_quad(st,
-					Vector3(wx1, e_top, wz1),
-					Vector3(wx1, e_top, wz0),
-					Vector3(wx1, wy10, wz0),
-					Vector3(wx1, wy11, wz1),
-					Vector3.RIGHT, side_col, uv2_data, max(wy10, wy11))
-		else:
-			var e_h0 = evaluate_snapped_height(wx1 + SNAP_H, wz0)
-			var e_h1 = evaluate_snapped_height(wx1 + SNAP_H, wz1)
-			if wy10 > e_h0 + 0.01 or wy11 > e_h1 + 0.01:
-				var bot0 = max(e_h0, wy10 - depth)
-				var bot1 = max(e_h1, wy11 - depth)
-				_add_water_quad(st,
-					Vector3(wx1, bot1, wz1),
-					Vector3(wx1, bot0, wz0),
-					Vector3(wx1, wy10, wz0),
-					Vector3(wx1, wy11, wz1),
-					Vector3.RIGHT, side_col, uv2_data, max(wy10, wy11))
+	# 3. Margem Leste (+X, em wx1):
+	var y_e0 = evaluate_snapped_height(wx1, wz0)
+	var y_e1 = evaluate_snapped_height(wx1, wz1)
+	var w_e2 = evaluate_water_cell(cx + 1, cz)
+	var bot_e0 = max(w_e2.water_corners[0], y_e0) if w_e2.has_water else min(y_e0, wy10)
+	var bot_e1 = max(w_e2.water_corners[2], y_e1) if w_e2.has_water else min(y_e1, wy11)
+	if wy10 > bot_e0 + 0.005 or wy11 > bot_e1 + 0.005:
+		_add_water_quad(st_surf,
+			Vector3(wx1, bot_e1, wz1),
+			Vector3(wx1, bot_e0, wz0),
+			Vector3(wx1, wy10, wz0),
+			Vector3(wx1, wy11, wz1),
+			Vector3.RIGHT, side_col, uv2_data, max(wy10, wy11))
 
-	# Parede a Oeste (-X):
-	if not w_data.is_waterfall:
-		var w_w2 = evaluate_water_cell(cx - 1, cz)
-		if w_w2.has_water:
-			var w_top = w_w2.water_corners[1]
-			if wy00 > w_top + 0.01 or wy01 > w_top + 0.01:
-				_add_water_quad(st,
-					Vector3(wx0, w_top, wz0),
-					Vector3(wx0, w_top, wz1),
-					Vector3(wx0, wy01, wz1),
-					Vector3(wx0, wy00, wz0),
-					Vector3.LEFT, side_col, uv2_data, max(wy00, wy01))
-		else:
-			var w_h0 = evaluate_snapped_height(wx0 - SNAP_H, wz0)
-			var w_h1 = evaluate_snapped_height(wx0 - SNAP_H, wz1)
-			if wy00 > w_h0 + 0.01 or wy01 > w_h1 + 0.01:
-				var bot0 = max(w_h0, wy00 - depth)
-				var bot1 = max(w_h1, wy01 - depth)
-				_add_water_quad(st,
-					Vector3(wx0, bot0, wz0),
-					Vector3(wx0, bot1, wz1),
-					Vector3(wx0, wy01, wz1),
-					Vector3(wx0, wy00, wz0),
-					Vector3.LEFT, side_col, uv2_data, max(wy00, wy01))
+	# 4. Margem Oeste (-X, em wx0):
+	var y_w0 = evaluate_snapped_height(wx0, wz0)
+	var y_w1 = evaluate_snapped_height(wx0, wz1)
+	var w_w2 = evaluate_water_cell(cx - 1, cz)
+	var bot_w0 = max(w_w2.water_corners[1], y_w0) if w_w2.has_water else min(y_w0, wy00)
+	var bot_w1 = max(w_w2.water_corners[3], y_w1) if w_w2.has_water else min(y_w1, wy01)
+	if wy00 > bot_w0 + 0.005 or wy01 > bot_w1 + 0.005:
+		_add_water_quad(st_surf,
+			Vector3(wx0, bot_w0, wz0),
+			Vector3(wx0, bot_w1, wz1),
+			Vector3(wx0, wy01, wz1),
+			Vector3(wx0, wy00, wz0),
+			Vector3.LEFT, side_col, uv2_data, max(wy00, wy01))
+
+	return has_fall

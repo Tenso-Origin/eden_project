@@ -984,32 +984,21 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 		var fall_bot = w_data.waterfall_base_y
 		var fall_col = Color(0.5, 1.0, 1.0, blend_val) # Turbulência = 1.0 ativa shader de cascata
 		
+		# Overlap Total de 1 Bloco Inteiro (+1.0m) para dentro das paredes rochosas laterais
+		var w_w = evaluate_water_cell(cx - 1, cz)
+		var w_e = evaluate_water_cell(cx + 1, cz)
+		var bleed_l = 1.0 if not (w_w.has_water and w_w.is_waterfall) else 0.0
+		var bleed_r = 1.0 if not (w_e.has_water and w_e.is_waterfall) else 0.0
+		var fx0 = wx0 - bleed_l
+		var fx1 = wx1 + bleed_r
+
 		# Face Frontal voltada para o Sul (+Z):
 		_add_water_quad(st,
-			Vector3(wx0, fall_bot, wz1),
-			Vector3(wx1, fall_bot, wz1),
-			Vector3(wx1, fall_top, wz1),
-			Vector3(wx0, fall_top, wz1),
+			Vector3(fx0, fall_bot, wz1),
+			Vector3(fx1, fall_bot, wz1),
+			Vector3(fx1, fall_top, wz1),
+			Vector3(fx0, fall_top, wz1),
 			Vector3.BACK, fall_col, uv2_data, fall_top)
-
-		# Paredes Laterais da Cascata (Oeste e Leste):
-		var w_w = evaluate_water_cell(cx - 1, cz)
-		if not (w_w.has_water and w_w.is_waterfall and abs(w_w.water_y - fall_top) < 0.1):
-			_add_water_quad(st,
-				Vector3(wx0, fall_bot, wz0),
-				Vector3(wx0, fall_bot, wz1),
-				Vector3(wx0, fall_top, wz1),
-				Vector3(wx0, fall_top, wz0),
-				Vector3.LEFT, fall_col, uv2_data, fall_top)
-
-		var w_e = evaluate_water_cell(cx + 1, cz)
-		if not (w_e.has_water and w_e.is_waterfall and abs(w_e.water_y - fall_top) < 0.1):
-			_add_water_quad(st,
-				Vector3(wx1, fall_bot, wz1),
-				Vector3(wx1, fall_bot, wz0),
-				Vector3(wx1, fall_top, wz0),
-				Vector3(wx1, fall_top, wz1),
-				Vector3.RIGHT, fall_col, uv2_data, fall_top)
 
 	# B. Paredes Laterais 90° nas Bordas Expostas do Volume de Água:
 	# Parede ao Sul (+Z):

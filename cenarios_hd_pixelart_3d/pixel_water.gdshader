@@ -38,6 +38,7 @@ uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float wave_height : hint_range(0.0, 0.1) = 0.02;
 uniform float shoreline_foam_dist : hint_range(0.05, 1.0) = 0.30;
 uniform int shoreline_ripple_rings : hint_range(1, 5) = 3;
+uniform float contact_foam_threshold : hint_range(0.01, 0.20) = 0.06; // Espessura da linha de contato Z-buffer
 
 group_uniforms WindAndRefraction;
 uniform vec2 wind_direction = vec2(0.7071, 0.7071);
@@ -182,8 +183,9 @@ void vertex() {
 		v_fall_top = w_pos.y;
 	}
 	
-	// Aplica marola geométrica apenas na face superior
-	if (NORMAL.y > 0.5) {
+	// Aplica marola geométrica apenas na face superior E longe da quina da cachoeira (COLOR.b < 0.5)
+	// Isso impede que a tampa da água se descole do topo da parede da cachoeira!
+	if (NORMAL.y > 0.5 && COLOR.b < 0.5) {
 		vec2 snapped_xz = floor(w_pos.xz * pixel_grid_density) / pixel_grid_density;
 		vec2 w_dir = normalize(wind_direction);
 		float coord_w = dot(snapped_xz, w_dir);
@@ -197,12 +199,12 @@ void vertex() {
 }
 
 void fragment() {
-	// Classificação de faces da malha volumétrica de água
 	bool is_waterfall = (abs(v_world_normal.y) <= 0.5 && v_flow_data.b >= 0.8);
 	bool is_side_wall = (abs(v_world_normal.y) <= 0.5 && !is_waterfall);
 	
-	// Descarte estrito apenas para faces inferiores voltadas para baixo (-Y)
-	if (v_world_normal.y < -0.6) {
+	// Descarta faces inferiores (-Y) E descarta paredes laterais internas (is_side_wall)
+	// para NUNCA criar "parede de aquário" ou linha branca cortando as rampas!
+	if (v_world_normal.y < -0.5 || is_side_wall) {
 		discard;
 	}
 
@@ -275,29 +277,6 @@ void fragment() {
 			ALBEDO = boiling_cascade;
 			ALPHA = 1.0;
 		}
-	} else if (is_side_wall) {
-		// =========================================================================
-		// PAREDES LATERAIS 90° DO VOLUME DE ÁGUA NAS BORDAS EXPOSTAS
-		// =========================================================================
-		vec3 side_bg = texture(screen_texture, SCREEN_UV).rgb;
-		vec4 cur_col = shallow_color;
-		if (enable_3way_blend) {
-			float w_turq = v_uv2.x;
-			float w_barr = v_uv2.y;
-			float sum_uv = w_turq + w_barr;
-			if (sum_uv > 0.001) {
-				float w_iga = max(0.0, 1.0 - sum_uv);
-				cur_col = turquesa_shallow * w_turq + barrenta_shallow * w_barr + igarape_shallow * w_iga;
-			} else {
-				cur_col = mix(turquesa_shallow, igarape_shallow, clamp(v_flow_data.a, 0.0, 1.0));
-			}
-		}
-		
-		vec3 water_tint = mix(cur_col.rgb, deep_color.rgb, 0.35);
-		vec3 side_composite = mix(side_bg, water_tint, clamp(cur_col.a * 0.85, 0.30, 0.80));
-		
-		ALBEDO = side_composite;
-		ALPHA = 1.0;
 	} else {
 
 	vec2 texel_size = 1.0 / VIEWPORT_SIZE;
@@ -406,15 +385,20 @@ void fragment() {
 	vec3 b_dr = texture(screen_texture, bg_uv + vec2(blur_r2.x, -blur_r2.y)).rgb;
 	vec3 blurred_bg = (refracted_bg * 0.18 + (b_u + b_d + b_l + b_r) * 0.13 + (b_ul + b_ur + b_dl + b_dr) * 0.075);
 
-	// 4. Bordas de contato e cristas de ondas
+	// 4. Bordas de contato e cristas de ondas (Contato Z-Buffer)
 	float shoreline_turbid = 0.0;
-	if (water_depth < shoreline_foam_dist && water_depth > 0.001) {
+	float contact_foam = 0.0;
+	if (water_depth < shoreline_foam_dist && water_depth >= 0.0) {
 		float norm_shore = water_depth / shoreline_foam_dist;
 		float wave_perturb = sin(world_xz_snapped.x * 12.0 + world_xz_snapped.y * 12.0) * 0.08;
 		float rings = sin((norm_shore + wave_perturb) * float(shoreline_ripple_rings) * 6.2831 - TIME * (wave_speed * 2.5));
 		float ring_step = step(0.40 + norm_shore * 0.4, rings);
 		float edge_solid = smoothstep(0.18, 0.02, norm_shore) * 0.50;
 		shoreline_turbid = clamp(ring_step + edge_solid, 0.0, 1.0);
+
+		// Contato Z-buffer: linha de espuma contínua de 1px nas margens em rampa e rochas
+		float contact_line = step(water_depth, contact_foam_threshold);
+		contact_foam = max(contact_line, ring_step * step(norm_shore, 0.35));
 	}
 	
 	float wave_curr = wind_wave_long;
@@ -542,9 +526,9 @@ void fragment() {
 		surface_composite = mix(surface_composite, vec3(1.0, 1.0, 1.0), white_dash * 0.95);
 	}
 	
-	// 8. Espuma Orgânica Efervescente sem "Solas de Sapato"
+	// 8. Espuma Orgânica Efervescente sem "Solas de Sapato" e Contato Z-Buffer
 	// Espuma branca pura (#FFFFFF / foam_color) sintetizada estocasticamente em grânulos de pixel art
-	float total_foam = max(boiling_foam, crest_foam);
+	float total_foam = max(max(boiling_foam, crest_foam), contact_foam);
 	if (total_foam > 0.5) {
 		surface_composite = foam_color;
 	}

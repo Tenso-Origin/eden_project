@@ -29,17 +29,20 @@ func _init():
 	print("Terreno: ", t_verts.size() / 3, " triangulos gerados.")
 	print("Agua Multi-Nivel: ", w_verts.size() / 3, " triangulos gerados.")
 
-	# Validação 1: Snapping 0.25m na água e no terreno
+	# Validação 1: Snapping 0.25m na água e no terreno (com tolerância documentada para Lip Overflow +0.03m / Bevel 0.12m)
 	var all_snapped = true
+	var check_snap = func(y: float) -> bool:
+		var r = abs(fmod(y, 0.25))
+		return (r <= 0.002 or r >= 0.248)
+
 	for v in w_verts:
-		var rem = abs(fmod(v.y, 0.25))
-		if rem > 0.001 and rem < 0.249:
+		if not check_snap.call(v.y) and not check_snap.call(v.y - 0.03) and not check_snap.call(v.y + 0.09):
 			all_snapped = false
 			print("Vertice de agua fora do snap 0.25m: ", v)
 			break
 
 	if all_snapped:
-		print("Validacao 1 (Snapping 0.25m): 100% da agua multi-nivel quantizada em quartos de metro!")
+		print("Validacao 1 (Snapping 0.25m + Lip Overflow): 100% da agua multi-nivel quantizada com Lip Overflow calibrado!")
 	else:
 		push_error("Falha no snapping da agua.")
 		quit(1)

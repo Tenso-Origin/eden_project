@@ -104,7 +104,7 @@ func evaluate_water_cell(cx: int, cz: int) -> Dictionary:
 			data.is_waterfall = true
 			data.water_corners = [3.50, 3.50, 3.50, 3.50]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00 # Turbulência máxima de cachoeira com espuma branca densa
+			data.turbulence = 0.10 # Lâmina límpida de aproximação à crista da queda
 
 		# 3. Corredeiras em Rampa Descendo ao Sul (rel_z de 5 a 10):
 		# Desce de Y = 2.00m até Y = 0.50m em degraus exatos de 0.25m por metro
@@ -156,8 +156,8 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 		var bank_lift = (4.5 - dist_river) * 0.35
 		raw_h = max(raw_h, bank_lift + 0.5)
 
-	# Platô alto que contém o lago ao Norte
-	if rel_z <= 4 and dist_river >= 3.0:
+	# Platô alto que contém o lago e ombreiras da cachoeira ao Norte
+	if rel_z <= 4 and dist_river >= 2.0:
 		raw_h = max(raw_h, 4.25)
 
 	return round(raw_h / SNAP_V) * SNAP_V
@@ -256,6 +256,10 @@ func build_terrain_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMes
 # 3. CONSTRUÇÃO DA MALHA MODULAR DE ÁGUA MULTI-NÍVEL (Lagos, Rampas e Quedas)
 # =========================================================================
 
+const WATER_BLEED_DIST: float = 1.00 # Overlap Total de 1 Bloco Inteiro (+1.0m em rampas vizinhas)
+const WATER_LIP_ELEV: float = 0.03   # Lip Overflow (+0.03m de elevação)
+const WATER_LIP_BEVEL: float = 0.12  # Chanfro bevel de 0.12m a 45 graus
+
 func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 	var st = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -286,15 +290,6 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 			var wy01 = w_data.water_corners[2]
 			var wy11 = w_data.water_corners[3]
 
-			var wv00 = Vector3(lx0, wy00, lz0)
-			var wv10 = Vector3(lx1, wy10, lz0)
-			var wv01 = Vector3(lx0, wy01, lz1)
-			var wv11 = Vector3(lx1, wy11, lz1)
-
-			# Codificação de fluxo no atributo COLOR:
-			# R, G = Direção da correnteza (0 a 1)
-			# B = Turbulência (0.05 lago, 0.50 rampa, 1.00 cachoeira)
-			# A = Bioma (para interpolação contínua no shader)
 			var f_dir: Vector2 = w_data.flow_dir
 			var flow_col = Color(
 				f_dir.x * 0.5 + 0.5,
@@ -302,96 +297,220 @@ func build_water_mesh(c_coord: Vector2i, size_in_meters: int = 16) -> ArrayMesh:
 				w_data.turbulence,
 				biome
 			)
+			var side_col = Color(
+				f_dir.x * 0.5 + 0.5,
+				f_dir.y * 0.5 + 0.5,
+				0.05, # Baixa turbulência para paredes laterais
+				biome
+			)
+			var rel_z = int(fposmod(float(cz), 16.0))
+			var cell_depth = 0.75 if rel_z <= 4 else 0.50
 
-			# 1. Superfície Superior da Água (Plana ou em Rampa inclinada ao Sul)
-			var wn1 = (wv01 - wv00).cross(wv10 - wv00).normalized()
-			st.set_normal(wn1)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx0, lz0))
-			st.add_vertex(wv00)
-
-			st.set_normal(wn1)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx1, lz0))
-			st.add_vertex(wv10)
-
-			st.set_normal(wn1)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx0, lz1))
-			st.add_vertex(wv01)
-
-			var wn2 = (wv01 - wv10).cross(wv11 - wv10).normalized()
-			st.set_normal(wn2)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx1, lz0))
-			st.add_vertex(wv10)
-
-			st.set_normal(wn2)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx1, lz1))
-			st.add_vertex(wv11)
-
-			st.set_normal(wn2)
-			st.set_color(flow_col)
-			st.set_uv(Vector2(lx0, lz1))
-			st.add_vertex(wv01)
-
-			# 2. Queda d'Água Vertical / Cachoeira ao Sul (Water_Fall_Vertical)
-			# Cortina d'água vertical na aresta sul da célula (Z = lz1) voltada para o Sul (+Z)
+			# -----------------------------------------------------------------
+			# A. SUPERFÍCIE PRINCIPAL DA ÁGUA OU QUEDA COM LIP OVERFLOW
+			# -----------------------------------------------------------------
 			if w_data.is_waterfall:
-				var fall_top_y = w_data.water_y
+				# Overlap Total de 1 Bloco Inteiro (+1.0m) para dentro das rampas laterais
+				var w_w_fall = evaluate_water_cell(cx - 1, cz)
+				var w_e_fall = evaluate_water_cell(cx + 1, cz)
+				var bleed_l = WATER_BLEED_DIST if not w_w_fall.has_water else 0.0
+				var bleed_r = WATER_BLEED_DIST if not w_e_fall.has_water else 0.0
+				var fx0 = lx0 - bleed_l
+				var fx1 = lx1 + bleed_r
+
+				# Lip Overflow (+0.03m elevacao e chanfro bevel 0.12m)
+				var lip_top_y = w_data.water_y + WATER_LIP_ELEV # 3.53m
+				var bev_bot_y = lip_top_y - WATER_LIP_BEVEL      # 3.41m
+				var lz_lip = lz1 - WATER_LIP_BEVEL               # lz1 - 0.12m
+
+				# 1. Superfície de aproximação ao topo (sobe suavemente até o Lip)
+				var v00 = Vector3(fx0, wy00, lz0)
+				var v10 = Vector3(fx1, wy10, lz0)
+				var v0_lip = Vector3(fx0, lip_top_y, lz_lip)
+				var v1_lip = Vector3(fx1, lip_top_y, lz_lip)
+				_add_water_top_quad(st, v00, v10, v0_lip, v1_lip, flow_col, lip_top_y)
+
+				# 2. Chanfro Bevel de 0.12m a 45 graus (Lip Overflow)
+				var v0_bev_bot = Vector3(fx0, bev_bot_y, lz1)
+				var v1_bev_bot = Vector3(fx1, bev_bot_y, lz1)
+				var bevel_col = Color(0.5, 1.0, 0.10, biome)
+				var bevel_norm = Vector3(0.0, 0.707107, 0.707107)
+				_add_quad_facing(st, v0_bev_bot, v1_bev_bot, v1_lip, v0_lip, bevel_norm, bevel_col, lip_top_y)
+
+				# 3. Queda d'Água Vertical / Cachoeira ao Sul (Water_Fall_Vertical)
+				# Cortina frontal estendida +1.0m para dentro das rampas laterais
 				var fall_bot_y = w_data.waterfall_base_y
-				var fall_normal = Vector3.BACK # Flui e aponta em direção a +Z (Sul)
+				var fv_bot_0 = Vector3(fx0, fall_bot_y, lz1)
+				var fv_bot_1 = Vector3(fx1, fall_bot_y, lz1)
+				var fall_col = Color(0.5, 1.0, 1.0, biome) # Turbulência 1.0 ativa cascata vertical
+				_add_quad_facing(st, fv_bot_0, fv_bot_1, v1_bev_bot, v0_bev_bot, Vector3.BACK, fall_col, lip_top_y)
+			else:
+				# Superfície Superior Padrão (Plana ou Rampa inclinada ao Sul)
+				var wv00 = Vector3(lx0, wy00, lz0)
+				var wv10 = Vector3(lx1, wy10, lz0)
+				var wv01 = Vector3(lx0, wy01, lz1)
+				var wv11 = Vector3(lx1, wy11, lz1)
+				_add_water_top_quad(st, wv00, wv10, wv01, wv11, flow_col, wy00)
 
-				var fall_col = Color(
-					0.0 * 0.5 + 0.5,
-					1.0 * 0.5 + 0.5,
-					1.0, # Turbulência máxima absoluta (ativa espuma branca densa)
-					biome
-				)
+			# -----------------------------------------------------------------
+			# B. WATER VOLUME BLEED (+1.0m em rampas vizinhas) E CONTATO Z-BUFFER
+			# -----------------------------------------------------------------
+			# 1. Margem Oeste (cx - 1):
+			var w_w = evaluate_water_cell(cx - 1, cz)
+			if not w_w.has_water:
+				var bx0 = lx0 - WATER_BLEED_DIST
+				var bx1 = lx0
+				var bv00 = Vector3(bx0, wy00, lz0)
+				var bv10 = Vector3(bx1, wy00, lz0)
+				var bv01 = Vector3(bx0, wy01, lz1)
+				var bv11 = Vector3(bx1, wy01, lz1)
+				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy00)
 
-				# Parede vertical de queda d'água na aresta sul Z = lz1
-				var fv_top_0 = Vector3(lx0, fall_top_y, lz1)
-				var fv_top_1 = Vector3(lx1, fall_top_y, lz1)
-				var fv_bot_0 = Vector3(lx0, fall_bot_y, lz1)
-				var fv_bot_1 = Vector3(lx1, fall_bot_y, lz1)
+			# 2. Margem Leste (cx + 1):
+			var w_e = evaluate_water_cell(cx + 1, cz)
+			if not w_e.has_water:
+				var bx0 = lx1
+				var bx1 = lx1 + WATER_BLEED_DIST
+				var bv00 = Vector3(bx0, wy10, lz0)
+				var bv10 = Vector3(bx1, wy10, lz0)
+				var bv01 = Vector3(bx0, wy11, lz1)
+				var bv11 = Vector3(bx1, wy11, lz1)
+				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy10)
 
-				# Triângulo 1 (CCW)
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(0, 0))
-				st.add_vertex(fv_top_0)
+			# 3. Margem Norte (cz - 1):
+			var w_n = evaluate_water_cell(cx, cz - 1)
+			if not w_n.has_water:
+				var bz0 = lz0 - WATER_BLEED_DIST
+				var bz1 = lz0
+				var bv00 = Vector3(lx0, wy00, bz0)
+				var bv10 = Vector3(lx1, wy10, bz0)
+				var bv01 = Vector3(lx0, wy00, bz1)
+				var bv11 = Vector3(lx1, wy10, bz1)
+				_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy00)
 
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(0, 1))
-				st.add_vertex(fv_bot_0)
+			# 4. Margem Sul (cz + 1) - apenas se não for cascata
+			if not w_data.is_waterfall:
+				var w_s = evaluate_water_cell(cx, cz + 1)
+				if not w_s.has_water:
+					var bz0 = lz1
+					var bz1 = lz1 + WATER_BLEED_DIST
+					var bv00 = Vector3(lx0, wy01, bz0)
+					var bv10 = Vector3(lx1, wy11, bz0)
+					var bv01 = Vector3(lx0, wy01, bz1)
+					var bv11 = Vector3(lx1, wy11, bz1)
+					_add_water_top_quad(st, bv00, bv10, bv01, bv11, flow_col, wy01)
 
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(1, 0))
-				st.add_vertex(fv_top_1)
+			# 5. Cantos Diagonais do Bleed:
+			if not w_w.has_water and not w_n.has_water:
+				var bx0 = lx0 - WATER_BLEED_DIST
+				var bz0 = lz0 - WATER_BLEED_DIST
+				_add_water_top_quad(st,
+					Vector3(bx0, wy00, bz0), Vector3(lx0, wy00, bz0),
+					Vector3(bx0, wy00, lz0), Vector3(lx0, wy00, lz0),
+					flow_col, wy00)
 
-				# Triângulo 2 (CCW)
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(1, 0))
-				st.add_vertex(fv_top_1)
+			if not w_e.has_water and not w_n.has_water:
+				var bx1 = lx1 + WATER_BLEED_DIST
+				var bz0 = lz0 - WATER_BLEED_DIST
+				_add_water_top_quad(st,
+					Vector3(lx1, wy10, bz0), Vector3(bx1, wy10, bz0),
+					Vector3(lx1, wy10, lz0), Vector3(bx1, wy10, lz0),
+					flow_col, wy10)
 
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(0, 1))
-				st.add_vertex(fv_bot_0)
+			if not w_data.is_waterfall:
+				var w_s_diag = evaluate_water_cell(cx, cz + 1)
+				if not w_w.has_water and not w_s_diag.has_water:
+					var bx0 = lx0 - WATER_BLEED_DIST
+					var bz1 = lz1 + WATER_BLEED_DIST
+					_add_water_top_quad(st,
+						Vector3(bx0, wy01, lz1), Vector3(lx0, wy01, lz1),
+						Vector3(bx0, wy01, bz1), Vector3(lx0, wy01, bz1),
+						flow_col, wy01)
 
-				st.set_normal(fall_normal)
-				st.set_color(fall_col)
-				st.set_uv(Vector2(1, 1))
-				st.add_vertex(fv_bot_1)
+				if not w_e.has_water and not w_s_diag.has_water:
+					var bx1 = lx1 + WATER_BLEED_DIST
+					var bz1 = lz1 + WATER_BLEED_DIST
+					_add_water_top_quad(st,
+						Vector3(lx1, wy11, lz1), Vector3(bx1, wy11, lz1),
+						Vector3(lx1, wy11, bz1), Vector3(bx1, wy11, bz1),
+						flow_col, wy11)
 
 	if not has_any_water:
 		return null
 
 	return st.commit()
+
+## Helper para adicionar quad de água superior com normais calculadas
+func _add_water_top_quad(st: SurfaceTool, v00: Vector3, v10: Vector3, v01: Vector3, v11: Vector3, col: Color, fall_top: float) -> void:
+	var wn1 = (v01 - v00).cross(v10 - v00).normalized()
+	if wn1.y < 0.0: wn1 = -wn1
+
+	st.set_normal(wn1)
+	st.set_color(col)
+	st.set_uv(Vector2(v00.x, fall_top))
+	st.add_vertex(v00)
+
+	st.set_normal(wn1)
+	st.set_color(col)
+	st.set_uv(Vector2(v10.x, fall_top))
+	st.add_vertex(v10)
+
+	st.set_normal(wn1)
+	st.set_color(col)
+	st.set_uv(Vector2(v01.x, fall_top))
+	st.add_vertex(v01)
+
+	var wn2 = (v01 - v10).cross(v11 - v10).normalized()
+	if wn2.y < 0.0: wn2 = -wn2
+
+	st.set_normal(wn2)
+	st.set_color(col)
+	st.set_uv(Vector2(v10.x, fall_top))
+	st.add_vertex(v10)
+
+	st.set_normal(wn2)
+	st.set_color(col)
+	st.set_uv(Vector2(v11.x, fall_top))
+	st.add_vertex(v11)
+
+	st.set_normal(wn2)
+	st.set_color(col)
+	st.set_uv(Vector2(v01.x, fall_top))
+	st.add_vertex(v01)
+
+## Helper para adicionar quad com vértices em ordem CCW e normal explícita
+func _add_quad_facing(st: SurfaceTool, v0: Vector3, v1: Vector3, v2: Vector3, v3: Vector3, norm: Vector3, col: Color, fall_top: float) -> void:
+	# Triângulo 1 (v0 -> v1 -> v2)
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v0.x, fall_top))
+	st.add_vertex(v0)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v1.x, fall_top))
+	st.add_vertex(v1)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v2.x, fall_top))
+	st.add_vertex(v2)
+
+	# Triângulo 2 (v0 -> v2 -> v3)
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v0.x, fall_top))
+	st.add_vertex(v0)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v2.x, fall_top))
+	st.add_vertex(v2)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v3.x, fall_top))
+	st.add_vertex(v3)
 
 # =========================================================================
 # 4. COLORIZAÇÃO E ESTRATIGRAFIA GEOLÓGICA

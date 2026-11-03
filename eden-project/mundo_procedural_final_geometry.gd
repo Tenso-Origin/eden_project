@@ -226,6 +226,8 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 		# 1. Lago do Vale Alto 1 (wz in [-26, -16]): Y = 11.50m
 		if wz >= -26 and wz <= -16:
 			var max_w = 4.8 + 1.2 * sin(f_wz * 0.4)
+			if wz == -16:
+				max_w = min(max_w, 3.6) # Funilamento da calha para a Cascata 2
 			if dist_canyon <= max_w:
 				data.has_water = true
 				data.water_y = 11.50
@@ -252,6 +254,8 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 		# 2. Lago do Vale Alto 2 (wz in [-14, -3]): Y = 7.00m
 		elif wz >= -14 and wz <= -3:
 			var max_w = 5.2 + 1.5 * cos(f_wz * 0.35)
+			if wz == -3:
+				max_w = min(max_w, 3.8) # Funilamento da calha para a Cascata 3
 			if dist_canyon <= max_w:
 				data.has_water = true
 				data.water_y = 7.00
@@ -335,12 +339,10 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 
 	# 1. Se a célula for ocupada por lâmina d'água: escavar o leito
 	if w_cell.has_water:
-		if w_cell.is_waterfall:
-			return round(w_cell.waterfall_base_y / SNAP_V) * SNAP_V
 		var depth = 1.25 # Profundidade padrão sob água
-		if snap_z <= -28:
-			depth = 1.50 # Lago Chá-Mate profundo
-		elif snap_z >= 22:
+		if snap_z <= -27:
+			depth = 1.50 # Lago Chá-Mate profundo e calha do platô
+		elif snap_z >= 21:
 			depth = 0.75 # Grande Lago raso e cristalino sobre areia quartzo
 		var bed_y = w_cell.water_y - depth
 		return round(bed_y / SNAP_V) * SNAP_V
@@ -354,8 +356,8 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 
 	var raw_h = 1.0
 
-	# A. Platô Norte (wz <= -28): Cota 16.0m
-	if snap_z <= -28:
+	# A. Platô Norte (wz <= -27): Cota 16.0m até a crista rochosa da Cascata 1
+	if snap_z <= -27:
 		raw_h = 16.0 + n_val * 1.25
 		# Rebordas montanhosas extremas que abraçam o platô
 		var dist_edge = max(abs(snap_x) - 18.0, 0.0)
@@ -369,20 +371,25 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 		if d_lake < 1.4:
 			raw_h = clamp(raw_h, 15.75, 16.50)
 
-	# B. Desfiladeiro Central (-28 < wz <= 16):
-	elif snap_z > -28 and snap_z <= 16:
-		# Altitude regional do desfiladeiro descendo em degraus
+	# B. Desfiladeiro Central (-27 < wz <= 20):
+	elif snap_z > -27 and snap_z <= 20:
+		# Altitude regional do desfiladeiro descendo em degraus alinhados com as cascatas
 		var regional_y = 12.0
-		if snap_z <= -16:
+		if snap_z <= -15:
+			# Vale Alto 1 até a crista rochosa da Cascata 2 (wz == -15)
 			regional_y = 12.0
 		elif snap_z <= -2:
+			# Vale Alto 2 até a crista rochosa da Cascata 3 (wz == -2)
 			regional_y = 7.5
-		elif snap_z <= 10:
+		elif snap_z <= 11:
+			# Vale Alto 3
 			regional_y = 4.0
 		else:
-			regional_y = 2.0
+			# Corredeiras em rampa: calha rochosa acompanha a declividade de 15°
+			var step_y = 3.50 - float(snap_z - 11) * SLOPE_15DEG
+			regional_y = step_y
 
-		# Calha central do cânion
+		# Calha central do cânion e bordas rochosas
 		if dist_canyon <= 6.5:
 			raw_h = regional_y + 0.5 + n_val * 0.5
 		else:
@@ -392,7 +399,7 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 			var top_cliff_y = 16.0 - (float(snap_z + 28) / 44.0) * 11.0 # De 16m no norte até 5m no sul
 			raw_h = lerp(regional_y + 1.0, top_cliff_y + n_val * 1.5, wall_t)
 
-	# C. Campina Sul (wz > 16): Cota 1.0m a 2.5m
+	# C. Campina Sul (wz > 20): Cota 1.0m a 2.5m
 	else:
 		raw_h = 1.75 + n_val * 1.0
 		# Margem suave do Grande Lago
@@ -831,7 +838,49 @@ func _add_stratified_quad_x(st: SurfaceTool, x: float, z0: float, z1: float,
 		st.set_uv(Vector2(z0, cur_bot0))
 		st.add_vertex(v_b0)
 
-## Constrói a geometria de água da célula
+## Adiciona um quad vertical de água com atributos para o shader pixel_water.gdshader
+func _add_water_quad(st: SurfaceTool, v_bl: Vector3, v_br: Vector3, v_tr: Vector3, v_tl: Vector3,
+		norm: Vector3, col: Color, uv2_data: Vector2, fall_top: float) -> void:
+
+	# Triângulo 1 (bl -> br -> tr)
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_bl.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_bl)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_br.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_br)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_tr.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_tr)
+
+	# Triângulo 2 (bl -> tr -> tl)
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_bl.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_bl)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_tr.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_tr)
+
+	st.set_normal(norm)
+	st.set_color(col)
+	st.set_uv(Vector2(v_tl.x, fall_top))
+	st.set_uv2(uv2_data)
+	st.add_vertex(v_tl)
+
+## Constrói a geometria de água da célula (superfície superior e paredes laterais 90° nas bordas expostas)
 func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 		wx0: float, wx1: float, wz0: float, wz1: float) -> void:
 
@@ -886,19 +935,19 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 
 	st.set_normal(wn1)
 	st.set_color(col00)
-	st.set_uv(Vector2(wx0, wz0))
+	st.set_uv(Vector2(wx0, wy00))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv00)
 
 	st.set_normal(wn1)
 	st.set_color(col10)
-	st.set_uv(Vector2(wx1, wz0))
+	st.set_uv(Vector2(wx1, wy10))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv10)
 
 	st.set_normal(wn1)
 	st.set_color(col01)
-	st.set_uv(Vector2(wx0, wz1))
+	st.set_uv(Vector2(wx0, wy01))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv01)
 
@@ -907,75 +956,157 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 
 	st.set_normal(wn2)
 	st.set_color(col10)
-	st.set_uv(Vector2(wx1, wz0))
+	st.set_uv(Vector2(wx1, wy10))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv10)
 
 	st.set_normal(wn2)
 	st.set_color(col11)
-	st.set_uv(Vector2(wx1, wz1))
+	st.set_uv(Vector2(wx1, wy11))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv11)
 
 	st.set_normal(wn2)
 	st.set_color(col01)
-	st.set_uv(Vector2(wx0, wz1))
+	st.set_uv(Vector2(wx0, wy01))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv01)
 
-	# 2. Queda d'Água Vertical (Cascata / Cachoeira voltada para o Sul +Z)
-	# Ativa estritamente se is_waterfall == true E fall_h >= 2.0m
+	# 2. Quedas d'Água Verticais (Cascatas de 90° e Paredes do Volume de Água)
+	var cx = int(round(wx0))
+	var cz = int(round(wz0))
+	var depth = 1.50 if cz <= -27 else (0.75 if cz >= 21 else 1.25)
+	var side_col = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, 0.05, blend_val)
+
+	# A. Queda Frontal e Laterais de Cascata (Turbulência 1.0 e UV.y = fall_top):
 	if w_data.is_waterfall and check_waterfall_condition(w_data.water_y, w_data.waterfall_base_y):
 		var fall_top = w_data.water_y
 		var fall_bot = w_data.waterfall_base_y
-		var fall_norm = Vector3.BACK # Face voltada para o Sul (+Z)
+		var fall_col = Color(0.5, 1.0, 1.0, blend_val) # Turbulência = 1.0 ativa shader de cascata
+		
+		# Face Frontal voltada para o Sul (+Z):
+		_add_water_quad(st,
+			Vector3(wx0, fall_bot, wz1),
+			Vector3(wx1, fall_bot, wz1),
+			Vector3(wx1, fall_top, wz1),
+			Vector3(wx0, fall_top, wz1),
+			Vector3.BACK, fall_col, uv2_data, fall_top)
 
-		var fall_col = Color(
-			0.5,
-			1.0, # Fluxo acelerado para baixo / sul
-			1.0, # Turbulência máxima absoluta (ativa densa espuma branca no shader)
-			blend_val
-		)
+		# Paredes Laterais da Cascata (Oeste e Leste):
+		var w_w = evaluate_water_cell(cx - 1, cz)
+		if not (w_w.has_water and w_w.is_waterfall and abs(w_w.water_y - fall_top) < 0.1):
+			_add_water_quad(st,
+				Vector3(wx0, fall_bot, wz0),
+				Vector3(wx0, fall_bot, wz1),
+				Vector3(wx0, fall_top, wz1),
+				Vector3(wx0, fall_top, wz0),
+				Vector3.LEFT, fall_col, uv2_data, fall_top)
 
-		var fv_tl = Vector3(wx0, fall_top, wz1)
-		var fv_tr = Vector3(wx1, fall_top, wz1)
-		var fv_bl = Vector3(wx0, fall_bot, wz1)
-		var fv_br = Vector3(wx1, fall_bot, wz1)
+		var w_e = evaluate_water_cell(cx + 1, cz)
+		if not (w_e.has_water and w_e.is_waterfall and abs(w_e.water_y - fall_top) < 0.1):
+			_add_water_quad(st,
+				Vector3(wx1, fall_bot, wz1),
+				Vector3(wx1, fall_bot, wz0),
+				Vector3(wx1, fall_top, wz0),
+				Vector3(wx1, fall_top, wz1),
+				Vector3.RIGHT, fall_col, uv2_data, fall_top)
 
-		# Triângulo 1 (bl -> br -> tr) - Normal voltada estritamente para +Z
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx0, fall_bot))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_bl)
+	# B. Paredes Laterais 90° nas Bordas Expostas do Volume de Água:
+	# Parede ao Sul (+Z):
+	if not w_data.is_waterfall:
+		var w_s = evaluate_water_cell(cx, cz + 1)
+		if w_s.has_water:
+			var s_top = w_s.water_corners[0]
+			if wy01 > s_top + 0.01 or wy11 > s_top + 0.01:
+				_add_water_quad(st,
+					Vector3(wx0, s_top, wz1),
+					Vector3(wx1, s_top, wz1),
+					Vector3(wx1, wy11, wz1),
+					Vector3(wx0, wy01, wz1),
+					Vector3.BACK, side_col, uv2_data, max(wy01, wy11))
+		else:
+			var s_h0 = evaluate_snapped_height(wx0, wz1 + SNAP_H)
+			var s_h1 = evaluate_snapped_height(wx1, wz1 + SNAP_H)
+			if wy01 > s_h0 + 0.01 or wy11 > s_h1 + 0.01:
+				var bot0 = max(s_h0, wy01 - depth)
+				var bot1 = max(s_h1, wy11 - depth)
+				_add_water_quad(st,
+					Vector3(wx0, bot0, wz1),
+					Vector3(wx1, bot1, wz1),
+					Vector3(wx1, wy11, wz1),
+					Vector3(wx0, wy01, wz1),
+					Vector3.BACK, side_col, uv2_data, max(wy01, wy11))
 
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx1, fall_bot))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_br)
+	# Parede ao Norte (-Z):
+	var w_n = evaluate_water_cell(cx, cz - 1)
+	if w_n.has_water:
+		var n_top = w_n.water_corners[2]
+		if wy00 > n_top + 0.01 or wy10 > n_top + 0.01:
+			_add_water_quad(st,
+				Vector3(wx1, n_top, wz0),
+				Vector3(wx0, n_top, wz0),
+				Vector3(wx0, wy00, wz0),
+				Vector3(wx1, wy10, wz0),
+				Vector3.FORWARD, side_col, uv2_data, max(wy00, wy10))
+	else:
+		var n_h0 = evaluate_snapped_height(wx0, wz0 - SNAP_H)
+		var n_h1 = evaluate_snapped_height(wx1, wz0 - SNAP_H)
+		if wy00 > n_h0 + 0.01 or wy10 > n_h1 + 0.01:
+			var bot0 = max(n_h0, wy00 - depth)
+			var bot1 = max(n_h1, wy10 - depth)
+			_add_water_quad(st,
+				Vector3(wx1, bot1, wz0),
+				Vector3(wx0, bot0, wz0),
+				Vector3(wx0, wy00, wz0),
+				Vector3(wx1, wy10, wz0),
+				Vector3.FORWARD, side_col, uv2_data, max(wy00, wy10))
 
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx1, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tr)
+	# Parede a Leste (+X):
+	if not w_data.is_waterfall:
+		var w_e2 = evaluate_water_cell(cx + 1, cz)
+		if w_e2.has_water:
+			var e_top = w_e2.water_corners[0]
+			if wy10 > e_top + 0.01 or wy11 > e_top + 0.01:
+				_add_water_quad(st,
+					Vector3(wx1, e_top, wz1),
+					Vector3(wx1, e_top, wz0),
+					Vector3(wx1, wy10, wz0),
+					Vector3(wx1, wy11, wz1),
+					Vector3.RIGHT, side_col, uv2_data, max(wy10, wy11))
+		else:
+			var e_h0 = evaluate_snapped_height(wx1 + SNAP_H, wz0)
+			var e_h1 = evaluate_snapped_height(wx1 + SNAP_H, wz1)
+			if wy10 > e_h0 + 0.01 or wy11 > e_h1 + 0.01:
+				var bot0 = max(e_h0, wy10 - depth)
+				var bot1 = max(e_h1, wy11 - depth)
+				_add_water_quad(st,
+					Vector3(wx1, bot1, wz1),
+					Vector3(wx1, bot0, wz0),
+					Vector3(wx1, wy10, wz0),
+					Vector3(wx1, wy11, wz1),
+					Vector3.RIGHT, side_col, uv2_data, max(wy10, wy11))
 
-		# Triângulo 2 (bl -> tr -> tl) - Normal voltada estritamente para +Z
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx0, fall_bot))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_bl)
-
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx1, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tr)
-
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx0, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tl)
+	# Parede a Oeste (-X):
+	if not w_data.is_waterfall:
+		var w_w2 = evaluate_water_cell(cx - 1, cz)
+		if w_w2.has_water:
+			var w_top = w_w2.water_corners[1]
+			if wy00 > w_top + 0.01 or wy01 > w_top + 0.01:
+				_add_water_quad(st,
+					Vector3(wx0, w_top, wz0),
+					Vector3(wx0, w_top, wz1),
+					Vector3(wx0, wy01, wz1),
+					Vector3(wx0, wy00, wz0),
+					Vector3.LEFT, side_col, uv2_data, max(wy00, wy01))
+		else:
+			var w_h0 = evaluate_snapped_height(wx0 - SNAP_H, wz0)
+			var w_h1 = evaluate_snapped_height(wx0 - SNAP_H, wz1)
+			if wy00 > w_h0 + 0.01 or wy01 > w_h1 + 0.01:
+				var bot0 = max(w_h0, wy00 - depth)
+				var bot1 = max(w_h1, wy01 - depth)
+				_add_water_quad(st,
+					Vector3(wx0, bot0, wz0),
+					Vector3(wx0, bot1, wz1),
+					Vector3(wx0, wy01, wz1),
+					Vector3(wx0, wy00, wz0),
+					Vector3.LEFT, side_col, uv2_data, max(wy00, wy01))

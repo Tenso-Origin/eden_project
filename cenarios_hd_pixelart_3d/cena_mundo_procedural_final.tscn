@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://cx8w7a2p9kmq1"]
+[gd_scene format=3 uid="uid://cx8w7a2qakmq1"]
 
 [ext_resource type="Script" path="res://main.gd" id="1_main"]
 [ext_resource type="Shader" path="res://subpixel_upscale.gdshader" id="1_upscale"]

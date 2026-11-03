@@ -141,16 +141,16 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 	}
 
 	# -------------------------------------------------------------
-	# A. NORTE: LAGO CHÁ-MATE NO PLATÔ 16M (wz <= -28)
+	# A. NORTE: LAGO CHÁ-MATE NO PLATÔ 16M E CASCATA 1 (wz <= -27)
 	# -------------------------------------------------------------
-	if wz <= -28:
+	if wz <= -27:
 		# Lago amplo elíptico no platô
 		var dx_lake = (f_wx - 0.5) / 12.5
 		var dz_lake = (f_wz - (-47.0)) / 13.5
 		var dist_lake_sq = dx_lake * dx_lake + dz_lake * dz_lake
 
-		# Canal de sangria do lago rumo ao sul (-34 <= wz <= -28)
-		var is_outlet = (wz >= -35 and wz <= -28 and dist_canyon <= 2.8)
+		# Canal de sangria do lago rumo ao sul (-35 <= wz <= -27)
+		var is_outlet = (wz >= -35 and wz <= -27 and dist_canyon <= 3.0)
 
 		if dist_lake_sq <= 1.0 or is_outlet:
 			data.has_water = true
@@ -161,7 +161,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 			data.water_blend = 1.0 # 100% Chá-Mate / Igarapé
 
 		# Cascata 1: Queda do Platô para o Lago Alto 1 (Degrau em wz == -27)
-		if wz == -27 and dist_canyon <= 3.0:
+		if wz == -27 and dist_canyon <= 3.2:
 			data.has_water = true
 			data.is_waterfall = true
 			data.water_y = 15.50
@@ -281,13 +281,13 @@ func evaluate_snapped_height(wx: float, wz: float) -> float:
 
 	# 1. Se a célula for ocupada por lâmina d'água: escavar o leito
 	if w_cell.has_water:
+		if w_cell.is_waterfall:
+			return round(w_cell.waterfall_base_y / SNAP_V) * SNAP_V
 		var depth = 1.25 # Profundidade padrão sob água
 		if snap_z <= -28:
 			depth = 1.50 # Lago Chá-Mate profundo
 		elif snap_z >= 22:
 			depth = 0.75 # Grande Lago raso e cristalino sobre areia quartzo
-		elif w_cell.is_waterfall:
-			depth = 0.0 # Fundo da cachoeira é a cota da base
 		var bed_y = w_cell.water_y - depth
 		return round(bed_y / SNAP_V) * SNAP_V
 

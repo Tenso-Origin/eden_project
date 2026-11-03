@@ -50,8 +50,8 @@ func _init():
 	# 2. SCREENSHOT 2: MEIO - DESFILADEIRO, CASCATAS E LAGOS EM VALES ALTOS
 	# -------------------------------------------------------------------------
 	print("\n--- Captura 2/5: Desfiladeiro com Cascatas e Lagos em Vales Altos ---")
-	pivot.global_position = Vector3(0.0, 9.0, -11.0)
-	cam.size = 26.0
+	pivot.global_position = Vector3(0.0, 11.0, -18.0)
+	cam.size = 32.0
 	for i in range(30):
 		await process_frame
 	save_shot.call("res://screenshot_final_2_desfiladeiro_cascatas_vales_altos.png", "Desfiladeiro, Cascatas e Lagos em Vales Altos")

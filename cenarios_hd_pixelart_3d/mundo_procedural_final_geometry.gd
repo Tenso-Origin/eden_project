@@ -16,6 +16,13 @@ const TEX_SERRAPILHEIRA = preload("res://tex_serrapilheira.png")
 const SNAP_V: float = 0.25 # Snap vertical estrito de 0.25m
 const SNAP_H: float = 1.00 # Snap horizontal estrito de 1.00m
 
+# Família de declividades canônicas discretizadas (0°, 15°, 30°, 45°, 90°)
+const SLOPE_FLAT: float = 0.00  # 0.00° (Horizontal plana: remanso, lago, canal calmo)
+const SLOPE_15DEG: float = 0.25 # 14.04° (Rampa suave de baixa energia: 0.25m vertical por 1.0m horizontal)
+const SLOPE_30DEG: float = 0.50 # 26.57° (Rampa moderada / calha rápida: 0.50m vertical por 1.0m horizontal)
+const SLOPE_45DEG: float = 1.00 # 45.00° (Corredeira íngreme / chute torrencial: 1.00m vertical por 1.0m horizontal)
+const SLOPE_90DEG: float = 90.0 # 90.00° (Queda vertical livre / Cascata: desnível >= 2.0m)
+
 # Dimensões globais do mundo: 64m (X) x 128m (Z) = 32 chunks de 16x16m
 const CHUNKS_X: int = 4 # cx in [-2, -1, 0, 1] -> X in [-32m, +32m]
 const CHUNKS_Z: int = 8 # cz in [-4, -3, -2, -1, 0, 1, 2, 3] -> Z in [-64m, +64m]
@@ -82,7 +89,6 @@ func init_materials() -> void:
 	mat_water.set_shader_parameter("pixel_grid_density", 52.0)
 	mat_water.set_shader_parameter("wave_speed", 1.8)
 	mat_water.set_shader_parameter("wave_height", 0.02)
-	mat_water.set_shader_parameter("voronoi_frequency", 1.35)
 	mat_water.set_shader_parameter("wave_crest_foam_threshold", 0.94)
 	mat_water.set_shader_parameter("reflection_strength", 0.45)
 	mat_water.set_shader_parameter("shoreline_foam_dist", 0.30)
@@ -123,14 +129,17 @@ func get_canyon_center_x(wz: float) -> float:
 	return 2.5 * sin(wz * 0.075) + 1.2 * cos(wz * 0.15)
 
 ## Pluma anisotrópica de amortecimento de turbulência gerada pelas cascatas em Z in {-26, -14, -1}
+## Aplicada estritamente onde delta_y >= 2.0m
 func get_waterfall_plume_turbulence(x: float, z: float, base_turb: float = 0.08) -> float:
 	var cascades = [
-		{"z": -26.0, "w_half": 2.8},
-		{"z": -14.0, "w_half": 2.8},
-		{"z": -1.0,  "w_half": 3.2}
+		{"z": -26.0, "w_half": 2.8, "top_y": 15.50, "bot_y": 11.50},
+		{"z": -14.0, "w_half": 2.8, "top_y": 11.50, "bot_y": 7.00},
+		{"z": -1.0,  "w_half": 3.2, "top_y": 7.00,  "bot_y": 3.50}
 	]
 	var max_t = base_turb
 	for c in cascades:
+		if not check_waterfall_condition(c.top_y, c.bot_y):
+			continue
 		var z_k: float = c.z
 		var w_half: float = c.w_half
 		var x_k: float = get_canyon_center_x(z_k)
@@ -150,6 +159,11 @@ func get_waterfall_plume_turbulence(x: float, z: float, base_turb: float = 0.08)
 			if t_k > max_t:
 				max_t = t_k
 	return max_t
+
+## Gatilho Hidráulico Estrito: Cascatas verticais (90°) e turbulência pesada exigem queda >= 2.0m
+func check_waterfall_condition(y_top: float, y_bot: float) -> bool:
+	var fall_h = y_top - y_bot
+	return fall_h >= 2.0
 
 ## Avalia a célula de água no ponto inteiro (wx, wz)
 func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
@@ -191,13 +205,16 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 
 		# Cascata 1: Queda do Platô para o Lago Alto 1 (Degrau em wz == -27)
 		if wz == -27 and dist_canyon <= 3.2:
+			var fall_top = 15.50
+			var fall_bot = 11.50
+			var is_casc = check_waterfall_condition(fall_top, fall_bot)
 			data.has_water = true
-			data.is_waterfall = true
-			data.water_y = 15.50
-			data.waterfall_base_y = 11.50
-			data.water_corners = [15.50, 15.50, 15.50, 15.50]
+			data.is_waterfall = is_casc
+			data.water_y = fall_top
+			data.waterfall_base_y = fall_bot
+			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00 # Espuma densa de cachoeira
+			data.turbulence = 1.00 if is_casc else 0.08
 			data.water_blend = 0.95
 			return data
 
@@ -219,13 +236,16 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 
 		# Cascata 2: Queda Intermediária do Desfiladeiro (em wz == -15)
 		if wz == -15 and dist_canyon <= 3.2:
+			var fall_top = 11.50
+			var fall_bot = 7.00
+			var is_casc = check_waterfall_condition(fall_top, fall_bot)
 			data.has_water = true
-			data.is_waterfall = true
-			data.water_y = 11.50
-			data.waterfall_base_y = 7.00
-			data.water_corners = [11.50, 11.50, 11.50, 11.50]
+			data.is_waterfall = is_casc
+			data.water_y = fall_top
+			data.waterfall_base_y = fall_bot
+			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00
+			data.turbulence = 1.00 if is_casc else 0.08
 			data.water_blend = 0.70
 			return data
 
@@ -242,13 +262,16 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 
 		# Cascata 3: Queda Inferior do Desfiladeiro (em wz == -2)
 		if wz == -2 and dist_canyon <= 3.5:
+			var fall_top = 7.00
+			var fall_bot = 3.50
+			var is_casc = check_waterfall_condition(fall_top, fall_bot)
 			data.has_water = true
-			data.is_waterfall = true
-			data.water_y = 7.00
-			data.waterfall_base_y = 3.50
-			data.water_corners = [7.00, 7.00, 7.00, 7.00]
+			data.is_waterfall = is_casc
+			data.water_y = fall_top
+			data.waterfall_base_y = fall_bot
+			data.water_corners = [fall_top, fall_top, fall_top, fall_top]
 			data.flow_dir = Vector2(0.0, 1.0)
-			data.turbulence = 1.00
+			data.turbulence = 1.00 if is_casc else 0.08
 			data.water_blend = 0.35
 			return data
 
@@ -264,17 +287,19 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 				data.water_blend = 0.20
 
 		# 4. Corredeiras em Rampa descendo para a Planície (wz in [12, 20]):
-		# Desce de Y = 3.50m até Y = 1.00m (degrau de 0.25m por metro)
+		# Rampa contínua modular de 15° (SLOPE_15DEG = 0.25m por metro)
+		# Desce de Y = 3.50m até Y = 1.00m sem cascata (queda < 2.0m)
 		elif wz >= 12 and wz <= 20:
 			var max_w = 4.2
 			if dist_canyon <= max_w:
 				data.has_water = true
-				var step_y = 3.50 - float(wz - 11) * 0.25
-				var next_y = max(1.00, step_y - 0.25)
+				var step_y = 3.50 - float(wz - 11) * SLOPE_15DEG
+				var next_y = max(1.00, step_y - SLOPE_15DEG)
+				data.is_waterfall = check_waterfall_condition(step_y, next_y) # false (0.25m < 2.0m)
 				data.water_y = step_y
 				data.water_corners = [step_y, step_y, next_y, next_y]
 				data.flow_dir = Vector2(0.05, 1.0).normalized()
-				data.turbulence = 0.45
+				data.turbulence = 0.08 # Fluxo rápido translúcido sem espuma pesada
 				data.water_blend = 0.10
 
 	# -------------------------------------------------------------
@@ -833,7 +858,7 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	var t11 = w_data.turbulence
 	if not w_data.is_waterfall and w_data.turbulence < 0.99:
 		var base_t = 0.08
-		if wz0 >= -1.0:
+		if wz0 >= -1.0 and wz0 < 12.0:
 			base_t = 0.10
 		t00 = get_waterfall_plume_turbulence(wx0, wz0, base_t)
 		t10 = get_waterfall_plume_turbulence(wx1, wz0, base_t)
@@ -899,7 +924,8 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	st.add_vertex(wv01)
 
 	# 2. Queda d'Água Vertical (Cascata / Cachoeira voltada para o Sul +Z)
-	if w_data.is_waterfall:
+	# Ativa estritamente se is_waterfall == true E fall_h >= 2.0m
+	if w_data.is_waterfall and check_waterfall_condition(w_data.water_y, w_data.waterfall_base_y):
 		var fall_top = w_data.water_y
 		var fall_bot = w_data.waterfall_base_y
 		var fall_norm = Vector3.BACK # Face voltada para o Sul (+Z)
@@ -916,29 +942,12 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 		var fv_bl = Vector3(wx0, fall_bot, wz1)
 		var fv_br = Vector3(wx1, fall_bot, wz1)
 
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx0, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tl)
-
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx1, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tr)
-
+		# Triângulo 1 (bl -> br -> tr) - Normal voltada estritamente para +Z
 		st.set_normal(fall_norm)
 		st.set_color(fall_col)
 		st.set_uv(Vector2(wx0, fall_bot))
 		st.set_uv2(uv2_data)
 		st.add_vertex(fv_bl)
-
-		st.set_normal(fall_norm)
-		st.set_color(fall_col)
-		st.set_uv(Vector2(wx1, fall_top))
-		st.set_uv2(uv2_data)
-		st.add_vertex(fv_tr)
 
 		st.set_normal(fall_norm)
 		st.set_color(fall_col)
@@ -948,6 +957,25 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 
 		st.set_normal(fall_norm)
 		st.set_color(fall_col)
+		st.set_uv(Vector2(wx1, fall_top))
+		st.set_uv2(uv2_data)
+		st.add_vertex(fv_tr)
+
+		# Triângulo 2 (bl -> tr -> tl) - Normal voltada estritamente para +Z
+		st.set_normal(fall_norm)
+		st.set_color(fall_col)
 		st.set_uv(Vector2(wx0, fall_bot))
 		st.set_uv2(uv2_data)
 		st.add_vertex(fv_bl)
+
+		st.set_normal(fall_norm)
+		st.set_color(fall_col)
+		st.set_uv(Vector2(wx1, fall_top))
+		st.set_uv2(uv2_data)
+		st.add_vertex(fv_tr)
+
+		st.set_normal(fall_norm)
+		st.set_color(fall_col)
+		st.set_uv(Vector2(wx0, fall_top))
+		st.set_uv2(uv2_data)
+		st.add_vertex(fv_tl)

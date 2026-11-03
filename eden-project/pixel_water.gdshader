@@ -2,15 +2,12 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_always;
 
 // Shader de Água HD Pixel Art 3D (David Holland Architecture)
-// - Transparência Embaçada (Blur 9 amostras) nas bordas de contato e cristas sem manchas brancas sólidas
-// - Preservação do sistema Voronoi via bool use_voronoi = false
-// - Distorção de refração ondulante do fundo quando vento passa (harmônicos longos + profundidade + tracinhos)
-// - Frequência Voronoi reduzida para 1.35 (esferas maiores quando use_voronoi=true)
-// - Desfoque aumentado do fundo nas cristas altas antes de atingir o ápice de espuma
-// - Threshold de espuma elevado para 0.94 (exclusivo para o ápice)
-// - Redução drástica da opacidade leitosa, revelando o leito com transparência rica e autêntica
-// - Descarte de faces laterais/inferiores (apenas lâmina d'água superior, exceto quedas d'água verticais)
+// - FBM com Rotação Matricial Áurea e Domain Warping Hidrodinâmico (eliminação completa de Voronoi e "solas de sapato")
+// - Efervescência Estocástica a 6 Hz para cascatas (Delta Y >= 2.0m) com grânulos orgânicos de pixel art
+// - Espuma branca pura (#FFFFFF) sem patamar intermediário ciano sólido
+// - Transparência rica com desfoque de contato (Blur 9 amostras) e refração física ondulante do leito
 // - Reflexo Planar Óptico orbital ancorado com escala proporcional à altura exposta
+// - Tracinhos estritamente horizontais no monitor (Screen-Space Horizontal Dashes)
 
 uniform sampler2D screen_texture : hint_screen_texture, repeat_disable, filter_nearest;
 uniform sampler2D depth_texture : hint_depth_texture, repeat_disable, filter_nearest;
@@ -36,11 +33,9 @@ uniform vec4 igarape_deep : source_color = vec4(0.11, 0.06, 0.04, 0.96);
 uniform float igarape_fade = 0.55;
 
 group_uniforms RipplesAndWaves;
-uniform bool use_voronoi = false;
 uniform float pixel_grid_density : hint_range(8.0, 128.0) = 52.0; // Texels por metro
 uniform float wave_speed : hint_range(0.5, 5.0) = 2.0;
 uniform float wave_height : hint_range(0.0, 0.1) = 0.02;
-uniform float voronoi_frequency : hint_range(0.2, 5.0) = 1.35; // Frequência Voronoi reduzida para esferas maiores
 uniform float shoreline_foam_dist : hint_range(0.05, 1.0) = 0.30;
 uniform int shoreline_ripple_rings : hint_range(1, 5) = 3;
 
@@ -61,7 +56,6 @@ uniform float specular_glint_threshold : hint_range(0.5, 0.99) = 0.88;
 group_uniforms Foam;
 uniform vec3 foam_color : source_color = vec3(1.0, 1.0, 1.0);
 uniform float wave_crest_foam_threshold : hint_range(0.70, 0.99) = 0.94; // Threshold elevado para ápice
-uniform float wave_crest_voronoi_threshold : hint_range(0.50, 0.99) = 0.80;
 
 varying vec3 v_world_pos;
 varying vec3 v_world_normal;
@@ -72,35 +66,35 @@ vec2 hash2(vec2 p) {
 	return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
 }
 
-float voronoi_cells(vec2 uv) {
-	vec2 i_uv = floor(uv);
-	vec2 f_uv = fract(uv);
-	float min_dist = 1.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 neighbor = vec2(float(x), float(y));
-			vec2 point = hash2(i_uv + neighbor);
-			vec2 diff = neighbor + point - f_uv;
-			min_dist = min(min_dist, length(diff));
-		}
-	}
-	return min_dist;
+// 1. Hash e Ruído de Gradiente Quintic Hermite
+vec2 hash_grad(vec2 p) {
+	vec2 k = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+	return -1.0 + 2.0 * fract(sin(k) * 43758.5453123);
 }
 
-float voronoi_wave(vec2 uv, float time) {
-	vec2 i_uv = floor(uv);
-	vec2 f_uv = fract(uv);
-	float min_dist = 1.0;
-	for (int y = -1; y <= 1; y++) {
-		for (int x = -1; x <= 1; x++) {
-			vec2 neighbor = vec2(float(x), float(y));
-			vec2 point = hash2(i_uv + neighbor);
-			point = 0.5 + 0.5 * sin(time * wave_speed + 6.2831 * point);
-			vec2 diff = neighbor + point - f_uv;
-			min_dist = min(min_dist, length(diff));
-		}
-	}
-	return min_dist;
+float gradient_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+	return mix(
+		mix(dot(hash_grad(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+			dot(hash_grad(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+		mix(dot(hash_grad(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+			dot(hash_grad(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x),
+		u.y
+	);
+}
+
+// 2. FBM 3-Oitavas com Rotação Matricial Áurea (~36.87°)
+const mat2 ROT_GOLDEN = mat2(vec2(0.80, 0.60), vec2(-0.60, 0.80));
+
+float fbm_water(vec2 p, float t, vec2 flow) {
+	vec2 coord = p - flow * t;
+	float val = 0.0;
+	val += 0.52 * gradient_noise(coord); coord = ROT_GOLDEN * coord * 2.02 + vec2(t * 0.15, -t * 0.12);
+	val += 0.30 * gradient_noise(coord); coord = ROT_GOLDEN * coord * 2.08 - vec2(t * 0.22, t * 0.18);
+	val += 0.18 * gradient_noise(coord);
+	return val;
 }
 
 // Tracinhos brancos estritamente horizontais na tela (Screen-Space Horizontal Dashes)
@@ -185,17 +179,12 @@ void vertex() {
 	// Aplica marola geométrica apenas na face superior
 	if (NORMAL.y > 0.5) {
 		vec2 snapped_xz = floor(w_pos.xz * pixel_grid_density) / pixel_grid_density;
-		float wave = 0.0;
-		if (use_voronoi) {
-			wave = sin(snapped_xz.x * 6.0 + TIME * wave_speed) * cos(snapped_xz.y * 6.0 + TIME * wave_speed * 0.8);
-		} else {
-			vec2 w_dir = normalize(wind_direction);
-			float coord_w = dot(snapped_xz, w_dir);
-			float h1 = sin(coord_w * 2.2 - TIME * wind_speed * 1.5);
-			float h2 = sin(dot(snapped_xz, normalize(w_dir * 0.92 + vec2(-w_dir.y, w_dir.x) * 0.39)) * 3.6 - TIME * wind_speed * 2.0 + 1.2);
-			float gust = smoothstep(-0.35, 0.65, sin(coord_w * 0.45 - TIME * wind_speed * 0.60));
-			wave = (h1 * 0.60 + h2 * 0.40) * (0.35 + 0.65 * gust) * wind_strength;
-		}
+		vec2 w_dir = normalize(wind_direction);
+		float coord_w = dot(snapped_xz, w_dir);
+		float h1 = sin(coord_w * 2.2 - TIME * wind_speed * 1.5);
+		float h2 = sin(dot(snapped_xz, normalize(w_dir * 0.92 + vec2(-w_dir.y, w_dir.x) * 0.39)) * 3.6 - TIME * wind_speed * 2.0 + 1.2);
+		float gust = smoothstep(-0.35, 0.65, sin(coord_w * 0.45 - TIME * wind_speed * 0.60));
+		float wave = (h1 * 0.60 + h2 * 0.40) * (0.35 + 0.65 * gust) * wind_strength;
 		VERTEX.y += wave * wave_height;
 	}
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -214,9 +203,9 @@ void fragment() {
 		float cascade_speed = wave_speed * 4.2;
 		float stream1 = sin(fall_snapped.x * 12.0 + (fall_snapped.y + TIME * cascade_speed) * 8.0);
 		float stream2 = cos(fall_snapped.x * 20.0 - (fall_snapped.y + TIME * cascade_speed * 1.3) * 11.0);
-		float v_stream = voronoi_wave(vec2(fall_snapped.x * 2.8, (fall_snapped.y + TIME * cascade_speed) * 1.6), TIME);
+		float stream_noise = gradient_noise(vec2(fall_snapped.x * 3.5, (fall_snapped.y + TIME * cascade_speed) * 2.0));
 		
-		float foam_mix = step(0.38, v_stream * 0.65 + (stream1 * stream2) * 0.35 + 0.30);
+		float foam_mix = step(0.35, stream_noise * 0.50 + (stream1 * stream2) * 0.35 + 0.35);
 		vec3 fall_water = mix(shallow_color.rgb * 1.15, foam_color, clamp(foam_mix + 0.45, 0.0, 1.0));
 		
 		ALBEDO = fall_water;
@@ -280,11 +269,10 @@ void fragment() {
 	float depth_factor = clamp(water_depth / cur_fade, 0.0, 1.0);
 	float stepped_depth = floor(depth_factor * 5.0) / 5.0;
 
-	// 2. Ondulações do Vento: Harmônicos Longos, Rajadas e Tracinhos
+	// 2. Ondulações do Vento: Harmônicos Longos e Rajadas
 	vec2 w_dir = normalize(wind_direction);
 	vec2 w_perp = vec2(-w_dir.y, w_dir.x);
 	float coord_wind = dot(world_xz_snapped, w_dir);
-	float coord_perp = dot(world_xz_snapped, w_perp);
 	
 	// Harmônicos longos de propagação do vento (marola ondulante fluida)
 	float h1 = sin(coord_wind * 2.2 - TIME * wind_speed * 1.5);
@@ -293,24 +281,15 @@ void fragment() {
 	vec2 dir_h3 = normalize(w_dir * 0.93 - w_perp * 0.36);
 	float h3 = cos(dot(world_xz_snapped, dir_h3) * 5.0 - TIME * wind_speed * 2.4 + 2.1);
 	
-	// Rajada de vento suave e periódica que atravessa a lâmina d'água ("quando o vento passa")
+	// Rajada de vento suave e periódica que atravessa a lâmina d'água
 	float gust_coord = coord_wind * 0.45 - TIME * wind_speed * 0.60;
 	float gust = smoothstep(-0.35, 0.65, sin(gust_coord) + sin(gust_coord * 0.5 + 1.1) * 0.4);
 	float wind_wave_long = (h1 * 0.52 + h2 * 0.32 + h3 * 0.16) * (0.45 + 0.55 * gust) * wind_strength;
 	
 	// 3. Distorção de Refração Ondulante do Fundo (Harmônicos Longos + Profundidade)
-	vec2 refraction_dir = vec2(0.0);
-	if (use_voronoi) {
-		refraction_dir = vec2(
-			sin(v_world_pos.z * 16.0 + TIME * wave_speed * 2.0),
-			cos(v_world_pos.x * 16.0 + TIME * wave_speed * 1.5)
-		);
-	} else {
-		// Vetor de refração: harmônicos longos e fluidos geram ondulação contínua do leito
-		refraction_dir = w_dir * (wind_wave_long * 1.35) + w_perp * (h2 * 0.45);
-	}
+	vec2 refraction_dir = w_dir * (wind_wave_long * 1.35) + w_perp * (h2 * 0.45);
 	
-	// Profundidade: refração física proporcional à coluna d'água (águas rasas nítidas, leito ondulando)
+	// Profundidade: refração física proporcional à coluna d'água
 	float depth_refr_scale = clamp(water_depth / max(0.1, cur_fade * 0.65), 0.05, 1.35);
 	vec2 pixel_wave_offset = round(refraction_dir * (refraction_strength * 0.5) * depth_refr_scale) * texel_size;
 	vec2 bg_uv = SCREEN_UV + pixel_wave_offset;
@@ -350,68 +329,41 @@ void fragment() {
 		shoreline_turbid = clamp(ring_step + edge_solid, 0.0, 1.0);
 	}
 	
-	float wave_curr = 0.0;
-	float v_wave = 0.0;
-	float caustic_band = 0.0;
-	float crest_rise = 0.0;
-	float crest_voronoi_rise = 0.0;
-	
-	if (use_voronoi) {
-		wave_curr = sin(world_xz_snapped.x * 6.0 + TIME * wave_speed) * cos(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8);
-		v_wave = voronoi_wave(animated_xz * voronoi_frequency, TIME);
-		caustic_band = step(0.72, v_wave);
-		crest_rise = smoothstep(0.40, 0.93, wave_curr);
-		crest_voronoi_rise = smoothstep(0.55, 0.85, v_wave);
-	} else {
-		wave_curr = wind_wave_long;
-		v_wave = clamp(wind_wave_long * 0.5 + 0.5, 0.0, 1.0);
-		caustic_band = step(0.78, wind_wave_long) * 0.35;
-		crest_rise = smoothstep(0.45, 0.95, wave_curr);
-		crest_voronoi_rise = smoothstep(0.50, 0.90, v_wave);
-	}
-	
-	// Desfoque suave nas cristas altas
-	float high_crest_turbid = crest_rise * (0.35 + 0.45 * crest_voronoi_rise);
+	float wave_curr = wind_wave_long;
+	float v_wave = clamp(wind_wave_long * 0.5 + 0.5, 0.0, 1.0);
+	float caustic_band = step(0.78, wind_wave_long) * 0.35;
+	float crest_rise = smoothstep(0.45, 0.95, wave_curr);
+	float crest_fluid_rise = smoothstep(0.50, 0.90, v_wave);
+	float high_crest_turbid = crest_rise * (0.35 + 0.45 * crest_fluid_rise);
 	float crest_turbid = clamp(high_crest_turbid * 0.70 + caustic_band * 0.25, 0.0, 1.0);
 	
-	// Espuma branca: NUNCA em faixas sólidas. Apenas em turbulência forte (quedas) ou cristas extremas
-	float crest_foam = 0.0;
-	if (use_voronoi) {
-		crest_foam = step(wave_crest_foam_threshold, wave_curr) * step(wave_crest_voronoi_threshold, v_wave);
-	} else {
-		crest_foam = step(0.985, wind_wave_long);
-	}
-	
-	// Turbulência modular e síntese de bolhas/espuma celular quantizada (B_cell, F_tendril, B_burst)
+	// Espuma de crista (apenas em picos máximos)
+	float crest_foam = step(wave_crest_foam_threshold, wave_curr);
+
+	// 5. Domain Warping Hidrodinâmico e Efervescência Estocástica (6 Hz)
+	// Deforma o espaço UV usando a própria correnteza para criar veios líquidos contínuos
+	vec2 warp = vec2(
+		fbm_water(world_xz_snapped * 2.2, TIME * wave_speed * 0.4, flow_dir),
+		fbm_water(world_xz_snapped * 2.2 + vec2(5.2, 1.3), TIME * wave_speed * 0.4, flow_dir)
+	);
+	float organic_fluid_wave = fbm_water(world_xz_snapped * 2.8 + warp * 0.45, TIME * wave_speed * 0.6, flow_dir);
+
+	// Turbulência modular e efervescência estocástica a 6 Hz para cascatas (Delta Y >= 2.0m)
 	float turb = v_flow_data.b;
-	float B_cell = 0.0;
-	float F_tendril = 0.0;
-	float B_burst = 0.0;
+	float boiling_foam = 0.0;
 
 	if (turb > 0.10) {
-		// A. Caldeirão de Bolhas Celulares (Boiling Effervescence Core)
-		vec2 v1 = vec2(0.2, 1.4) * wave_speed;
-		vec2 v2 = vec2(-0.3, 0.9) * wave_speed;
-		float V1 = voronoi_cells(world_xz_snapped * 3.8 + v1 * TIME);
-		float V2 = voronoi_cells(world_xz_snapped * 5.6 - v2 * TIME);
-		B_cell = step(1.18 - turb * 0.65, V1 * 0.55 + V2 * 0.45);
-
-		// B. Esteira de Filamentos de Espuma (Spindrift Tendrils)
-		float phi_z = cos(world_xz_snapped.y * 4.2 - TIME * 2.8) * 1.8;
-		float s_drift = sin(world_xz_snapped.x * 8.5 + phi_z) * cos(world_xz_snapped.y * 5.0 - TIME * 4.2);
-		F_tendril = step(0.48, s_drift) * smoothstep(0.28, 0.75, turb);
-
-		// C. Estouro Estocástico de Microbolhas (Bubble Bursting Lifecycle a 4 Hz)
-		vec2 c_cell = floor(world_xz_snapped * 20.0);
-		float t_cycle = floor(TIME * 4.0 + hash2(c_cell).x * 8.0);
-		float r_burst = hash2(c_cell + vec2(t_cycle * 2.0, t_cycle * 2.0)).y;
-		B_burst = step(1.02 - turb * 0.88, r_burst) * step(0.22, turb);
+		// Microbolhas estocásticas sem células esféricas (grânulos orgânicos de pixel art a 6 Hz)
+		vec2 foam_grid = floor(v_world_pos.xz * pixel_grid_density);
+		float foam_time_step = floor(TIME * 6.0);
+		float foam_noise = fract(sin(dot(foam_grid + vec2(foam_time_step * 17.1, foam_time_step * 31.4), vec2(12.9898, 78.233))) * 43758.5453);
+		boiling_foam = step(1.0 - turb * 0.85, (organic_fluid_wave * 0.5 + 0.5) * 0.40 + foam_noise * 0.60);
 	}
 
 	float turbid_factor = clamp(shoreline_turbid * 0.50 + crest_turbid * 0.40 + turb * 0.95, 0.0, 1.0);
 	vec3 seabed_refracted = mix(refracted_bg, blurred_bg, turbid_factor);
 
-	// 5. Reflexo Planar Óptico na SUPERFÍCIE com Escala Proporcional à Altura Exposta
+	// 6. Reflexo Planar Óptico na SUPERFÍCIE com Escala Proporcional à Altura Exposta
 	vec4 clip_curr = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos, 1.0);
 	vec4 clip_up = PROJECTION_MATRIX * VIEW_MATRIX * vec4(v_world_pos + vec3(0.0, 1.0, 0.0), 1.0);
 	vec2 uv_curr = (clip_curr.xy / clip_curr.w) * 0.5 + 0.5;
@@ -419,20 +371,10 @@ void fragment() {
 	vec2 screen_up_per_meter = uv_up - uv_curr;
 	vec2 screen_perp = vec2(-screen_up_per_meter.y, screen_up_per_meter.x);
 	
-	vec2 wave_slope = vec2(0.0);
-	float voronoi_ripple = 0.0;
-	if (use_voronoi) {
-		wave_slope = vec2(
-			cos(world_xz_snapped.x * 6.0 + TIME * wave_speed) * cos(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8),
-			-sin(world_xz_snapped.x * 6.0 + TIME * wave_speed) * sin(world_xz_snapped.y * 6.0 + TIME * wave_speed * 0.8)
-		);
-		voronoi_ripple = (v_wave - 0.5) * 2.0;
-	} else {
-		wave_slope = w_dir * (wind_wave_long * 1.4) + w_perp * (h2 * 0.45);
-		voronoi_ripple = (v_wave - 0.5) * 1.2;
-	}
+	vec2 wave_slope = w_dir * (wind_wave_long * 1.4) + w_perp * (h2 * 0.45);
+	float surface_ripple = (v_wave - 0.5) * 1.2;
 	
-	vec2 surface_wave_offset = (screen_perp * (wave_slope.x * 1.5 + voronoi_ripple * 0.8) + screen_up_per_meter * (wave_slope.y * 1.8 + wave_curr * 0.7)) * (reflection_distortion_px * texel_size.y * 14.0);
+	vec2 surface_wave_offset = (screen_perp * (wave_slope.x * 1.5 + surface_ripple * 0.8) + screen_up_per_meter * (wave_slope.y * 1.8 + wave_curr * 0.7)) * (reflection_distortion_px * texel_size.y * 14.0);
 	vec2 pixel_wave_distortion = round(surface_wave_offset / texel_size) * texel_size;
 	
 	vec3 reflected_scene = vec3(0.0);
@@ -476,7 +418,7 @@ void fragment() {
 		}
 	}
 	
-	// 6. Composição de Cores da Água
+	// 7. Composição de Cores da Água
 	vec4 base_water = mix(cur_shallow, cur_deep, stepped_depth);
 	float shallow_fade = clamp(water_depth / (cur_fade * 0.65), 0.15, 1.0);
 	float effective_alpha = mix(cur_shallow.a * shallow_fade, cur_deep.a, stepped_depth);
@@ -494,41 +436,29 @@ void fragment() {
 	
 	// Tracinhos brancos que permanecem SEMPRE estritamente na horizontal da tela,
 	// independente de como a câmera gire, aumentando ou diminuindo conforme a ondulação passa.
-	if (!use_voronoi) {
-		float white_dash = compute_screen_horizontal_dashes(
-			v_world_pos,
-			SCREEN_UV,
-			VIEWPORT_SIZE,
-			VIEW_MATRIX,
-			PROJECTION_MATRIX,
-			TIME,
-			w_dir,
-			wind_speed,
-			wind_strength,
-			dash_density,
-			dash_max_width_px,
-			dash_cycle_speed
-		);
-		if (white_dash > 0.0) {
-			surface_composite = mix(surface_composite, vec3(1.0, 1.0, 1.0), white_dash * 0.95);
-		}
+	float white_dash = compute_screen_horizontal_dashes(
+		v_world_pos,
+		SCREEN_UV,
+		VIEWPORT_SIZE,
+		VIEW_MATRIX,
+		PROJECTION_MATRIX,
+		TIME,
+		w_dir,
+		wind_speed,
+		wind_strength,
+		dash_density,
+		dash_max_width_px,
+		dash_cycle_speed
+	);
+	if (white_dash > 0.0) {
+		surface_composite = mix(surface_composite, vec3(1.0, 1.0, 1.0), white_dash * 0.95);
 	}
 	
-	// Síntese e quantização da espuma celular em patamares cromáticos HD Pixel Art 3D
-	float f_raw = clamp(B_cell * 1.0 + F_tendril * 0.70 + B_burst * 0.50, 0.0, 1.0);
-	if (crest_foam > 0.0) {
-		f_raw = max(f_raw, crest_foam);
-	}
-
-	if (f_raw > 0.68) {
-		// Patamar 1: Espuma Densa Branca Pura
+	// 8. Espuma Orgânica Efervescente sem "Solas de Sapato"
+	// Espuma branca pura (#FFFFFF / foam_color) sintetizada estocasticamente em grânulos de pixel art
+	float total_foam = max(boiling_foam, crest_foam);
+	if (total_foam > 0.5) {
 		surface_composite = foam_color;
-	} else if (f_raw > 0.38) {
-		// Patamar 2: Borda Espumosa / Aeração
-		surface_composite = mix(cur_shallow.rgb * 1.3, foam_color, 0.70);
-	} else if (f_raw > 0.12) {
-		// Patamar 3: Filamentos e Borbulhas
-		surface_composite = mix(cur_shallow.rgb * 1.15, foam_color, 0.35);
 	}
 	
 	ALBEDO = surface_composite;

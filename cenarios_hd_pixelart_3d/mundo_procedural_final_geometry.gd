@@ -122,6 +122,35 @@ func init_noises() -> void:
 func get_canyon_center_x(wz: float) -> float:
 	return 2.5 * sin(wz * 0.075) + 1.2 * cos(wz * 0.15)
 
+## Pluma anisotrópica de amortecimento de turbulência gerada pelas cascatas em Z in {-26, -14, -1}
+func get_waterfall_plume_turbulence(x: float, z: float, base_turb: float = 0.08) -> float:
+	var cascades = [
+		{"z": -26.0, "w_half": 2.8},
+		{"z": -14.0, "w_half": 2.8},
+		{"z": -1.0,  "w_half": 3.2}
+	]
+	var max_t = base_turb
+	for c in cascades:
+		var z_k: float = c.z
+		var w_half: float = c.w_half
+		var x_k: float = get_canyon_center_x(z_k)
+		var dz: float = z - z_k
+		var dx: float = abs(x - x_k)
+		var dx_eff: float = max(0.0, dx - w_half)
+		
+		var u: float = 0.0
+		if dz < 0.0:
+			u = sqrt(pow(-dz / 0.4, 2.0) + pow(dx_eff / 1.2, 2.0))
+		else:
+			u = sqrt(pow(dz / 4.5, 2.0) + pow(dx_eff / 2.0, 2.0))
+			
+		if u < 1.0:
+			var f_plume: float = (1.0 - u) * (1.0 - u) * (1.0 + 1.2 * u)
+			var t_k: float = 0.08 + 0.87 * f_plume
+			if t_k > max_t:
+				max_t = t_k
+	return max_t
+
 ## Avalia a célula de água no ponto inteiro (wx, wz)
 func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 	var f_wx = float(wx)
@@ -185,7 +214,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 				data.water_y = 11.50
 				data.water_corners = [11.50, 11.50, 11.50, 11.50]
 				data.flow_dir = Vector2(0.0, 1.0)
-				data.turbulence = 0.08
+				data.turbulence = get_waterfall_plume_turbulence(f_wx + 0.5, f_wz + 0.5, 0.08)
 				data.water_blend = 0.85
 
 		# Cascata 2: Queda Intermediária do Desfiladeiro (em wz == -15)
@@ -208,7 +237,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 				data.water_y = 7.00
 				data.water_corners = [7.00, 7.00, 7.00, 7.00]
 				data.flow_dir = Vector2(0.0, 1.0)
-				data.turbulence = 0.08
+				data.turbulence = get_waterfall_plume_turbulence(f_wx + 0.5, f_wz + 0.5, 0.08)
 				data.water_blend = 0.50 # Zona central de mistura natural
 
 		# Cascata 3: Queda Inferior do Desfiladeiro (em wz == -2)
@@ -231,7 +260,7 @@ func evaluate_water_cell(wx: int, wz: int) -> Dictionary:
 				data.water_y = 3.50
 				data.water_corners = [3.50, 3.50, 3.50, 3.50]
 				data.flow_dir = Vector2(0.0, 1.0)
-				data.turbulence = 0.10
+				data.turbulence = get_waterfall_plume_turbulence(f_wx + 0.5, f_wz + 0.5, 0.10)
 				data.water_blend = 0.20
 
 		# 4. Corredeiras em Rampa descendo para a Planície (wz in [12, 20]):
@@ -796,14 +825,30 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 
 	# Atributo COLOR para pixel_water.gdshader:
 	# R, G: Direção do fluxo normalizada para [0, 1]
-	# B: Turbulência (0.05 lago, 0.45 corredeira, 1.0 cachoeira com espuma branca densa)
+	# B: Turbulência contínua por vértice (amortecimento suave da pluma de cascata)
 	# A: Fator de mistura
-	var flow_col = Color(
-		f_dir.x * 0.5 + 0.5,
-		f_dir.y * 0.5 + 0.5,
-		w_data.turbulence,
-		blend_val
-	)
+	var t00 = w_data.turbulence
+	var t10 = w_data.turbulence
+	var t01 = w_data.turbulence
+	var t11 = w_data.turbulence
+	if not w_data.is_waterfall and w_data.turbulence < 0.99:
+		var base_t = 0.08
+		if wz0 >= -1.0:
+			base_t = 0.10
+		t00 = get_waterfall_plume_turbulence(wx0, wz0, base_t)
+		t10 = get_waterfall_plume_turbulence(wx1, wz0, base_t)
+		t01 = get_waterfall_plume_turbulence(wx0, wz1, base_t)
+		t11 = get_waterfall_plume_turbulence(wx1, wz1, base_t)
+		if w_data.turbulence > 0.15:
+			t00 = max(t00, w_data.turbulence)
+			t10 = max(t10, w_data.turbulence)
+			t01 = max(t01, w_data.turbulence)
+			t11 = max(t11, w_data.turbulence)
+
+	var col00 = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, t00, blend_val)
+	var col10 = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, t10, blend_val)
+	var col01 = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, t01, blend_val)
+	var col11 = Color(f_dir.x * 0.5 + 0.5, f_dir.y * 0.5 + 0.5, t11, blend_val)
 
 	# UV2: canal direto para o 3-way blend do shader:
 	# X = peso Turquesa, Y = peso Barrenta (0.0). Se sum > 0.001, igarape = 1.0 - sum
@@ -815,19 +860,19 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	if wn1.y < 0.0: wn1 = -wn1
 
 	st.set_normal(wn1)
-	st.set_color(flow_col)
+	st.set_color(col00)
 	st.set_uv(Vector2(wx0, wz0))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv00)
 
 	st.set_normal(wn1)
-	st.set_color(flow_col)
+	st.set_color(col10)
 	st.set_uv(Vector2(wx1, wz0))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv10)
 
 	st.set_normal(wn1)
-	st.set_color(flow_col)
+	st.set_color(col01)
 	st.set_uv(Vector2(wx0, wz1))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv01)
@@ -836,19 +881,19 @@ func _build_cell_water(st: SurfaceTool, w_data: Dictionary,
 	if wn2.y < 0.0: wn2 = -wn2
 
 	st.set_normal(wn2)
-	st.set_color(flow_col)
+	st.set_color(col10)
 	st.set_uv(Vector2(wx1, wz0))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv10)
 
 	st.set_normal(wn2)
-	st.set_color(flow_col)
+	st.set_color(col11)
 	st.set_uv(Vector2(wx1, wz1))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv11)
 
 	st.set_normal(wn2)
-	st.set_color(flow_col)
+	st.set_color(col01)
 	st.set_uv(Vector2(wx0, wz1))
 	st.set_uv2(uv2_data)
 	st.add_vertex(wv01)

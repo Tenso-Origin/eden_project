@@ -72,6 +72,21 @@ vec2 hash2(vec2 p) {
 	return fract(sin(vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)))) * 43758.5453);
 }
 
+float voronoi_cells(vec2 uv) {
+	vec2 i_uv = floor(uv);
+	vec2 f_uv = fract(uv);
+	float min_dist = 1.0;
+	for (int y = -1; y <= 1; y++) {
+		for (int x = -1; x <= 1; x++) {
+			vec2 neighbor = vec2(float(x), float(y));
+			vec2 point = hash2(i_uv + neighbor);
+			vec2 diff = neighbor + point - f_uv;
+			min_dist = min(min_dist, length(diff));
+		}
+	}
+	return min_dist;
+}
+
 float voronoi_wave(vec2 uv, float time) {
 	vec2 i_uv = floor(uv);
 	vec2 f_uv = fract(uv);
@@ -367,14 +382,33 @@ void fragment() {
 		crest_foam = step(0.985, wind_wave_long);
 	}
 	
-	// Turbulência modular (quedas d'água / corredeiras com turb > 0.35)
+	// Turbulência modular e síntese de bolhas/espuma celular quantizada (B_cell, F_tendril, B_burst)
 	float turb = v_flow_data.b;
-	if (turb > 0.35) {
-		float turb_foam = step(1.02 - turb * 0.52, v_wave) * smoothstep(0.35, 0.85, turb);
-		crest_foam = max(crest_foam, turb_foam);
+	float B_cell = 0.0;
+	float F_tendril = 0.0;
+	float B_burst = 0.0;
+
+	if (turb > 0.10) {
+		// A. Caldeirão de Bolhas Celulares (Boiling Effervescence Core)
+		vec2 v1 = vec2(0.2, 1.4) * wave_speed;
+		vec2 v2 = vec2(-0.3, 0.9) * wave_speed;
+		float V1 = voronoi_cells(world_xz_snapped * 3.8 + v1 * TIME);
+		float V2 = voronoi_cells(world_xz_snapped * 5.6 - v2 * TIME);
+		B_cell = step(1.18 - turb * 0.65, V1 * 0.55 + V2 * 0.45);
+
+		// B. Esteira de Filamentos de Espuma (Spindrift Tendrils)
+		float phi_z = cos(world_xz_snapped.y * 4.2 - TIME * 2.8) * 1.8;
+		float s_drift = sin(world_xz_snapped.x * 8.5 + phi_z) * cos(world_xz_snapped.y * 5.0 - TIME * 4.2);
+		F_tendril = step(0.48, s_drift) * smoothstep(0.28, 0.75, turb);
+
+		// C. Estouro Estocástico de Microbolhas (Bubble Bursting Lifecycle a 4 Hz)
+		vec2 c_cell = floor(world_xz_snapped * 20.0);
+		float t_cycle = floor(TIME * 4.0 + hash2(c_cell).x * 8.0);
+		float r_burst = hash2(c_cell + vec2(t_cycle * 2.0, t_cycle * 2.0)).y;
+		B_burst = step(1.02 - turb * 0.88, r_burst) * step(0.22, turb);
 	}
 
-	float turbid_factor = clamp(shoreline_turbid * 0.50 + crest_turbid * 0.40 + turb * 0.50, 0.0, 1.0);
+	float turbid_factor = clamp(shoreline_turbid * 0.50 + crest_turbid * 0.40 + turb * 0.95, 0.0, 1.0);
 	vec3 seabed_refracted = mix(refracted_bg, blurred_bg, turbid_factor);
 
 	// 5. Reflexo Planar Óptico na SUPERFÍCIE com Escala Proporcional à Altura Exposta
@@ -436,7 +470,8 @@ void fragment() {
 			reflected_scene = texture(screen_texture, sample_uv).rgb;
 			float height_scale = clamp(obj_h / 0.35, 0.30, 1.0);
 			float falloff = 1.0 - t * 0.30;
-			reflection_weight = clamp(reflection_strength * 1.65 * falloff * height_scale, 0.0, 0.82);
+			float refl_atten = 1.0 - smoothstep(0.12, 0.65, turb);
+			reflection_weight = clamp(reflection_strength * 1.65 * falloff * height_scale * refl_atten, 0.0, 0.82);
 			break;
 		}
 	}
@@ -479,9 +514,21 @@ void fragment() {
 		}
 	}
 	
-	// Espuma branca aplicada somente no ponto mais alto da ondulação extrema
+	// Síntese e quantização da espuma celular em patamares cromáticos HD Pixel Art 3D
+	float f_raw = clamp(B_cell * 1.0 + F_tendril * 0.70 + B_burst * 0.50, 0.0, 1.0);
 	if (crest_foam > 0.0) {
-		surface_composite = mix(surface_composite, foam_color, 0.88);
+		f_raw = max(f_raw, crest_foam);
+	}
+
+	if (f_raw > 0.68) {
+		// Patamar 1: Espuma Densa Branca Pura
+		surface_composite = foam_color;
+	} else if (f_raw > 0.38) {
+		// Patamar 2: Borda Espumosa / Aeração
+		surface_composite = mix(cur_shallow.rgb * 1.3, foam_color, 0.70);
+	} else if (f_raw > 0.12) {
+		// Patamar 3: Filamentos e Borbulhas
+		surface_composite = mix(cur_shallow.rgb * 1.15, foam_color, 0.35);
 	}
 	
 	ALBEDO = surface_composite;

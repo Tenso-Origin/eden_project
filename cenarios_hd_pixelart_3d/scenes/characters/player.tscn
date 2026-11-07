@@ -29,3 +29,4 @@ script = ExtResource("2_vitals")
 
 [node name="InventoryManager" type="Node" parent="."]
 script = ExtResource("3_inventory")
+

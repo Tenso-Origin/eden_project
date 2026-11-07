@@ -164,3 +164,4 @@ func deserialize(data: Dictionary) -> void:
 	current_body_temp = data.get("body_temp", baseline_temp)
 	is_dead = data.get("is_dead", false)
 	_emit_vitals()
+

@@ -113,3 +113,4 @@ func _on_hotbar_selection_changed(slot_idx: int, _active_item: InventoryItemData
 				slot_panel.modulate = Color(1.3, 1.3, 0.8) # Realce do slot selecionado
 			else:
 				slot_panel.modulate = Color.WHITE
+

@@ -49,3 +49,4 @@ func serialize() -> Dictionary:
 		"weight_kg": weight_kg,
 		"current_durability": current_durability
 	}
+

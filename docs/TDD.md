@@ -142,3 +142,4 @@ $$\mathbf{q}_{\text{sol}} = \mathbf{q}_x(\theta_{\text{hora}}) \times \mathbf{q}
    - Constantes: `UPPER_SNAKE_CASE`.
 3. **Tratamento de Fim de Linha (CRLF no Windows):**
    - Todos os arquivos `.gd`, `.tscn` e `.gdshader` devem preservar a terminação de linha canônica do repositório para evitar conflitos desnecessários de Git.
+

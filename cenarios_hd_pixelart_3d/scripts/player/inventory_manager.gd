@@ -158,3 +158,4 @@ func deserialize(data: Dictionary, item_catalog_func: Callable) -> void:
 
 	inventory_updated.emit()
 	_notify_hotbar_if_affected()
+

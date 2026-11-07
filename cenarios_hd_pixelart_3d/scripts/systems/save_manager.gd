@@ -125,3 +125,4 @@ func load_game(item_catalog_func: Callable = Callable()) -> bool:
 
 func has_save() -> bool:
 	return FileAccess.file_exists(SAVE_FILE_PATH)
+

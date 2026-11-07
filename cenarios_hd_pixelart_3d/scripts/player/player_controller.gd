@@ -166,3 +166,4 @@ func set_water_surface(y_level: float) -> void:
 
 func clear_water_surface() -> void:
 	water_surface_y = -999.0
+

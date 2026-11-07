@@ -110,3 +110,4 @@ graph TD
 - **Serapilheira (*Litterfall*):** Na floresta de Terra Firme, a cada ano caem cerca de $10\text{ toneladas}$ de folhas, galhos e frutos por hectare.
 - **Decomposição Rápida:** Devido à alta temperatura constante ($26\text{ a }30^\circ\text{C}$) e umidade elevada ($> 85\%$), a camada orgânica é reciclada por fungos micorrízicos e bactérias do solo em menos de 90 dias.
 - **No SimCore:** A morte de qualquer agente biológico deposita unidades em `OrganicDetritus` no Chunk. Este valor fertiliza o solo, permitindo a regeneração acelerada de biomassa vegetal (`FloraAutomata.cs`).
+

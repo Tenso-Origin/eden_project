@@ -86,3 +86,4 @@ Ao gerar ou renderizar sprites de personagens virados para a esquerda/direita op
 - **Filtragem de Texturas:** Todas as texturas albedo e máscaras devem usar amostragem `filter_nearest` para preservar o corte limpo dos pixels.
 - **Top Surface Blending:** Blocos de terreno que recebem grama ou musgo no topo utilizam projeção triplanar com corte baseado no vetor normal vertical ($v\_world\_normal.y > 0.55$).
 - **Transparência de Água:** O shader de água (`pixel_water.gdshader`) deve manter a visibilidade do leito e dos peixes submersos, com atenuação de profundidade calculada via `depth_texture`.
+

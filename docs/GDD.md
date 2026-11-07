@@ -120,3 +120,4 @@ flowchart LR
   - Relógio Solar e Calendário Equatorial no canto superior direito: Hora formatada, dia do ano (1 a 365) e estação ativa (*"Inverno Amazônico - Cheias"* vs *"Verão Amazônico - Vazante"*).
   - Hotbar de 8 slots rápidos para ferramentas na base inferior da tela.
   - Tela de Inventário em grade com peso por massa real (kg) e durabilidade mecânica de itens.
+

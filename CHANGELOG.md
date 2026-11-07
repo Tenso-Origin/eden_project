@@ -29,3 +29,4 @@ e este projeto adere ao [Versionamento Semântico](https://semver.org/lang/pt-BR
 - **Prevenção de Gimbal Lock Solar:**
   - Migração de rotações Euler para Quatérnions combinados ($\mathbf{q}_x \times \mathbf{q}_z$) em `day_night_cycle_controller.gd` e `sun_directional_light.gd` com ângulo azimutal de 10° (`ZENITH_OFFSET_ANGLE`).
   - Desligamento inteligente de luz à noite (`visible = false`, `energy = 0.0`) para alívio de draw calls e consumo de GPU.
+

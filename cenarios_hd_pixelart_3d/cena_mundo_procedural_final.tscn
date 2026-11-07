@@ -18,7 +18,7 @@ viewport_path = NodePath("SubViewport")
 render_priority = 10
 shader = ExtResource("4_outline")
 shader_parameter/depth_threshold = 0.06
-shader_parameter/normal_threshold = 0.38
+shader_parameter/normal_threshold = 0.72
 shader_parameter/shadow_darken = 0.55
 shader_parameter/highlight_brighten = 0.30
 
@@ -103,3 +103,4 @@ mouse_filter = 2
 texture = SubResource("ViewportTexture_main")
 expand_mode = 1
 stretch_mode = 5
+

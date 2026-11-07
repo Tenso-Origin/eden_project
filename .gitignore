@@ -48,3 +48,22 @@ cenarios_hd_pixelart_3d/.godot/
 logs/
 scratch/
 *.vsix
+
+# Backups e temporários
+*.bak
+*.bak.*
+
+# Godot UIDs gerados automaticamente
+*.uid
+
+# Screenshot imports gerados pelo Godot
+screenshot_*.png.import
+
+# Python venv
+pipeline_3d/.venv/
+
+# Scratch de agentes
+.agents/scratch/
+
+# Brain do Antigravity
+brain/

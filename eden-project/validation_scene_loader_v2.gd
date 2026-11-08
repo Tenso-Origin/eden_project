@@ -23,7 +23,7 @@ const SHADER_METAL = preload("res://pixel_metal_mirror.gdshader")
 const SHADER_FLEXIBLE_TOON = preload("res://addons/flexible_toon_shader/flexible_toon.gdshader")
 
 @export_group("Shader Toon de Cenário")
-## Habilita o Flexible Toon Shader em todas as superfícies do cenário
+## Habilita o Flexible Toon Shader nas superfícies sólidas do cenário
 @export var use_flexible_toon: bool = true
 ## Quantidade de cortes / bandas de cel shading (1 a 8)
 @export_range(1, 8) var toon_cuts: int = 3
@@ -79,39 +79,26 @@ func setup_materials(root: Node) -> void:
 		if child is MeshInstance3D:
 			var mesh_name: String = child.name
 			
+			# 1. FOLHAGEM, GRAMA E VEGETAÇÃO: Utiliza SHADER_FOLIAGE com o David Holland Normal Trick
+			# para garantir a aparência macia de "folha" sem facetas duras, além do balanço com vento
+			# e sombras em tons de verde floresta vivo.
 			if mesh_name.begins_with("Tree_Canopy") or mesh_name.begins_with("Grass_Tuft") or mesh_name.begins_with("Aquatic_Plant"):
 				var mat := ShaderMaterial.new()
-				if use_flexible_toon:
-					# Aplica Flexible Toon com bandas em tons de verde e balanço de vento
-					mat.shader = SHADER_FLEXIBLE_TOON
-					mat.set_shader_parameter("albedo", Color(1.0, 1.0, 1.0, 1.0))
-					mat.set_shader_parameter("clamp_diffuse_to_max", true)
-					mat.set_shader_parameter("cuts", toon_cuts)
-					mat.set_shader_parameter("wrap", toon_wrap)
-					mat.set_shader_parameter("steepness", toon_steepness)
-					mat.set_shader_parameter("use_attenuation", true)
-					mat.set_shader_parameter("use_specular", false)
-					mat.set_shader_parameter("use_rim", true)
-					mat.set_shader_parameter("rim_width", 10.0)
-					mat.set_shader_parameter("rim_color", Color(0.9, 1.0, 0.7, 0.35))
-					# Sombra rica em tom verde-floresta profundo (não cinza!)
-					mat.set_shader_parameter("use_shadow_color", true)
-					mat.set_shader_parameter("shadow_color", Color(0.32, 0.48, 0.28, 1.0))
-					mat.set_shader_parameter("shadow_floor", 0.35)
-					mat.set_shader_parameter("shadow_softness", 0.08)
-					mat.set_shader_parameter("use_wind", true)
-					mat.set_shader_parameter("wind_strength", 0.38 if mesh_name.begins_with("Aquatic_Plant") else 0.35)
-					mat.set_shader_parameter("wind_speed", 1.8 if mesh_name.begins_with("Aquatic_Plant") else 2.2)
+				mat.shader = SHADER_FOLIAGE
+				mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
+				mat.set_shader_parameter("shadow_tint", Color(0.38, 0.58, 0.30, 1.0)) # Tom verde-floresta profundo
+				mat.set_shader_parameter("light_bands", toon_cuts)
+				mat.set_shader_parameter("shadow_floor", 0.38)
+				mat.set_shader_parameter("shadow_softness", 0.08)
+				if mesh_name.begins_with("Aquatic_Plant"):
+					mat.set_shader_parameter("wind_strength", 0.38) # Correnteza subaquática suave
+					mat.set_shader_parameter("wind_speed", 1.8)
 				else:
-					mat.shader = SHADER_FOLIAGE
-					mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
-					mat.set_shader_parameter("shadow_tint", Color(0.32, 0.48, 0.28, 1.0))
-					mat.set_shader_parameter("light_bands", 3)
-					mat.set_shader_parameter("dither_spread", 0.0)
 					mat.set_shader_parameter("wind_strength", 0.35)
 					mat.set_shader_parameter("wind_speed", 2.2)
 				child.material_override = mat
 				
+			# 2. ÁGUA E SUPERFÍCIE AQUÁTICA
 			elif mesh_name.begins_with("Water_Surface"):
 				water_node = child
 				var mat := ShaderMaterial.new()
@@ -135,6 +122,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("dash_cycle_speed", 0.55)
 				child.material_override = mat
 				
+			# 3. CRISTAIS METÁLICOS
 			elif mesh_name.begins_with("Ore_Crystals"):
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_METAL
@@ -145,6 +133,7 @@ func setup_materials(root: Node) -> void:
 				mat.set_shader_parameter("emission_energy", 0.35)
 				child.material_override = mat
 				
+			# 4. SUPERFÍCIES SÓLIDAS: FLEXIBLE TOON SHADER com sombras tonais ricas
 			elif mesh_name.begins_with("Soil") or mesh_name.begins_with("Tree_Trunk") or mesh_name.begins_with("Ruin") or mesh_name.begins_with("Rock") or mesh_name.begins_with("Riverbed"):
 				var mat := ShaderMaterial.new()
 				if use_flexible_toon:
@@ -165,9 +154,9 @@ func setup_materials(root: Node) -> void:
 					mat.set_shader_parameter("shadow_floor", 0.32)
 					mat.set_shader_parameter("shadow_softness", 0.08)
 
-					# Tons cromáticos harmônicos derivados do próprio material (eliminando o cinza):
+					# Cores harmônicas para modular as sombras de cada tipo de material:
 					if mesh_name.begins_with("Soil"):
-						mat.set_shader_parameter("shadow_color", Color(0.52, 0.38, 0.32, 1.0)) # Terracota / areia quente
+						mat.set_shader_parameter("shadow_color", Color(0.52, 0.38, 0.32, 1.0)) # Terracota quente
 					elif mesh_name.begins_with("Tree_Trunk"):
 						mat.set_shader_parameter("shadow_color", Color(0.44, 0.30, 0.22, 1.0)) # Madeira / casca nobre
 					elif mesh_name.begins_with("Ruin") or mesh_name.begins_with("Rock"):

@@ -54,7 +54,7 @@ render_target_update_mode = 4
 environment = SubResource("Environment_main")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport/World3D" unique_id=148058312]
-transform = Transform3D(0.9848078, 0.17364818, 0, 0, 0, 1, 0.17364818, -0.9848078, 0, -17.544102, 14.98477, 0)
+transform = Transform3D(0.9848078, 0.17364818, 0, 0, 0, 1, 0.17364818, -0.9848078, 0, 11.284155, 14.98477, -1.9362049)
 layers = 1048575
 light_color = Color(1, 0.98, 0.88, 1)
 light_energy = 1.25
@@ -76,17 +76,8 @@ world_environment = NodePath("../WorldEnvironment")
 
 [node name="MapGeometry" type="Node3D" parent="SubViewport/World3D" unique_id=514170603]
 script = ExtResource("5_loader_v2")
-glb_path = "res://lago_ruinas.glb"
-use_flexible_toon = true
-toon_cuts = 3
-toon_wrap = 0.0
-toon_steepness = 1.5
-toon_use_rim = true
 toon_rim_width = 8.0
 toon_rim_color = Color(0.9, 0.95, 1, 0.35)
-toon_use_specular = true
-toon_specular_strength = 0.3
-toon_specular_shininess = 16.0
 
 [node name="CameraPivot" type="Node3D" parent="SubViewport/World3D" unique_id=2105668997]
 transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0.35, 0)

@@ -5,13 +5,13 @@ shader_type spatial;
 // - Cortes/bandas estilizadas de cel shading (cuts)
 // - Sombras em diferentes tons da cor do próprio objeto (use_shadow_color)
 //   eliminando o escurecimento cinza escuro genérico do ambient light
+// - Compatibilidade total com Vertex Colors (COLOR.rgb) e texturas via hint_default_white
 // - Atenuação suave com shadow_softness e shadow_floor
-// - Animação de vento opcional para folhagem e grama (use_wind)
 // - Suporte a rampas de cores customizadas (use_ramp)
 // - Especular escalonado (use_specular) e iluminação de borda (use_rim)
 
 uniform vec4 albedo : source_color = vec4(1.0);
-uniform sampler2D albedo_texture : source_color, filter_linear_mipmap;
+uniform sampler2D albedo_texture : source_color, filter_nearest, hint_default_white;
 uniform bool clamp_diffuse_to_max = false;
 
 uniform int cuts : hint_range(1, 8) = 3;
@@ -48,12 +48,6 @@ group_uniforms Borders;
 uniform bool use_borders = false;
 uniform float border_width = 0.01;
 
-group_uniforms WindAnimation;
-## Habilita balanço de vento para folhagens e vegetação
-uniform bool use_wind = false;
-uniform float wind_strength : hint_range(0.0, 1.0) = 0.35;
-uniform float wind_speed : hint_range(0.5, 6.0) = 2.2;
-
 varying vec3 vertex_pos;
 varying vec3 normal;
 
@@ -64,19 +58,11 @@ float split_specular(float specular) {
 void vertex() {
 	vertex_pos = VERTEX;
 	normal = NORMAL;
-
-	if (use_wind) {
-		float phase = VERTEX.x * 4.0 + VERTEX.z * 3.0;
-		float sway = sin(TIME * wind_speed + phase) * wind_strength * 0.09 * COLOR.a;
-		VERTEX.x += sway;
-		VERTEX.z += sway * 0.35;
-	}
 }
 
 void fragment() {
 	vec4 tex = texture(albedo_texture, UV);
-	vec3 tex_rgb = (tex.a > 0.0) ? tex.rgb : vec3(1.0);
-	ALBEDO = albedo.rgb * COLOR.rgb * tex_rgb;
+	ALBEDO = albedo.rgb * COLOR.rgb * tex.rgb;
 }
 
 void light() {

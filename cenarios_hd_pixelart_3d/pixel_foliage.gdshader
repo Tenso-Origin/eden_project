@@ -16,13 +16,13 @@ uniform vec4 albedo_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform sampler2D albedo_texture : source_color, filter_nearest, hint_default_white;
 
 group_uniforms ShadowTones;
-## Cor que modula a sombra da folhagem (tom verde-floresta rico em vez de cinza)
+// Cor que modula a sombra da folhagem (tom verde-floresta rico em vez de cinza)
 uniform vec4 shadow_tint : source_color = vec4(0.38, 0.58, 0.30, 1.0);
-## Número de bandas de cel shading
+// Número de bandas de cel shading
 uniform int light_bands : hint_range(2, 6) = 3;
-## Piso mínimo de luminosidade na sombra (mantém a leitura visual)
+// Piso mínimo de luminosidade na sombra (mantém a leitura visual)
 uniform float shadow_floor : hint_range(0.0, 0.6) = 0.38;
-## Suavização da borda de sombra para evitar artefatos oscilatórios
+// Suavização da borda de sombra para evitar artefatos oscilatórios
 uniform float shadow_softness : hint_range(0.0, 0.3) = 0.08;
 
 group_uniforms WindAnimation;

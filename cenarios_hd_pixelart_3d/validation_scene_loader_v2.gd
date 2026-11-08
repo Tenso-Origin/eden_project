@@ -93,14 +93,22 @@ func setup_materials(root: Node) -> void:
 				if mesh_name.begins_with("Aquatic_Plant"):
 					mat.set_shader_parameter("wind_strength", 0.38) # Correnteza subaquática suave
 					mat.set_shader_parameter("wind_speed", 1.8)
+					child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				elif mesh_name.begins_with("Grass_Tuft"):
+					mat.set_shader_parameter("wind_strength", 0.35)
+					mat.set_shader_parameter("wind_speed", 2.2)
+					# Desliga sombra em tufos de grama para evitar ruído/acne de subpixel no solo
+					child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				else:
 					mat.set_shader_parameter("wind_strength", 0.35)
 					mat.set_shader_parameter("wind_speed", 2.2)
+					child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 				child.material_override = mat
 				
 			# 2. ÁGUA E SUPERFÍCIE AQUÁTICA
 			elif mesh_name.begins_with("Water_Surface"):
 				water_node = child
+				child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				var mat := ShaderMaterial.new()
 				mat.shader = SHADER_WATER
 				mat.set_shader_parameter("enable_3way_blend", false)
@@ -161,6 +169,11 @@ func setup_materials(root: Node) -> void:
 						mat.set_shader_parameter("shadow_color", Color(0.44, 0.30, 0.22, 1.0)) # Madeira / casca nobre
 					elif mesh_name.begins_with("Ruin") or mesh_name.begins_with("Rock"):
 						mat.set_shader_parameter("shadow_color", Color(0.38, 0.38, 0.54, 1.0)) # Ardósia / pedra azulada
+					elif mesh_name.begins_with("Riverbed"):
+						# Leito do rio: tonalidade límpida e floor elevado (0.50) para a água ter transparência e ondulações vívidas
+						mat.set_shader_parameter("shadow_color", Color(0.48, 0.56, 0.52, 1.0))
+						mat.set_shader_parameter("shadow_floor", 0.50)
+						child.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					else:
 						mat.set_shader_parameter("shadow_color", Color(0.40, 0.36, 0.50, 1.0))
 				else:

@@ -13,15 +13,19 @@ background_mode = 1
 background_color = Color(0.24, 0.42, 0.62, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.4, 0.38, 0.5, 1)
-ambient_light_energy = 0.65
+ambient_light_energy = 0.80
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
 render_priority = 10
 shader = ExtResource("4_outline")
-shader_parameter/depth_threshold = 0.06
-shader_parameter/normal_threshold = 0.28
-shader_parameter/shadow_darken = 0.55
-shader_parameter/highlight_brighten = 0.3
+shader_parameter/depth_sensitivity = 3.0
+shader_parameter/depth_threshold = 0.035
+shader_parameter/outline_thickness = 1.0
+shader_parameter/outline_color = Color(0.07, 0.08, 0.16, 0.9)
+shader_parameter/outline_side = 0
+shader_parameter/normal_threshold = 0.35
+shader_parameter/normal_sensitivity = 2.0
+shader_parameter/crease_color = Color(0.12, 0.14, 0.25, 0.65)
 
 [sub_resource type="QuadMesh" id="QuadMesh_postprocess"]
 size = Vector2(2, 2)
@@ -54,20 +58,20 @@ render_target_update_mode = 4
 environment = SubResource("Environment_main")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport/World3D" unique_id=148058312]
-transform = Transform3D(0.9848078, 0.17364818, 0, 0, 0, 1, 0.17364818, -0.9848078, 0, 11.284155, 14.98477, -1.9362049)
+transform = Transform3D(0.9848077, 0.17364816, 0, 0, 0, 1, 0.17364816, -0.9848078, 0, 11.284155, 14.98477, -1.9362049)
 layers = 1048575
 light_color = Color(1, 0.98, 0.88, 1)
 light_energy = 1.25
-light_angular_distance = 5.0
 shadow_enabled = true
-shadow_bias = 0.04
-shadow_normal_bias = 1.5
-shadow_blur = 0.0
-shadow_caster_mask = 4293918721
+shadow_bias = 0.01
+shadow_normal_bias = 0.05
+shadow_blur = 0.1
+directional_shadow_mode = 1
+directional_shadow_split_1 = 0.25
 directional_shadow_blend_splits = true
-directional_shadow_fade_start = 0.1
-directional_shadow_max_distance = 10.0
-directional_shadow_pancake_size = 10.0
+directional_shadow_fade_start = 0.95
+directional_shadow_max_distance = 50.0
+directional_shadow_pancake_size = 15.0
 
 [node name="DayNightCycle" type="Node3D" parent="SubViewport/World3D" unique_id=881696185 node_paths=PackedStringArray("sun_light", "world_environment")]
 script = ExtResource("6_daynight")

@@ -21,13 +21,13 @@ uniform float steepness : hint_range(1.0, 8.0) = 1.5;
 uniform bool use_attenuation = true;
 
 group_uniforms ShadowTones;
-## Habilita sombras ricas em tons da cor do objeto em vez de cinza escuro
+// Habilita sombras ricas em tons da cor do objeto em vez de cinza escuro
 uniform bool use_shadow_color = true;
-## Matiz que modula o albedo na sombra (fria/azulada para contrastar com a luz solar quente)
+// Matiz que modula o albedo na sombra (fria/azulada para contrastar com a luz solar quente)
 uniform vec4 shadow_color : source_color = vec4(0.40, 0.36, 0.52, 1.0);
-## Piso de luminosidade mínima dentro da sombra projetada (0.0 = preto, 0.35 = legível)
+// Piso de luminosidade mínima dentro da sombra projetada (0.0 = preto, 0.35 = legível)
 uniform float shadow_floor : hint_range(0.0, 0.6) = 0.32;
-## Suavização da transição da sombra projetada para evitar shadow acne
+// Suavização da transição da sombra projetada para evitar shadow acne
 uniform float shadow_softness : hint_range(0.0, 0.3) = 0.08;
 
 group_uniforms SpecularAndRim;

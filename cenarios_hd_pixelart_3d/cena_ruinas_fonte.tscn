@@ -1,0 +1,132 @@
+[gd_scene format=3 uid="uid://rwws7sg7trak"]
+
+[ext_resource type="Script" uid="uid://b3b2imkab3l81" path="res://main.gd" id="1_main"]
+[ext_resource type="Shader" uid="uid://b7wir13cbgq7f" path="res://subpixel_upscale.gdshader" id="1_upscale"]
+[ext_resource type="Script" uid="uid://ddyedsf6xxbre" path="res://camera_pivot_controller.gd" id="2_pivot"]
+[ext_resource type="Script" uid="uid://dykwumbloksth" path="res://pixel_camera.gd" id="3_camera"]
+[ext_resource type="Shader" uid="uid://c4k14r58isc1q" path="res://pixel_outline.gdshader" id="4_outline"]
+[ext_resource type="PackedScene" path="res://ruinas_fonte.tscn" id="5_ruinas"]
+[ext_resource type="Script" uid="uid://6snn2t5h33n2" path="res://day_night_cycle_controller.gd" id="6_daynight"]
+[ext_resource type="Script" path="res://floating_glowing_cube.gd" id="7_cube"]
+
+[sub_resource type="Environment" id="Environment_main"]
+background_mode = 1
+background_color = Color(0.24, 0.42, 0.62, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.4, 0.38, 0.5, 1)
+ambient_light_energy = 0.65
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
+render_priority = 10
+shader = ExtResource("4_outline")
+shader_parameter/depth_threshold = 0.06
+shader_parameter/normal_threshold = 0.28
+shader_parameter/shadow_darken = 0.55
+shader_parameter/highlight_brighten = 0.3
+
+[sub_resource type="QuadMesh" id="QuadMesh_postprocess"]
+size = Vector2(2, 2)
+
+[sub_resource type="BoxMesh" id="BoxMesh_cube"]
+size = Vector3(0.25, 0.25, 0.25)
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_upscale"]
+shader = ExtResource("1_upscale")
+shader_parameter/cam_offset = Vector2(0, 0)
+
+[sub_resource type="ViewportTexture" id="ViewportTexture_main"]
+viewport_path = NodePath("SubViewport")
+
+[node name="Main" type="Control" unique_id=1898578843]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="SubViewport" type="SubViewport" parent="." unique_id=854519633]
+handle_input_locally = false
+snap_2d_transforms_to_pixel = true
+size = Vector2i(1140, 642)
+render_target_update_mode = 4
+
+[node name="World3D" type="Node3D" parent="SubViewport" unique_id=1954886805]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="SubViewport/World3D" unique_id=1730202438]
+environment = SubResource("Environment_main")
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport/World3D" unique_id=1689313840]
+transform = Transform3D(0.98480797, 0.17364818, 0, 0, 0, 1.0000001, 0.17364821, -0.9848079, 0, 0, 15, 0)
+layers = 1048575
+light_color = Color(1, 0.98, 0.88, 1)
+light_energy = 1.25
+light_volumetric_fog_energy = 10.0
+shadow_enabled = true
+shadow_bias = 0.15
+shadow_normal_bias = 0.0
+shadow_transmittance_bias = 0.0
+shadow_opacity = 0.82
+shadow_blur = 1.4
+directional_shadow_split_1 = 0.05
+directional_shadow_split_3 = 1.0
+directional_shadow_blend_splits = true
+directional_shadow_fade_start = 1.0
+directional_shadow_max_distance = 50.0
+
+[node name="DayNightCycle" type="Node3D" parent="SubViewport/World3D" unique_id=1091214499 node_paths=PackedStringArray("sun_light", "world_environment")]
+script = ExtResource("6_daynight")
+sun_light = NodePath("../DirectionalLight3D")
+world_environment = NodePath("../WorldEnvironment")
+
+[node name="RuinasFonte" parent="SubViewport/World3D" unique_id=187246747 instance=ExtResource("5_ruinas")]
+
+[node name="FloatingGlowingCube" type="MeshInstance3D" parent="SubViewport/World3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.85, 0)
+mesh = SubResource("BoxMesh_cube")
+script = ExtResource("7_cube")
+
+[node name="OmniLight3D" type="OmniLight3D" parent="SubViewport/World3D/FloatingGlowingCube"]
+light_color = Color(0.25, 0.85, 1, 1)
+light_energy = 0.1
+omni_range = 7.0
+omni_attenuation = 1.2
+shadow_enabled = true
+shadow_bias = 0.03
+
+[node name="CameraPivot" type="Node3D" parent="SubViewport/World3D" unique_id=1136323567]
+transform = Transform3D(0.866025, -0.25, 0.433013, 0, 0.866025, 0.5, -0.5, -0.433013, 0.75, 0, 0.35, 0)
+script = ExtResource("2_pivot")
+move_speed = 6.0
+default_pos = Vector3(0, 0.35, 0)
+default_size = 11.0
+
+[node name="Camera3D" type="Camera3D" parent="SubViewport/World3D/CameraPivot" unique_id=1262728912 node_paths=PackedStringArray("display_item")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 25)
+projection = 1
+current = true
+size = 11.0
+script = ExtResource("3_camera")
+display_item = NodePath("../../../../TextureDisplay")
+distance_from_pivot = 25.0
+
+[node name="PostProcessQuad" type="MeshInstance3D" parent="SubViewport/World3D/CameraPivot/Camera3D" unique_id=1656303437]
+transform = Transform3D(1, -1.4901161e-08, 2.9802322e-08, -1.4901161e-08, 0.99999994, 0, -2.9802322e-08, -2.9802322e-08, 1, 0, 0, -1)
+material_override = SubResource("ShaderMaterial_outline")
+extra_cull_margin = 16384.0
+gi_mode = 2
+mesh = SubResource("QuadMesh_postprocess")
+
+[node name="TextureDisplay" type="TextureRect" parent="." unique_id=140024298]
+material = SubResource("ShaderMaterial_upscale")
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+texture = SubResource("ViewportTexture_main")
+expand_mode = 1
+stretch_mode = 5

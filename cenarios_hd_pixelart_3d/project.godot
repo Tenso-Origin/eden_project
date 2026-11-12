@@ -23,12 +23,13 @@ window/size/viewport_height=720
 window/size/mode="maximized"
 window/stretch/mode="canvas_items"
 
+[dotnet]
+
+project/assembly_name="HD Pixel Art 3D Scenarios (Eden Project)"
+
 [rendering]
 
-renderer/rendering_method="forward_plus"
-renderer/rendering_method.mobile="forward_plus"
 textures/canvas_textures/default_texture_filter=0
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=2
+renderer/rendering_method.mobile="forward_plus"
 lights_and_shadows/directional_shadow/soft_shadow_filter_quality.mobile=2
-lights_and_shadows/positional_shadow/soft_shadow_filter_quality=2
 lights_and_shadows/positional_shadow/soft_shadow_filter_quality.mobile=2

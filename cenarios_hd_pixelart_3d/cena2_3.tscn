@@ -6,14 +6,14 @@
 [ext_resource type="Script" uid="uid://dykwumbloksth" path="res://pixel_camera.gd" id="3_camera"]
 [ext_resource type="Shader" uid="uid://c4k14r58isc1q" path="res://pixel_outline.gdshader" id="4_outline"]
 [ext_resource type="Script" uid="uid://ddhygrj0kcjas" path="res://validation_scene_loader_v2.gd" id="5_loader_v2"]
-[ext_resource type="Script" uid="uid://mnb8gtrh2w3v" path="res://day_night_cycle_controller.gd" id="6_daynight"]
+[ext_resource type="Script" uid="uid://6snn2t5h33n2" path="res://day_night_cycle_controller.gd" id="6_daynight"]
 
 [sub_resource type="Environment" id="Environment_main"]
 background_mode = 1
 background_color = Color(0.24, 0.42, 0.62, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.4, 0.38, 0.5, 1)
-ambient_light_energy = 0.80
+ambient_light_energy = 0.65
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_outline"]
 render_priority = 10
@@ -58,14 +58,14 @@ render_target_update_mode = 4
 environment = SubResource("Environment_main")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="SubViewport/World3D" unique_id=148058312]
-transform = Transform3D(0.9848077, 0.17364816, 0, 0, 0, 1, 0.17364816, -0.9848078, 0, 11.284155, 14.98477, -1.9362049)
+transform = Transform3D(0.98480767, 0.17364816, 0, 0, 0, 1, 0.17364815, -0.9848078, 0, 11.284155, 14.98477, -1.9362049)
 layers = 1048575
 light_color = Color(1, 0.98, 0.88, 1)
 light_energy = 1.25
 shadow_enabled = true
 shadow_bias = 0.01
 shadow_normal_bias = 0.05
-shadow_blur = 0.1
+shadow_blur = 0.467
 directional_shadow_mode = 1
 directional_shadow_split_1 = 0.25
 directional_shadow_blend_splits = true

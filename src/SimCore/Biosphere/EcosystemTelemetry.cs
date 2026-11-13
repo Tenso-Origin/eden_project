@@ -124,12 +124,46 @@ public sealed class EcosystemTelemetry
     public void RecordSample(
         ulong tick, float days, int herbivores, int predators, float plantBiomass, float carryingCapacity)
     {
-        // Cálculo do Índice de Estabilidade Homeostática (Equilíbrio de Lotka-Volterra):
-        // Relação saudável teórica de presas para predadores é ~4:1 a 8:1
-        float predatorToPreyRatio = (predators > 0) ? (float)herbivores / predators : 0f;
-        float ratioBalance = 1.0f - MathF.Min(1.0f, MathF.Abs(predatorToPreyRatio - 4.5f) / 10.0f);
-        float biomassHealth = Math.Clamp(plantBiomass / MathF.Max(1.0f, carryingCapacity), 0.1f, 1.0f);
-        float stabilityIndex = Math.Clamp(ratioBalance * 0.7f + biomassHealth * 0.3f, 0.0f, 1.0f);
+        // Cálculo do Índice de Estabilidade Homeostática (Equilíbrio Trófico da Amazônia):
+        // 1. Razão presas-predadores: faixa saudável ~6:1 a 35:1 (ótimo em ~20:1 a 28:1)
+        float faunalBalance;
+        if (predators > 0 && herbivores > 0)
+        {
+            float preyToPredatorRatio = (float)herbivores / predators;
+            float ratioDev = MathF.Abs(preyToPredatorRatio - 24.0f);
+            faunalBalance = MathF.Max(0f, 1.0f - (ratioDev / 20.0f));
+            // Viabilidade demográfica mínima para evitar artefatos em populações mínimas
+            float viability = MathF.Min(1.0f, (herbivores + predators) / 8.0f);
+            faunalBalance *= viability;
+        }
+        else if (herbivores == 0 && predators == 0)
+        {
+            faunalBalance = 0.5f; // Clímax puramente vegetal sem herbivoria
+        }
+        else
+        {
+            faunalBalance = 0.0f; // Colapso trófico (extinção de presas ou predadores de topo)
+        }
+
+        // 2. Saúde da Cobertura Vegetal e Produtividade Primária Líquida
+        float effectiveCapacity = MathF.Max(1.0f, carryingCapacity);
+        float biomassHealth = Math.Clamp(plantBiomass / effectiveCapacity, 0.0f, 1.0f);
+
+        // 3. Equilíbrio de Mortalidade Demográfica (Predação regulatória vs Inanição em massa)
+        int totalRecordedDeaths = CumulativeStarvationDeaths + CumulativePredationDeaths;
+        float mortalityBalance = 1.0f;
+        if (totalRecordedDeaths > 10)
+        {
+            // Em homeostase saudável, predadores controlam herbívoros; excesso de inanição indica colapso de suporte
+            float starvationFraction = (float)CumulativeStarvationDeaths / totalRecordedDeaths;
+            mortalityBalance = Math.Clamp(1.0f - (starvationFraction * 0.5f), 0.2f, 1.0f);
+        }
+
+        // Estabilidade sistêmica combinada [0.0 .. 1.0]
+        float stabilityIndex = Math.Clamp(
+            (faunalBalance * 0.50f) + (biomassHealth * 0.35f) + (mortalityBalance * 0.15f),
+            0.0f, 1.0f
+        );
 
         _samples[_sampleHead] = new EcologicalTelemetrySample(
             tick, days, herbivores, predators, plantBiomass,
@@ -142,13 +176,42 @@ public sealed class EcosystemTelemetry
     }
 
     /// <summary>
-    /// Calcula o Índice de Homeostase Ecológica percentual (0 a 100%) baseado no equilíbrio de Lotka-Volterra (razão ótima 30:1).
+    /// Calcula o Índice de Homeostase Ecológica percentual (0 a 100%) baseado no equilíbrio de Lotka-Volterra
+    /// da teia trófica neotropical amazônica (razão ótima presas/predadores ~20:1 a 35:1).
     /// </summary>
     public static float CalculateHomeostasis(int herbivores, int carnivores)
     {
-        if (herbivores == 0 && carnivores == 0) return 0f;
-        float ratio = (carnivores > 0) ? ((float)herbivores / carnivores) : 0f;
-        return Math.Clamp(100f - MathF.Min(100f, MathF.Abs(ratio - 30.0f) * 2.8f), 0f, 100f);
+        if (herbivores <= 0 && carnivores <= 0) return 0f;
+        if (herbivores <= 0 || carnivores <= 0) return 0f; // Colapso por extinção de nível trófico
+
+        float ratio = (float)herbivores / carnivores;
+        const float optimalRatio = 28.0f;
+        const float toleranceWindow = 22.0f;
+
+        float deviation = MathF.Abs(ratio - optimalRatio);
+        float balance = MathF.Max(0f, 1.0f - MathF.Pow(deviation / toleranceWindow, 1.4f));
+
+        // Resiliência demográfica contra deriva genética e flutuações estocásticas
+        float viability = MathF.Min(1.0f, (herbivores + carnivores) / 10.0f);
+
+        return Math.Clamp(balance * viability * 100.0f, 0f, 100f);
+    }
+
+    /// <summary>
+    /// Sobrecarga com 3 níveis tróficos amazônicos: produtores primários (biomassa vegetal), herbívoros e predadores de topo.
+    /// </summary>
+    public static float CalculateHomeostasis(int herbivores, int carnivores, float plantBiomass, float carryingCapacity)
+    {
+        float faunalHomeostasis = CalculateHomeostasis(herbivores, carnivores);
+        float effectiveCapacity = MathF.Max(1.0f, carryingCapacity);
+        float biomassHealth = Math.Clamp(plantBiomass / effectiveCapacity, 0.0f, 1.0f);
+
+        if (herbivores <= 0 && carnivores <= 0)
+        {
+            return biomassHealth * 40.0f;
+        }
+
+        return Math.Clamp((faunalHomeostasis * 0.60f) + (biomassHealth * 40.0f), 0f, 100f);
     }
 
     public ReadOnlySpan<EcologicalTelemetrySample> GetLatestSamples(int count)

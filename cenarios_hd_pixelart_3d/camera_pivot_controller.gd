@@ -7,6 +7,7 @@ extends Node3D
 const CANONICAL_ZOOM_LEVELS: Array[float] = [5.0, 10.0, 20.0, 40.0]
 
 @export var move_speed: float = 4.0
+@export var turbo_multiplier: float = 4.0
 @export var rotation_speed: float = 2.0
 @export var min_zoom_size: float = 5.0
 @export var max_zoom_size: float = 40.0
@@ -117,4 +118,6 @@ func _process(delta: float) -> void:
 
 	if input_dir.length_squared() > 0.001:
 		input_dir = input_dir.normalized()
-		global_position += input_dir * move_speed * delta
+		var is_turbo: bool = Input.is_key_pressed(KEY_SHIFT)
+		var current_speed: float = move_speed * (turbo_multiplier if is_turbo else 1.0)
+		global_position += input_dir * current_speed * delta

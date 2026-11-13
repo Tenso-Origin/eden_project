@@ -1,4 +1,4 @@
 @echo off
 echo Abrindo cena HD Pixel Art 3D no Godot...
-start "" "E:\Godot\Godot_v4.7.2-stable_win64.exe" --path "%~dp0eden-project"
+start "" "E:\Godot\Godot_v4.7.2-stable_win64.exe" --path "%~dp0cenarios_hd_pixelart_3d"
 

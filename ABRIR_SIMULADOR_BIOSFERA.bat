@@ -1,0 +1,3 @@
+@echo off
+echo Abrindo Simulador de Biosfera Amazonica no Godot...
+start "" "E:\Godot\Godot_v4.7.2-stable_win64.exe" --path "%~dp0cenarios_hd_pixelart_3d" "res://cena_simulador_biosfera_3d.tscn"
